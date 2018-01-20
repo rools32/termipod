@@ -52,7 +52,8 @@ class ItemList():
         self.updateStrings()
 
     def download(self, idx):
-        item = self.items[idx]
+        items = self.getItems(self.tabs.getCurrentArea().status)
+        item = items[idx]
         link = item['link']
         # Set filename # TODO handle collision add into db even before downloading
         channel = self.db.getChannel(item['url'])
