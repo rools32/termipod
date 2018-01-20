@@ -1,5 +1,6 @@
 import feedparser as fp
 from time import mktime
+from utils import printLog
 
 def getData(url):
     rss = fp.parse(url)
@@ -30,7 +31,7 @@ def getData(url):
             'link':link , 'duration':duration})
     return data
 
-def addChannel(db, tabs, url, auto=False, genre=None):
+def addChannel(db, itemList, url, auto=False, genre=None):
     # Check not already present in db
     channel = db.getChannel(url)
     if None != channel:
@@ -45,8 +46,8 @@ def addChannel(db, tabs, url, auto=False, genre=None):
     # Update video list
     saveVideoUpdates(db, data)
 
-    if tabs:
-        tabs.updateItems(db.selectVideos())
+    if itemList:
+        itemList.update(db.selectVideos())
 
     return data['title']+' added'
 

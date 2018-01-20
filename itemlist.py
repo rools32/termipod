@@ -8,52 +8,25 @@ class ItemList():
         self.items = items
         self.db = db
         self.printInfos = printInfos
-        self.tabs = None
-
-    def setTabx(self, tabs):
-        self.tabs = tabs
+        self.areas = []
 
     def update(self, items=None):
         if None == items:
             items = self.db.selectVideos()
-        self.items = items
+        self.items.clear()
+        self.items.extend(items)
+        self.updatesAreas()
 
-    def toString(self, status, width):
-        return list(map(lambda x: self.itemToString(x, width),
-                        self.getItems(status)))
-
-    def itemToString(self, item, width):
-        date = tsToDate(item['date'])
-        duration = durationToStr(item['duration'])
-        separator = u" \u2022 "
-        lastSeparator = " "
-
-        string = date
-        string += separator
-        string += item['channel']
-        string += separator
-        string += item['title']
-
-        # Truncate the line or add spaces if needed
-        space = width-1-len(string+lastSeparator+duration)
-        if space < 0:
-            string = string[:space-3]
-            string += '...'
-        else:
-            string += ' '*space
-
-        string += lastSeparator
-        string += duration
-
-        return string
+    def updatesAreas(self):
+        for area in self.areas:
+            area.resetContent()
 
     def add(self, item):
         self.items.append(item)
         self.updateStrings()
 
     def download(self, idx):
-        items = self.getItems(self.tabs.getCurrentArea().status)
-        item = items[idx]
+        item = self.items[idx]
         link = item['link']
         # Set filename # TODO handle collision add into db even before downloading
         channel = self.db.getChannel(item['url'])
@@ -78,9 +51,4 @@ class ItemList():
                 item['date'], filename)
         item['filename'] = filename
         item['status'] = 'downloaded'
-        if self.tabs:
-            self.tabs.updateAreas()
-
-    def getItems(self, status):
-        return [ v for v in self.items if v['status'] == status ]
-
+        self.updatesAreas()

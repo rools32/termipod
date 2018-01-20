@@ -10,14 +10,13 @@ class Tabs:
         self.printInfos = printInfos
         self.currentIdx = -1
         self.areas = []
-        self.needUpdate = []
         self.titleArea = TitleArea(screen, '')
-        itemList.setTabx(self)
 
     def add(self, status, name):
-        area = TextArea(self.screen, status, name, self.printInfos)
+        area = TextArea(self.screen, status, self.itemList.items, name,
+                self.printInfos)
         self.areas.append(area)
-        self.needUpdate.append(True)
+        self.itemList.areas.append(area)
 
     def getCurrentArea(self):
         return self.getArea(self.currentIdx)
@@ -26,32 +25,17 @@ class Tabs:
         return self.areas[idx]
 
     def showTab(self, idx):
-        printLog('Show tab %d' % idx)
-        self.currentIdx = idx
-        area = self.areaSetContent(idx)
-        self.titleArea = TitleArea(self.screen, area.name)
+        # Hide previous tab
+        if -1 != self.currentIdx:
+            self.getCurrentArea().shown = False
 
-        area.display(True, self.needUpdate[idx])
-        self.needUpdate[idx] = False
+        self.currentIdx = idx
+        area = self.getArea(idx)
+        self.titleArea = TitleArea(self.screen, area.name)
+        area.display(True)
 
     def showNextTab(self):
         self.showTab((self.currentIdx+1)%len(self.areas))
-
-    def updateItems(self, items=None):
-        self.itemList.update(items)
-        self.updateAreas()
-
-    def updateAreas(self):
-        self.needUpdate = [True]*len(self.areas)
-        area = self.areaSetContent(self.currentIdx)
-        area.display(True, True)
-
-    def areaSetContent(self, idx):
-        area = self.getArea(idx)
-        if self.needUpdate[idx]:
-            area.content = self.itemList.toString(area.status, area.width)
-            self.needUpdate[idx] = False
-        return area
 
     def moveScreen(self, what, way):
         area = self.getCurrentArea()
@@ -70,12 +54,13 @@ class Tabs:
         return area.getCurrentLine()
 
 class TextArea:
-    def __init__(self, screen, status, name, printInfos):
+    def __init__(self, screen, status, items, name, printInfos):
         self.printInfos = printInfos
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
         self.status = status
+        self.items = items
         self.name = name
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
@@ -86,9 +71,60 @@ class TextArea:
         self.cursor = 0
         self.firstLine = 0
         self.content = None
+        self.shown = False
+
+    def getSelection(self):
+        self.selection = []
+        items = []
+        for index, item in enumerate(self.items):
+            if item['status'] == self.status:
+                self.selection.append(index)
+                items.append(item)
+        return items
+
+    def resetContent(self):
+        self.content = None
+        if self.shown:
+            self.display(True)
+
+    def updateContent(self):
+        items = self.getSelection()
+        self.content = self.itemsToString(items)
+        return True # TODO depending on the context
+
+    def itemsToString(self, items):
+        return list(map(lambda x: self.itemToString(x, self.width), items))
+
+    def itemToString(self, item, width):
+        date = tsToDate(item['date'])
+        duration = durationToStr(item['duration'])
+        separator = u" \u2022 "
+        lastSeparator = " "
+
+        string = date
+        string += separator
+        string += item['channel']
+        string += separator
+        string += item['title']
+
+        # Truncate the line or add spaces if needed
+        space = width-1-len(string+lastSeparator+duration)
+        if space < 0:
+            string = string[:space-3]
+            string += '...'
+        else:
+            string += ' '*space
+
+        string += lastSeparator
+        string += duration
+
+        return string
 
     def getIdx(self):
-        return self.firstLine+self.cursor
+        if len(self.selection):
+            return self.selection[self.firstLine+self.cursor]
+        else:
+            return -1
 
     def getCurrentLine(self):
         return self.content[self.firstLine+self.cursor]
@@ -193,19 +229,27 @@ class TextArea:
         self.firstLine = 0
         self.display(True)
 
-    def display(self, redraw=False, newContent=False):
+    def display(self, redraw=False):
+        self.shown = True
         # If new content, we need to check cursor is still valid and set it on
         # the same line if possible
-        if newContent:
-            # TODO
-            pass
+        if None == self.content:
+            redraw = self.updateContent()
+
+        if len(self.content):
+            if self.firstLine >= len(self.content):
+                self.firstLine = max(len(self.content)-self.height, 0)
+                self.cursor = min(self.height-1, len(self.content)-1)
+                redraw = True
+            if self.firstLine+self.cursor >= len(self.content):
+                self.cursor = min(self.height-1, len(self.content)-1-self.firstLine)
+                redraw = True
 
         # We draw all the page (shift)
         if redraw == True:
             self.win.erase()
             lastLine = min(self.firstLine+self.height, len(self.content))
             lineNumber = 0
-            printLog('len: %d, first: %d, last: %d' % (len(self.content), self.firstLine, lastLine))
             for line in self.content[self.firstLine:lastLine]:
                 # Line where cursor is, bold
                 if lineNumber == self.cursor:

@@ -80,7 +80,7 @@ while True:
                 printInfos(addHelp)
             else:
                 printInfos('Add '+command[1])
-                msg = rss.addChannel(db, tabs, *command[1:])
+                msg = rss.addChannel(db, itemList, *command[1:])
                 printInfos(msg)
 
 
@@ -92,7 +92,7 @@ while True:
         printInfos('Update...')
         updated = rss.updateVideos(db)
         if updated:
-            tabs.updateItems(db.selectVideos())
+            itemList.updateItems(db.selectVideos())
 
     elif key == ord('/'):
         searchString = statusArea.runCommand('/')
