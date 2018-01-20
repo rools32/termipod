@@ -1,18 +1,54 @@
 import urllib.request
 import os, os.path
 
-from utils import strToFilename, tsToDate
+from utils import *
 
 class ItemList():
     def __init__(self, items, db, printInfos):
         self.items = items
         self.db = db
         self.printInfos = printInfos
+        self.autoUpdates = []
 
     def update(self, items=None):
         if None == items:
             items = self.db.selectVideos()
         self.items = items
+        self.autoUpdate()
+
+    def autoUpdate(self):
+        for up in self.autoUpdates:
+            toString = lambda x: self.toString(x, up.width)
+            up.content = list(map(toString, self.getItems(up.status)))
+            up.hasNewContent
+
+    def addAutoUpdate(self, textArea):
+        self.autoUpdates.append(textArea)
+
+    def toString(self, item, width):
+        date = tsToDate(item['date'])
+        duration = durationToStr(item['duration'])
+        separator = u" \u2022 "
+        lastSeparator = " "
+
+        string = date
+        string += separator
+        string += item['channel']
+        string += separator
+        string += item['title']
+
+        # Truncate the line or add spaces if needed
+        space = width-1-len(string+lastSeparator+duration)
+        if space < 0:
+            string = string[:space-3]
+            string += '...'
+        else:
+            string += ' '*space
+
+        string += lastSeparator
+        string += duration
+
+        return string
 
     def add(self, item):
         self.items.append(item)
@@ -44,6 +80,7 @@ class ItemList():
                 item['date'], filename)
         item['filename'] = filename
         item['status'] = 'downloaded'
+        self.autoUpdate()
 
     def getItems(self, status):
         return [ v for v in self.items if v['status'] == status ]

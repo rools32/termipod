@@ -19,8 +19,12 @@ class TextArea:
         self.oldCursor = 0
         self.cursor = 0
         self.firstLine = 0
+        self.hasNewContent = False
+        self.shown = True
+        self.content = None
 
-        self.setContent(False)
+        itemList.addAutoUpdate(self)
+        self.updateItems()
 
     def getIdx(self):
         return self.firstLine+self.cursor
@@ -33,35 +37,6 @@ class TextArea:
         self.highlightString = string
         self.display(redraw=True)
         self.nextHighlight()
-
-    def toString(self, item):
-        date = tsToDate(item['date'])
-        duration = durationToStr(item['duration'])
-        separator = u" \u2022 "
-        lastSeparator = " "
-
-        string = date
-        string += separator
-        string += item['channel']
-        string += separator
-        string += item['title']
-
-        space = self.width-1-len(string+lastSeparator+duration)
-        if space < 0:
-            string = string[:space-3]
-            string += '...'
-        else:
-            string += ' '*space
-
-        string += lastSeparator
-        string += duration
-
-        return string
-
-    def setContent(self, redraw=True):
-        newItems = self.itemList.getItems(self.status)
-        self.content = list(map(self.toString, newItems))
-        self.forceRedraw()
 
     def nextHighlight(self):
         itemIdx = None
@@ -80,9 +55,8 @@ class TextArea:
     def moveCursor(self, itemIdx):
         self.moveScreen('line', 'down', itemIdx-self.cursor-self.firstLine)
 
-    def updateItems(self, items):
+    def updateItems(self, items=None):
         self.itemList.update(items)
-        self.setContent()
 
     def printLine(self, line, string, bold=False):
         normalStyle = curses.color_pair(2)
@@ -155,13 +129,19 @@ class TextArea:
 
         self.display(redraw)
 
-    def forceRedraw(self):
+    def resetDisplay(self):
         self.oldCursor = 0
         self.cursor = 0
         self.firstLine = 0
         self.display(True)
 
     def display(self, redraw=False):
+        # If new content, we need to check cursor is still valid and set it on
+        # the same line if possible
+        if self.hasNewContent:
+            # TODO
+            self.hasNewContent = False
+
         # We draw all the page (shift)
         if redraw == True:
             self.win.erase()

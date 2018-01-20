@@ -28,12 +28,11 @@ curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
 curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
 screen.refresh()
 
-tabs = []
-tabnames = []
-
 statusArea = StatusArea(screen)
 
 itemList = ItemList(db.selectVideos(), db, statusArea.print)
+tabs = []
+tabnames = []
 
 # New tab
 tabs.append(TextArea(screen, itemList, 'new', statusArea.print))
@@ -48,10 +47,10 @@ tabnames.append(playStr)
 curTab = 0
 tab = tabs[curTab]
 tab.display(True)
+tab.shown = True
 
 titleArea = TitleArea(screen, tabnames[curTab])
 
-updatedContent = False
 while True:
     # Wait for key
     key = screen.getch()
@@ -102,14 +101,11 @@ while True:
         break
     elif key == ord('\n'):
         tab.itemList.download(idx)
-        tab.setContent(True)
-        updatedContent = True
     elif key == ord('u'):
         printInfos('Update...')
         updated = rss.updateVideos(db)
         if updated:
             tab.updateItems(db.selectVideos())
-            updatedContent = True
 
     elif key == ord('/'):
         searchString = statusArea.runCommand('/')
@@ -124,11 +120,9 @@ while True:
         tab.highlight(channel)
 
     elif key == ord('\t'):
+        tab.shown = False
         curTab = (curTab+1)%len(tabs)
         tab = tabs[curTab]
+        tab.shown = True
         titleArea.print(tabnames[curTab])
-        if updatedContent:
-            updatedContent = False
-            tab.setContent(True)
-        else:
-            tab.display(True)
+        tab.display(True)
