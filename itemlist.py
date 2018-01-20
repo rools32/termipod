@@ -8,24 +8,21 @@ class ItemList():
         self.items = items
         self.db = db
         self.printInfos = printInfos
-        self.autoUpdates = []
+        self.tabs = None
+
+    def setTabx(self, tabs):
+        self.tabs = tabs
 
     def update(self, items=None):
         if None == items:
             items = self.db.selectVideos()
         self.items = items
-        self.autoUpdate()
 
-    def autoUpdate(self):
-        for up in self.autoUpdates:
-            toString = lambda x: self.toString(x, up.width)
-            up.content = list(map(toString, self.getItems(up.status)))
-            up.hasNewContent
+    def toString(self, status, width):
+        return list(map(lambda x: self.itemToString(x, width),
+                        self.getItems(status)))
 
-    def addAutoUpdate(self, textArea):
-        self.autoUpdates.append(textArea)
-
-    def toString(self, item, width):
+    def itemToString(self, item, width):
         date = tsToDate(item['date'])
         duration = durationToStr(item['duration'])
         separator = u" \u2022 "
@@ -80,7 +77,8 @@ class ItemList():
                 item['date'], filename)
         item['filename'] = filename
         item['status'] = 'downloaded'
-        self.autoUpdate()
+        if self.tabs:
+            self.tabs.updateAreas()
 
     def getItems(self, status):
         return [ v for v in self.items if v['status'] == status ]

@@ -5,7 +5,7 @@ import shlex
 import rss
 from database import DataBase
 from itemlist import ItemList
-from ui import TextArea, StatusArea, TitleArea
+from ui import Tabs, StatusArea
 
 
 def printInfos(string):
@@ -31,31 +31,18 @@ screen.refresh()
 statusArea = StatusArea(screen)
 
 itemList = ItemList(db.selectVideos(), db, statusArea.print)
-tabs = []
-tabnames = []
+tabs = Tabs(screen, itemList, statusArea.print)
 
-# New tab
-tabs.append(TextArea(screen, itemList, 'new', statusArea.print))
-newStr = 'New feeds'
-tabnames.append(newStr)
-
-# Play tab
-tabs.append(TextArea(screen, itemList, 'downloaded', statusArea.print))
-playStr = 'Play'
-tabnames.append(playStr)
-
-curTab = 0
-tab = tabs[curTab]
-tab.display(True)
-tab.shown = True
-
-titleArea = TitleArea(screen, tabnames[curTab])
+# New tabs
+tabs.add('new', 'To download')
+tabs.add('downloaded', 'To play')
+tabs.showTab(0)
 
 while True:
     # Wait for key
     key = screen.getch()
     statusArea.print(str(key))
-    idx = tab.getIdx()
+    idx = tabs.getCurrentArea().getIdx()
 
     what = None
     if key in (ord('j'), curses.KEY_DOWN):
@@ -78,7 +65,7 @@ while True:
         way = 'down'
 
     if what:
-        tab.moveScreen(what, way)
+        tabs.moveScreen(what, way)
     elif key == ord(':'):
         string = statusArea.runCommand(':')
         command = shlex.split(string)
@@ -93,36 +80,32 @@ while True:
                 printInfos(addHelp)
             else:
                 printInfos('Add '+command[1])
-                msg = rss.addChannel(db, tab, *command[1:])
+                msg = rss.addChannel(db, tabs, *command[1:])
                 printInfos(msg)
 
 
     elif key == ord('q'):
         break
     elif key == ord('\n'):
-        tab.itemList.download(idx)
+        tabs.itemList.download(idx)
     elif key == ord('u'):
         printInfos('Update...')
         updated = rss.updateVideos(db)
         if updated:
-            tab.updateItems(db.selectVideos())
+            tabs.updateItems(db.selectVideos())
 
     elif key == ord('/'):
         searchString = statusArea.runCommand('/')
         printInfos('Search: '+searchString)
-        tab.highlight(searchString)
+        tabs.highlight(searchString)
     elif key == ord('n'):
-        tab.nextHighlight()
+        tabs.nextHighlight()
+    # Highlight channel name
     elif key == ord('*'):
-        line = tab.getCurrentLine()
+        line = tabs.getCurrentLine()
         channel = line.split(u" \u2022 ")[1]
         printInfos('Search: '+channel)
-        tab.highlight(channel)
+        tabs.highlight(channel)
 
     elif key == ord('\t'):
-        tab.shown = False
-        curTab = (curTab+1)%len(tabs)
-        tab = tabs[curTab]
-        tab.shown = True
-        titleArea.print(tabnames[curTab])
-        tab.display(True)
+        tabs.showNextTab()

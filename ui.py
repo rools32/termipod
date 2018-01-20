@@ -1,16 +1,82 @@
 import curses
 import curses.textpad
 
-from utils import durationToStr, tsToDate
+from utils import durationToStr, tsToDate, printLog
+
+class Tabs:
+    def __init__(self, screen, itemList, printInfos):
+        self.screen = screen
+        self.itemList = itemList
+        self.printInfos = printInfos
+        self.currentIdx = -1
+        self.areas = []
+        self.needUpdate = []
+        self.titleArea = TitleArea(screen, '')
+        itemList.setTabx(self)
+
+    def add(self, status, name):
+        area = TextArea(self.screen, status, name, self.printInfos)
+        self.areas.append(area)
+        self.needUpdate.append(True)
+
+    def getCurrentArea(self):
+        return self.getArea(self.currentIdx)
+
+    def getArea(self, idx):
+        return self.areas[idx]
+
+    def showTab(self, idx):
+        printLog('Show tab %d' % idx)
+        self.currentIdx = idx
+        area = self.areaSetContent(idx)
+        self.titleArea = TitleArea(self.screen, area.name)
+
+        area.display(True, self.needUpdate[idx])
+        self.needUpdate[idx] = False
+
+    def showNextTab(self):
+        self.showTab((self.currentIdx+1)%len(self.areas))
+
+    def updateItems(self, items=None):
+        self.itemList.update(items)
+        self.updateAreas()
+
+    def updateAreas(self):
+        self.needUpdate = [True]*len(self.areas)
+        area = self.areaSetContent(self.currentIdx)
+        area.display(True, True)
+
+    def areaSetContent(self, idx):
+        area = self.getArea(idx)
+        if self.needUpdate[idx]:
+            area.content = self.itemList.toString(area.status, area.width)
+            self.needUpdate[idx] = False
+        return area
+
+    def moveScreen(self, what, way):
+        area = self.getCurrentArea()
+        area.moveScreen(what, way)
+
+    def highlight(self, searchString):
+        area = self.getCurrentArea()
+        area.highlight(searchString)
+
+    def nextHighlight(self):
+        area = self.getCurrentArea()
+        area.nextHighlight()
+
+    def getCurrentLine(self):
+        area = self.getCurrentArea()
+        return area.getCurrentLine()
 
 class TextArea:
-    def __init__(self, screen, itemList, status, printInfos):
+    def __init__(self, screen, status, name, printInfos):
         self.printInfos = printInfos
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
-        self.itemList = itemList
         self.status = status
+        self.name = name
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
         self.win.keypad(1) # to handle special keys as one key
@@ -19,12 +85,7 @@ class TextArea:
         self.oldCursor = 0
         self.cursor = 0
         self.firstLine = 0
-        self.hasNewContent = False
-        self.shown = True
         self.content = None
-
-        itemList.addAutoUpdate(self)
-        self.updateItems()
 
     def getIdx(self):
         return self.firstLine+self.cursor
@@ -54,9 +115,6 @@ class TextArea:
 
     def moveCursor(self, itemIdx):
         self.moveScreen('line', 'down', itemIdx-self.cursor-self.firstLine)
-
-    def updateItems(self, items=None):
-        self.itemList.update(items)
 
     def printLine(self, line, string, bold=False):
         normalStyle = curses.color_pair(2)
@@ -135,18 +193,19 @@ class TextArea:
         self.firstLine = 0
         self.display(True)
 
-    def display(self, redraw=False):
+    def display(self, redraw=False, newContent=False):
         # If new content, we need to check cursor is still valid and set it on
         # the same line if possible
-        if self.hasNewContent:
+        if newContent:
             # TODO
-            self.hasNewContent = False
+            pass
 
         # We draw all the page (shift)
         if redraw == True:
             self.win.erase()
             lastLine = min(self.firstLine+self.height, len(self.content))
             lineNumber = 0
+            printLog('len: %d, first: %d, last: %d' % (len(self.content), self.firstLine, lastLine))
             for line in self.content[self.firstLine:lastLine]:
                 # Line where cursor is, bold
                 if lineNumber == self.cursor:

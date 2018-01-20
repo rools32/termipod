@@ -30,7 +30,7 @@ def getData(url):
             'link':link , 'duration':duration})
     return data
 
-def addChannel(db, area, url, auto=False, genre=None):
+def addChannel(db, tabs, url, auto=False, genre=None):
     # Check not already present in db
     channel = db.getChannel(url)
     if None != channel:
@@ -45,8 +45,8 @@ def addChannel(db, area, url, auto=False, genre=None):
     # Update video list
     saveVideoUpdates(db, data)
 
-    if area:
-        area.updateItems(db.selectVideos())
+    if tabs:
+        tabs.updateItems(db.selectVideos())
 
     return data['title']+' added'
 
