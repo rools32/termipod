@@ -43,7 +43,8 @@ class ItemList():
             self.printInfos("Download "+link)
             urllib.request.urlretrieve(link, filename)
 
-        elif 'yt' == channel['type']:
+        elif 'youtube' == channel['type']:
+            # TODO
             pass
 
         # Change status and filename
