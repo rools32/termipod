@@ -2,11 +2,9 @@
 import curses
 import shlex
 
-import rss
 from database import DataBase
 from itemlist import ItemList
 from ui import Tabs, StatusArea
-
 
 def printInfos(string):
     statusArea.print(string)
@@ -80,7 +78,7 @@ while True:
                 printInfos(addHelp)
             else:
                 printInfos('Add '+command[1])
-                msg = rss.addChannel(db, itemList, *command[1:])
+                msg = itemList.addChannel(*command[1:])
                 printInfos(msg)
 
 
@@ -90,7 +88,7 @@ while True:
         tabs.itemList.download(idx)
     elif key == ord('u'):
         printInfos('Update...')
-        updated = rss.updateVideos(db)
+        updated = itemList.updateVideos()
         if updated:
             itemList.updateItems(db.selectVideos())
 
