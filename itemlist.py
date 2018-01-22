@@ -11,7 +11,6 @@ class ItemList():
         self.items = self.db.selectVideos()
         self.printInfos = printInfos
         self.areas = []
-        
 
     def setPrint(self, printInfos):
         self.printInfos = printInfos
@@ -88,10 +87,13 @@ class ItemList():
     def updateVideos(self, urls=None):
         self.printInfos('Update...')
         updated = False
+
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
+
         for url in urls:
             channel = self.db.getChannel(url)
+
             if 'youtube' == channel['type']:
                 data = yt.getData(url, self.printInfos)
             elif 'rss' == channel['type']:
@@ -101,4 +103,4 @@ class ItemList():
                 updated = updated or self.db.addVideos(data)
         # TODO directly update itemList
         if updated:
-            itemList.updateItems(db.selectVideos())
+            self.update(db.selectVideos())
