@@ -2,14 +2,19 @@ import os, os.path
 import rss
 import yt
 
+from database import DataBase
 from utils import *
 
 class ItemList():
-    def __init__(self, items, db, printInfos):
-        self.items = items
-        self.db = db
+    def __init__(self, dbName, printInfos=print):
+        self.db = DataBase(dbName)
+        self.items = self.db.selectVideos()
         self.printInfos = printInfos
         self.areas = []
+        
+
+    def setPrint(self, printInfos):
+        self.printInfos = printInfos
 
     def update(self, items=None):
         if None == items:
@@ -56,6 +61,7 @@ class ItemList():
         self.updatesAreas()
 
     def addChannel(self, url, auto=False, genre=None):
+        printInfos('Add '+url)
         # Check not already present in db
         channel = self.db.getChannel(url)
         if None != channel:
@@ -77,9 +83,10 @@ class ItemList():
 
         self.update(self.db.selectVideos())
 
-        return data['title']+' added'
+        printInfos(data['title']+' added')
 
     def updateVideos(self, urls=None):
+        printInfos('Update...')
         updated = False
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
@@ -93,4 +100,5 @@ class ItemList():
             if data:
                 updated = updated or self.db.addVideos(data)
         # TODO directly update itemList
-        return updated
+        if updated:
+            itemList.updateItems(db.selectVideos())
