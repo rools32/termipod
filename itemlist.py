@@ -61,7 +61,7 @@ class ItemList():
         self.updatesAreas()
 
     def addChannel(self, url, auto=False, genre=None):
-        printInfos('Add '+url)
+        self.printInfos('Add '+url)
         # Check not already present in db
         channel = self.db.getChannel(url)
         if None != channel:
@@ -69,9 +69,9 @@ class ItemList():
 
         # Retrieve url feed
         if 'youtube' in url:
-            data = yt.getData(url, True)
+            data = yt.getData(url, self.printInfos, True)
         else:
-            data = rss.getData(url)
+            data = rss.getData(url, self.printInfos)
 
         # Add channel to db
         self.db.addChannel(url, data['title'], data['type'], genre, auto, data)
@@ -83,19 +83,19 @@ class ItemList():
 
         self.update(self.db.selectVideos())
 
-        printInfos(data['title']+' added')
+        self.printInfos(data['title']+' added')
 
     def updateVideos(self, urls=None):
-        printInfos('Update...')
+        self.printInfos('Update...')
         updated = False
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
         for url in urls:
             channel = self.db.getChannel(url)
             if 'youtube' == channel['type']:
-                data = yt.getData(url)
+                data = yt.getData(url, self.printInfos)
             elif 'rss' == channel['type']:
-                data = rss.getData(url)
+                data = rss.getData(url, self.printInfos)
 
             if data:
                 updated = updated or self.db.addVideos(data)

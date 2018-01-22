@@ -4,7 +4,7 @@ from utils import printLog
 import urllib.request
 
 
-def getData(url):
+def getData(url, printInfos=print):
     rss = fp.parse(url)
 
     feed = rss.feed

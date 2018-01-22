@@ -19,7 +19,7 @@ def download(url, filename):
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])
 
-def getData(url, new=False):
+def getData(url, printInfos=print, new=False):
     # If first add, we use ytdl to get old videos
     if new:
         ydl_opts = {'logger': Logger(), 'ignoreerrors': True}
