@@ -2,6 +2,7 @@ import backends
 
 from database import DataBase
 from utils import *
+import re
 
 class ItemList():
     def __init__(self, dbName, printInfos=print):
@@ -37,7 +38,7 @@ class ItemList():
         self.db.updateItem(item)
         self.updatesAreas()
 
-    def addChannel(self, url, auto=None, genre=None):
+    def addChannel(self, url, auto='', genre=None):
         self.printInfos('Add '+url)
         # Check not already present in db
         channel = self.db.getChannel(url)
@@ -70,6 +71,13 @@ class ItemList():
             channel = self.db.getChannel(url)
 
             data = backends.getData(url, self.printInfos)
+
+            # Automatic download
+            if not '' == channel['auto']:
+                regex = re.compile(channel['auto'])
+                subdata = [ item for item in data['items'] if regex.match(item['title']) ]
+                for s in subdata:
+                    backends.download(s, channel, self.printInfos)
 
             if data:
                 updated = updated or self.db.addVideos(data)
