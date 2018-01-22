@@ -32,6 +32,9 @@ def getData(url, printInfos=print):
                 enumerate(sduration.split(':')[::-1]) ])
         else:
             video['duration'] = -1
+        video['status'] = 'new'
+        video['filename'] = ''
+        video['tags'] = ''
         data['items'].append(video)
     return data
 

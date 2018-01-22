@@ -40,9 +40,9 @@ class DataBase:
         # TODO
         #self.cursor.execute("SELECT * FROM tasks WHERE priority=?", (priority,))
         rows = self.cursor.fetchall()
-        return list(map(self.videoListToDict, rows))
+        return list(map(self.listToItem, rows))
 
-    def videoListToDict(self, videoList):
+    def listToItem(self, videoList):
         url = videoList[0]
         channel = self.getChannel(url)['title']
         data = {}
@@ -54,8 +54,12 @@ class DataBase:
         data['link'] = videoList[4]
         data['status'] = videoList[5]
         data['filename'] = videoList[6]
-        data['tag'] = videoList[7]
+        data['tags'] = videoList[7]
         return data
+
+    def itemToList(self, item):
+        return (item['channel'], item['title'], item['date'], item['duration'],
+                item['link'], item['status'], item['filename'], item['tags'])
 
     def getChannel(self, url):
         """ Get Channel by url (primary key) """
@@ -101,8 +105,7 @@ class DataBase:
         feedDate = data['updated']
         if (feedDate > updatedDate): # new items
             # Filter feed to keep only new items
-            newVideos = [ (data['url'], v['title'], v['date'],
-                v['duration'], v['link'], 'new', '', '')
+            newVideos = [ self.itemToList(v)
                 for v in data['items'] if v['date'] > updatedDate ]
 
             if len(newVideos):
@@ -126,12 +129,19 @@ class DataBase:
     def channelSetAuto(self, url, auto=True):
         pass
 
-    def makrAsDownloaded(self, channel, title, date, filename):
+    def updateItem(self, item):
         sql = """UPDATE videos
-                    SET filename = ?,
-                        status = 'downloaded'
+                    SET duration = ?,
+                        url = ?,
+                        status = ?,
+                        filename = ?,
+                        tags = ?
                     WHERE channel_url = ? and
                           title = ? and
                           date = ?"""
-        self.cursor.execute(sql, (filename, channel, title, date))
+        self.cursor.execute(sql, (
+            item['duration'], item['url'], item['status'],
+            item['filename'], item['tags'],
+            item['channel'], item['title'], item['date']
+            ))
         self.conn.commit()
