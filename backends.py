@@ -2,6 +2,7 @@ import os, os.path
 
 import rss
 import yt
+from utils import *
 
 def getData(url, printInfos=print, new=False):
     if 'youtube' in url:
