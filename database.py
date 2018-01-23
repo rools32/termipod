@@ -35,10 +35,9 @@ class DataBase:
                 );
             """)
 
-    def selectVideos(self, what=None, value=None):
-        self.cursor.execute("SELECT * FROM videos")
-        # TODO
-        #self.cursor.execute("SELECT * FROM tasks WHERE priority=?", (priority,))
+    def selectVideos(self):
+        self.cursor.execute("""SELECT * FROM videos
+                ORDER BY date DESC""")
         rows = self.cursor.fetchall()
         return list(map(self.listToItem, rows))
 
@@ -71,7 +70,8 @@ class DataBase:
 
     def selectChannels(self):
         # TODO add filters: genre, auto
-        self.cursor.execute("SELECT * FROM channels")
+        self.cursor.execute("""SELECT * FROM channels
+                ORDER BY date DESC""")
         rows = self.cursor.fetchall()
         return list(map(self.channelListToDict, rows))
 
