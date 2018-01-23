@@ -38,6 +38,13 @@ class ItemList():
         self.db.updateItem(item)
         self.updatesAreas()
 
+    def play(self, idx):
+        item = self.items[idx]
+
+        backends.play(item, self.printInfos)
+        self.db.updateItem(item)
+        itemList.updatesAreas()
+
     def addChannel(self, url, auto='', genre=None):
         self.printInfos('Add '+url)
         # Check not already present in db

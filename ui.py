@@ -80,6 +80,8 @@ def start(itemList):
             break
         elif key == ord('\n'):
             tabs.itemList.download(idx)
+        elif key == ord('p'):
+            tabs.itemList.play(idx)
         elif key == ord('u'):
             updated = itemList.updateVideos()
 
