@@ -1,4 +1,5 @@
 import sqlite3
+from utils import *
 
 class DataBase:
     def __init__(self, name):

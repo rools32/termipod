@@ -14,7 +14,7 @@ class Logger(object):
     def error(self, msg):
         pass
 
-def download(url, filename):
+def download(url, filename, printInfos=print):
     ydl_opts = {'logger': Logger(), 'outtmpl': filename, 'format': 'mp4'}
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
         ydl.download([url])

@@ -26,12 +26,12 @@ def download(item, channel, printInfos=print):
         ext = link.split('.')[-1]
         filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
                 strToFilename(item['title']), ext)
-        rss.download(link, filename)
+        rss.download(link, filename, printInfos)
 
     elif 'youtube' == channel['type']:
         filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
                 strToFilename(item['title']), 'mp4')
-        yt.download(link, filename)
+        yt.download(link, filename, printInfos)
 
     # Change status and filename
     item['filename'] = filename
