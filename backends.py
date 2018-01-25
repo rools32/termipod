@@ -1,4 +1,6 @@
 import os, os.path
+from queue import Queue
+from threading import Thread
 
 import rss
 import yt
@@ -12,29 +14,54 @@ def getData(url, printInfos=print, new=False):
         data = rss.getData(url, printInfos)
     return data
 
-def download(item, channel, printInfos=print):
-    link = item['link']
+class DownloadManager():
+    def __init__(self, printInfos=print):
+        self.nthreads = 2
+        self.printInfos = printInfos
+        self.queue = Queue()
 
-    # Set filename # TODO handle collision add into db even before downloading
-    path = strToFilename(channel['title'])
-    if not os.path.exists(path):
-        os.makedirs(path)
+        # Set up some threads to fetch the items to download
+        for i in range(self.nthreads):
+            worker = Thread(target=self.handleQueue, args=(self.queue,))
+            worker.setDaemon(True)
+            worker.start()
 
-    # Download file TODO background
-    printInfos("Download "+link)
-    if 'rss' == channel['type']:
-        ext = link.split('.')[-1]
-        filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
-                strToFilename(item['title']), ext)
-        rss.download(link, filename, printInfos)
+    def handleQueue(self, q):
+        """This is the worker thread function. It processes items in the queue one
+        after another.  These daemon threads go into an infinite loop, and only
+        exit when the main thread ends."""
+        while True:
+            item, channel = q.get()
+            self.download(item,channel)
+            q.task_done()
 
-    elif 'youtube' == channel['type']:
-        filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
-                strToFilename(item['title']), 'mp4')
-        yt.download(link, filename, printInfos)
+    def add(self, item, channel):
+        self.printInfos('Add to download: %s' % item['title'])
+        self.queue.put((item, channel))
 
-    # Change status and filename
-    item['filename'] = filename
-    item['status'] = 'downloaded'
+    def download(self, item, channel):
+        link = item['link']
 
+        # Set filename # TODO handle collision add into db even before downloading
+        path = strToFilename(channel['title'])
+        if not os.path.exists(path):
+            os.makedirs(path)
 
+        # Download file
+        if 'rss' == channel['type']:
+            ext = link.split('.')[-1]
+            filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
+                    strToFilename(item['title']), ext)
+            rss.download(link, filename, self.printInfos)
+
+        elif 'youtube' == channel['type']:
+            filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
+                    strToFilename(item['title']), 'mp4')
+            yt.download(link, filename, self.printInfos)
+
+        # Change status and filename
+        item['filename'] = filename
+        item['status'] = 'downloaded'
+        db = DataBase(self.itemList.dbName)
+        db.updateItem(item)
+        self.itemList.updatesAreas()

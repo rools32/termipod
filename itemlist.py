@@ -35,7 +35,7 @@ class ItemList():
         link = item['link']
 
         channel = self.db.getChannel(item['url'])
-        backends.download(item, channel, self.printInfos)
+        self.downloadManager.add(item, channel)
         self.db.updateItem(item)
         self.updatesAreas()
 
@@ -89,7 +89,7 @@ class ItemList():
                 regex = re.compile(channel['auto'])
                 subdata = [ item for item in data['items'] if regex.match(item['title']) ]
                 for s in subdata:
-                    backends.download(s, channel, self.printInfos)
+                    self.downloadManager.add(s, channel)
 
             if data:
                 updated = updated or self.db.addVideos(data)
