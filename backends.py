@@ -1,9 +1,9 @@
 import os, os.path
-import mpv
 
 import rss
 import yt
 from utils import *
+
 
 def getData(url, printInfos=print, new=False):
     if 'youtube' in url:
@@ -38,17 +38,3 @@ def download(item, channel, printInfos=print):
     item['status'] = 'downloaded'
 
 
-def mpv_log(loglevel, component, message):
-    pass
-
-def play(item, printInfos=print):
-    player = mpv.MPV(log_handler=mpv_log, ytdl=True,
-            input_default_bindings=True, input_vo_keyboard=True)
-
-    if '' != item['filename']:
-        player.play(item['filename'])
-    else:
-        player.play(item['link'])
-    player.wait_for_playback()
-
-    del player

@@ -1,4 +1,5 @@
 import backends
+import player
 
 from database import DataBase
 from utils import *
@@ -6,10 +7,12 @@ import re
 
 class ItemList():
     def __init__(self, dbName, printInfos=print):
+        self.dbName = dbName
         self.db = DataBase(dbName)
         self.items = self.db.selectVideos()
         self.printInfos = printInfos
         self.areas = []
+        self.player = player.Player(self)
 
     def setPrint(self, printInfos):
         self.printInfos = printInfos
@@ -40,10 +43,14 @@ class ItemList():
 
     def play(self, idx):
         item = self.items[idx]
+        self.player.play(item)
 
-        backends.play(item, self.printInfos)
-        self.db.updateItem(item)
-        itemList.updatesAreas()
+    def playadd(self, idx):
+        item = self.items[idx]
+        self.player.add(item)
+
+    def stop(self):
+        self.player.stop()
 
     def addChannel(self, url, auto='', genre=None):
         self.printInfos('Add '+url)
@@ -61,7 +68,7 @@ class ItemList():
         # Update video list
         self.db.addVideos(data)
 
-        # TODO directly update itemList
+        # TODO directly update itemList without using db
 
         self.update(self.db.selectVideos())
 
