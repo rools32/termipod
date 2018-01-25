@@ -35,6 +35,7 @@ class DataBase:
                     PRIMARY KEY (channel_url, title, date)
                 );
             """)
+        self.conn.commit()
 
     def selectVideos(self):
         self.cursor.execute("""SELECT * FROM videos
@@ -46,8 +47,8 @@ class DataBase:
         url = videoList[0]
         channel = self.getChannel(url)['title']
         data = {}
-        data['url'] = url
         data['channel'] = channel
+        data['url'] = url
         data['title'] = videoList[1]
         data['date'] = videoList[2]
         data['duration'] = videoList[3]
@@ -58,7 +59,7 @@ class DataBase:
         return data
 
     def itemToList(self, item):
-        return (item['channel'], item['title'], item['date'], item['duration'],
+        return (item['url'], item['title'], item['date'], item['duration'],
                 item['link'], item['status'], item['filename'], item['tags'])
 
     def getChannel(self, url):
@@ -72,7 +73,7 @@ class DataBase:
     def selectChannels(self):
         # TODO add filters: genre, auto
         self.cursor.execute("""SELECT * FROM channels
-                ORDER BY date DESC""")
+                ORDER BY last_update DESC""")
         rows = self.cursor.fetchall()
         return list(map(self.channelListToDict, rows))
 
@@ -140,9 +141,10 @@ class DataBase:
                     WHERE channel_url = ? and
                           title = ? and
                           date = ?"""
-        self.cursor.execute(sql, (
-            item['duration'], item['url'], item['status'],
-            item['filename'], item['tags'],
-            item['channel'], item['title'], item['date']
-            ))
+        args = (
+                item['duration'], item['link'], item['status'],
+                item['filename'], item['tags'],
+                item['url'], item['title'], item['date']
+        )
+        self.cursor.execute(sql, args)
         self.conn.commit()

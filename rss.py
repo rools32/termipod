@@ -22,7 +22,8 @@ def getData(url, printInfos=print):
     entries = rss.entries
     for entry in entries:
         video = {}
-        video['channel'] = url
+        video['channel'] = data['title']
+        video['url'] = url
         video['title'] = entry['title']
         video['date'] = int(mktime(entry['published_parsed']))
         video['link'] = list(map(lambda x: x['href'], entry['links']))[1]

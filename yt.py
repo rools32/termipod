@@ -38,7 +38,8 @@ def getData(url, printInfos=print, new=False):
             if None == entry :
                 continue
             video = {}
-            video['channel'] = url
+            video['channel'] = data['title']
+            video['url'] = url
             video['title'] = entry['title']
             video['date'] = int(mktime(datetime.strptime(
                 entry['upload_date'], "%Y%m%d").timetuple()))
