@@ -1,6 +1,6 @@
 #!/usr/bin/python
 from itemlist import ItemList
-from ui import start
+from ui import UI
 import argparse
 import sys
 
@@ -25,4 +25,4 @@ if args.add:
         auto = args.auto
     itemList.addChannel(args.add, auto=auto)
 if len(sys.argv) == 1:
-    start(itemList)
+    UI(itemList)
