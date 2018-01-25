@@ -3,8 +3,9 @@ from utils import *
 from database import DataBase
 
 class Player():
-    def __init__(self, itemList):
+    def __init__(self, itemList, printInfos=print):
         self.itemList = itemList
+        self.printInfos = printInfos
         self.item = None
         self.player = None
 
@@ -38,7 +39,7 @@ class Player():
     def play(self, item, mode='append-play'):
         self.item = item
 
-        self.itemList.printInfos('Play '+item['title'])
+        self.printInfos('Play '+item['title'])
 
         needNext = True
         if not self.player:

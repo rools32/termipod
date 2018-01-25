@@ -39,5 +39,9 @@ def getData(url, printInfos=print):
         data['items'].append(video)
     return data
 
-def download(url, filename):
-    urllib.request.urlretrieve(url, filename)
+def download(url, filename, printInfos=print):
+    try:
+        urllib.request.urlretrieve(url, filename)
+    except:
+        exit()
+        printInfos('Oups') # TODO better handling errors

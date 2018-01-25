@@ -3,9 +3,11 @@ import curses.textpad
 import shlex
 
 from utils import durationToStr, tsToDate, printLog
+from itemlist import ItemList
+from utils import printLog
 
 class UI():
-    def __init__(self, itemList):
+    def __init__(self, dbName):
         screen = curses.initscr()
         height,width = screen.getmaxyx()
         #printLog('Height: %d, Width: %d' % (height, width))
@@ -21,9 +23,9 @@ class UI():
         screen.refresh()
 
         self.statusArea = StatusArea(screen)
-        itemList.setPrint(self.printInfos)
+        self.itemList = ItemList(dbName, self.printInfos)
 
-        tabs = Tabs(screen, itemList, self.printInfos)
+        tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
         tabs.add('new', 'To download')
@@ -65,30 +67,30 @@ class UI():
                 if command[0] in ('q', 'quit'):
                     exit()
                 elif command[0] in ('h', 'help'):
-                    printInfos('Help!!!!!!')
+                    self.printInfos('Help!!!!!!')
                 elif command[0] in ('add',):
                     if 1 == len(command):
                         addHelp = 'Usage: add url [auto] [genre]'
-                        printInfos(addHelp)
+                        self.printInfos(addHelp)
                     else:
-                        itemList.addChannel(*command[1:])
+                        self.itemList.addChannel(*command[1:])
 
             elif key == ord('q'):
                 break
             elif key == ord('\n'):
-                tabs.itemList.download(idx)
+                self.itemList.download(idx)
             elif key == ord('p'):
-                tabs.itemList.play(idx)
+                self.itemList.play(idx)
             elif key == ord('s'):
-                tabs.itemList.stop()
+                self.itemList.stop()
             elif key == ord('a'):
-                tabs.itemList.playadd(idx)
+                self.itemList.playadd(idx)
             elif key == ord('u'):
-                updated = itemList.updateVideos()
+                updated = self.itemList.updateVideos()
 
             elif key == ord('/'):
                 searchString = self.statusArea.runCommand('/')
-                printInfos('Search: '+searchString)
+                self.printInfos('Search: '+searchString)
                 tabs.highlight(searchString)
             elif key == ord('n'):
                 tabs.nextHighlight()
@@ -96,7 +98,7 @@ class UI():
             elif key == ord('*'):
                 line = tabs.getCurrentLine()
                 channel = line.split(u" \u2022 ")[1]
-                printInfos('Search: '+channel)
+                self.printInfos('Search: '+channel)
                 tabs.highlight(channel)
 
             elif key == ord('\t'):

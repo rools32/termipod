@@ -15,14 +15,18 @@ parser.add_argument('--up', action='store_true',
                     help='Update channels')
 args = parser.parse_args()
 
-itemList = ItemList('pypod.db')
 
-if args.up:
-    itemList.updateVideos()
-if args.add:
-    auto = ''
-    if args.auto:
-        auto = args.auto
-    itemList.addChannel(args.add, auto=auto)
+dbName = 'pypod.db'
 if len(sys.argv) == 1:
-    UI(itemList)
+    UI(dbName)
+
+else:
+    itemList = ItemList(dbName)
+
+    if args.up:
+        itemList.updateVideos()
+    if args.add:
+        auto = ''
+        if args.auto:
+            auto = args.auto
+        itemList.addChannel(args.add, auto=auto)

@@ -1,9 +1,9 @@
+import re
+
 import backends
 import player
-
 from database import DataBase
 from utils import *
-import re
 
 class ItemList():
     def __init__(self, dbName, printInfos=print):
@@ -12,10 +12,8 @@ class ItemList():
         self.items = self.db.selectVideos()
         self.printInfos = printInfos
         self.areas = []
-        self.player = player.Player(self)
-
-    def setPrint(self, printInfos):
-        self.printInfos = printInfos
+        self.player = player.Player(self, self.printInfos)
+        self.downloadManager = backends.DownloadManager(self.printInfos)
 
     def update(self, items=None):
         if None == items:
