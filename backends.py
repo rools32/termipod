@@ -15,8 +15,9 @@ def getData(url, printInfos=print, new=False):
     return data
 
 class DownloadManager():
-    def __init__(self, printInfos=print):
+    def __init__(self, itemList, printInfos=print):
         self.nthreads = 2
+        self.itemList = itemList
         self.printInfos = printInfos
         self.queue = Queue()
 
@@ -25,6 +26,11 @@ class DownloadManager():
             worker = Thread(target=self.handleQueue, args=(self.queue,))
             worker.setDaemon(True)
             worker.start()
+
+        for item in self.itemList.items:
+            if 'downloading' == item['status']:
+                channel = self.itemList.db.getChannel(item['url'])
+                self.add(item, channel, update=False)
 
     def handleQueue(self, q):
         """This is the worker thread function. It processes items in the queue one
@@ -35,8 +41,12 @@ class DownloadManager():
             self.download(item,channel)
             q.task_done()
 
-    def add(self, item, channel):
-        self.printInfos('Add to download: %s' % item['title'])
+    def add(self, item, channel, update=True):
+        if update:
+            self.printInfos('Add to download: %s' % item['title'])
+            item['status'] = 'downloading'
+            self.itemList.db.updateItem(item)
+            self.itemList.updatesAreas()
         self.queue.put((item, channel))
 
     def download(self, item, channel):

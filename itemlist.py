@@ -13,7 +13,7 @@ class ItemList():
         self.printInfos = printInfos
         self.areas = []
         self.player = player.Player(self, self.printInfos)
-        self.downloadManager = backends.DownloadManager(self.printInfos)
+        self.downloadManager = backends.DownloadManager(self, self.printInfos)
 
     def update(self, items=None):
         if None == items:

@@ -28,8 +28,9 @@ class UI():
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
-        tabs.add('new', 'To download')
-        tabs.add('downloaded', 'To play')
+        tabs.add('new', 'New')
+        tabs.add('downloaded', 'Playlist')
+        tabs.add('downloading', 'Downloading')
         tabs.showTab(0)
 
         while True:
