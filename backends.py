@@ -5,7 +5,7 @@ from threading import Thread
 import rss
 import yt
 from utils import *
-
+from database import DataBase
 
 def getData(url, printInfos=print, new=False):
     if 'youtube' in url:
@@ -27,7 +27,7 @@ class DownloadManager():
             worker.setDaemon(True)
             worker.start()
 
-        for item in self.itemList.items:
+        for item in self.itemList.videos:
             if 'downloading' == item['status']:
                 channel = self.itemList.db.getChannel(item['url'])
                 self.add(item, channel, update=False)
@@ -46,7 +46,7 @@ class DownloadManager():
             self.printInfos('Add to download: %s' % item['title'])
             item['status'] = 'downloading'
             self.itemList.db.updateItem(item)
-            self.itemList.updatesAreas()
+            self.itemList.updateVideoAreas()
         self.queue.put((item, channel))
 
     def download(self, item, channel):
@@ -74,4 +74,4 @@ class DownloadManager():
         item['status'] = 'downloaded'
         db = DataBase(self.itemList.dbName)
         db.updateItem(item)
-        self.itemList.updatesAreas()
+        self.itemList.updateVideoAreas()

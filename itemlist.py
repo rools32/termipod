@@ -9,48 +9,61 @@ class ItemList():
     def __init__(self, dbName, printInfos=print):
         self.dbName = dbName
         self.db = DataBase(dbName)
-        self.items = self.db.selectVideos()
+        self.videos = self.db.selectVideos()
+        self.channels = self.db.selectChannels()
         self.printInfos = printInfos
-        self.areas = []
+        self.videoAreas = []
+        self.channelAreas = []
         self.player = player.Player(self, self.printInfos)
         self.downloadManager = backends.DownloadManager(self, self.printInfos)
 
-    def update(self, items=None):
-        if None == items:
-            items = self.db.selectVideos()
-        self.items.clear()
-        self.items.extend(items)
-        self.updatesAreas()
+    def updateChannels(self, channels=None):
+        if None == channels:
+            channels = self.db.selectVideos()
+        self.channels.clear()
+        self.channels.extend(channels)
+        self.updateChannelAreas()
 
-    def updatesAreas(self):
-        for area in self.areas:
+    def updateVideos(self, videos=None):
+        if None == videos:
+            videos = self.db.selectVideos()
+        self.videos.clear()
+        self.videos.extend(videos)
+        self.updateVideoAreas()
+
+    def updateVideoAreas(self):
+        for area in self.videoAreas:
             area.resetContent()
 
-    def add(self, item):
-        self.items.append(item)
+    def updateChannelAreas(self):
+        for area in self.channelAreas:
+            area.resetContent()
+
+    def add(self, video):
+        self.videos.append(video)
         self.updateStrings()
 
     def download(self, idx):
-        item = self.items[idx]
+        item = self.videos[idx]
         link = item['link']
 
         channel = self.db.getChannel(item['url'])
         self.downloadManager.add(item, channel)
         self.db.updateItem(item)
-        self.updatesAreas()
+        self.updateVideoAreas()
 
     def play(self, idx):
-        item = self.items[idx]
+        item = self.videos[idx]
         self.player.play(item)
 
     def playadd(self, idx):
-        item = self.items[idx]
+        item = self.videos[idx]
         self.player.add(item)
 
     def stop(self):
         self.player.stop()
 
-    def addChannel(self, url, auto='', genre=None):
+    def addChannel(self, url, auto='', genre=''):
         self.printInfos('Add '+url)
         # Check not already present in db
         channel = self.db.getChannel(url)
@@ -68,11 +81,12 @@ class ItemList():
 
         # TODO directly update itemList without using db
 
-        self.update(self.db.selectVideos())
+        self.updateChannels(self.db.selectChannels())
+        self.updateVideos(self.db.selectVideos())
 
         self.printInfos(data['title']+' added')
 
-    def updateVideos(self, urls=None):
+    def updateVideoList(self, urls=None):
         self.printInfos('Update...')
         updated = False
 
@@ -95,4 +109,4 @@ class ItemList():
                 updated = updated or self.db.addVideos(data)
         # TODO directly update itemList
         if updated:
-            self.update(db.selectVideos())
+            self.updateVideos(db.selectVideos())

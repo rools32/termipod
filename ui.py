@@ -28,9 +28,10 @@ class UI():
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
-        tabs.add('new', 'New')
-        tabs.add('downloaded', 'Playlist')
-        tabs.add('downloading', 'Downloading')
+        tabs.addVideos('new', 'New')
+        tabs.addVideos('downloaded', 'Playlist')
+        tabs.addVideos('downloading', 'Downloading')
+        tabs.addChannels('Channels')
         tabs.showTab(0)
 
         while True:
@@ -117,11 +118,17 @@ class Tabs:
         self.areas = []
         self.titleArea = TitleArea(screen, '')
 
-    def add(self, status, name):
-        area = TextArea(self.screen, status, self.itemList.items, name,
+    def addVideos(self, status, name):
+        area = VideoArea(self.screen, status, self.itemList.videos, name,
                 self.printInfos)
         self.areas.append(area)
-        self.itemList.areas.append(area)
+        self.itemList.videoAreas.append(area)
+
+    def addChannels(self, name):
+        area = ChannelArea(self.screen, self.itemList.channels, name,
+                self.printInfos)
+        self.areas.append(area)
+        self.itemList.channelAreas.append(area)
 
     def getCurrentArea(self):
         return self.getArea(self.currentIdx)
@@ -158,14 +165,12 @@ class Tabs:
         area = self.getCurrentArea()
         return area.getCurrentLine()
 
-class TextArea:
-    def __init__(self, screen, status, items, name, printInfos):
+class ItemArea:
+    def __init__(self, screen, items, name, printInfos):
         self.printInfos = printInfos
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
-        self.status = status
-        self.items = items
         self.name = name
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
@@ -177,15 +182,7 @@ class TextArea:
         self.firstLine = 0
         self.content = None
         self.shown = False
-
-    def getSelection(self):
-        self.selection = []
-        items = []
-        for index, item in enumerate(self.items):
-            if item['status'] == self.status:
-                self.selection.append(index)
-                items.append(item)
-        return items
+        self.items = items
 
     def resetContent(self):
         self.content = None
@@ -197,33 +194,8 @@ class TextArea:
         self.content = self.itemsToString(items)
         return True # TODO depending on the context
 
-    def itemsToString(self, items):
-        return list(map(lambda x: self.itemToString(x, self.width), items))
-
-    def itemToString(self, item, width):
-        date = tsToDate(item['date'])
-        duration = durationToStr(item['duration'])
-        separator = u" \u2022 "
-        lastSeparator = " "
-
-        string = date
-        string += separator
-        string += item['channel']
-        string += separator
-        string += item['title']
-
-        # Truncate the line or add spaces if needed
-        space = width-1-len(string+lastSeparator+duration)
-        if space < 0:
-            string = string[:space-3]
-            string += '...'
-        else:
-            string += ' '*space
-
-        string += lastSeparator
-        string += duration
-
-        return string
+    def itemsToString(self, channels):
+        return list(map(lambda x: self.itemToString(x, self.width), channels))
 
     def getIdx(self):
         if len(self.selection):
@@ -373,6 +345,110 @@ class TextArea:
             self.printLine(self.oldCursor, self.content[self.firstLine+self.oldCursor])
             self.printLine(self.cursor, self.content[self.firstLine+self.cursor], True)
         self.win.refresh()
+
+class VideoArea(ItemArea):
+    def __init__(self, screen, status, items, name, printInfos):
+        super().__init__(screen, items, name, printInfos)
+        self.status = status
+
+    def getSelection(self):
+        self.selection = []
+        items = []
+        for index, item in enumerate(self.items):
+            if item['status'] == self.status:
+                self.selection.append(index)
+                items.append(item)
+        return items
+
+    def itemToString(self, item, width):
+        date = tsToDate(item['date'])
+        duration = durationToStr(item['duration'])
+        separator = u" \u2022 "
+
+        string = date
+        string += separator
+        string += item['channel']
+        string += separator
+        string += item['title']
+
+        # Truncate the line or add spaces if needed
+        space = width-1-len(string+separator+duration)
+        if space < 0:
+            string = string[:space-3]
+            string += '...'
+        else:
+            string += ' '*space
+
+        string += separator
+        string += duration
+
+        return string
+
+class ChannelArea(ItemArea):
+    def __init__(self, screen, items, name, printInfos):
+        super().__init__(screen, items, name, printInfos)
+
+    def getSelection(self):
+        # TODO add filter
+        self.selection = []
+        items = []
+        for index, channel in enumerate(self.items):
+            self.selection.append(index)
+            items.append(channel)
+        return items
+
+    def itemToString(self, channel, width):
+        date = tsToDate(channel['updated'])
+        newElements = 2 # TODO
+        totalElements = 10 # TODO
+        separator = u" \u2022 "
+
+        # TODO format and align
+        string = channel['title']
+        string += separator
+        string += channel['type']
+        string += separator
+        string += '%d/%d' % (newElements, totalElements)
+        string += separator
+        string += channel['genre']
+        string += separator
+        string += channel['auto']
+        string += separator
+        string += date
+
+        return string
+    def getIdx(self):
+        if len(self.selection):
+            return self.selection[self.firstLine+self.cursor]
+        else:
+            return -1
+
+    def getCurrentLine(self):
+        return self.content[self.firstLine+self.cursor]
+
+    def highlight(self, string):
+        self.highlightOn = True
+        self.highlightString = string
+        self.display(redraw=True)
+        self.nextHighlight()
+
+    def nextHighlight(self):
+        itemIdx = None
+        for i in range(self.firstLine+self.cursor+1, len(self.content)):
+            if self.highlightString in self.content[i]:
+                itemIdx = i
+                break
+        self.printInfos(itemIdx)
+        if itemIdx:
+            self.moveCursor(itemIdx)
+
+    def noHighlight(self):
+        self.highlightOn = False
+        self.display(redraw=True)
+
+    def moveCursor(self, itemIdx):
+        self.moveScreen('line', 'down', itemIdx-self.cursor-self.firstLine)
+
 
 class TitleArea:
     def __init__(self, screen, title):

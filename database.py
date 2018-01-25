@@ -68,16 +68,16 @@ class DataBase:
         rows = self.cursor.fetchall()
         if 1 != len(rows):
             return None
-        return self.channelListToDict(rows[0])
+        return self.listToChannel(rows[0])
 
     def selectChannels(self):
         # TODO add filters: genre, auto
         self.cursor.execute("""SELECT * FROM channels
                 ORDER BY last_update DESC""")
         rows = self.cursor.fetchall()
-        return list(map(self.channelListToDict, rows))
+        return list(map(self.listToChannel, rows))
 
-    def channelListToDict(self, channelList):
+    def listToChannel(self, channelList):
         data = {}
         data['url'] = channelList[0]
         data['title'] = channelList[1]
@@ -86,6 +86,10 @@ class DataBase:
         data['auto'] = channelList[4]
         data['updated'] = channelList[5]
         return data
+
+    def channelToList(self, channel):
+        return (channel['url'], channel['title'], channel['type'],
+                channel['genre'], channel['auto'], channel['updated'])
 
     def addChannel(self, url, title, feedtype, genre, auto, data):
         # use chennelDictoToList TODO

@@ -24,7 +24,7 @@ else:
     itemList = ItemList(dbName)
 
     if args.up:
-        itemList.updateVideos()
+        itemList.updateVideoList()
     if args.add:
         auto = ''
         if args.auto:
