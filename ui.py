@@ -306,19 +306,16 @@ class ItemArea:
             self.oldCursor = self.cursor
             self.cursor = \
                     min(self.cursor+self.height*number, len(self.content)-1)
-            self.printInfos(str(self.cursor))
         # Move one page up
         elif what == 'page' and way == 'up':
             self.oldCursor = self.cursor
             self.cursor -= self.height*number
-            self.printInfos(str(self.cursor))
         elif what == 'all' and way == 'up':
             self.oldCursor = self.cursor
             self.cursor = -self.firstLine
         elif what == 'all' and way == 'down':
             self.oldCursor = self.cursor
             self.cursor = len(self.content)-1-self.firstLine
-            self.printInfos(str(self.cursor))
 
         # If cursor moved
         if self.cursor != self.oldCursor:
@@ -457,9 +454,6 @@ class ChannelArea(ItemArea):
             return self.selection[self.firstLine+self.cursor]
         else:
             return -1
-
-    def getCurrentLine(self):
-        return self.content[self.firstLine+self.cursor]
 
     def highlight(self, string):
         self.highlightOn = True
