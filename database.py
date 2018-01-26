@@ -118,8 +118,13 @@ class DataBase:
                 updated = True
 
             # Add new items to database
-            self.cursor.executemany('INSERT INTO videos VALUES (?,?,?,?,?,?,?,?)',
-                    newVideos)
+            try:
+                self.cursor.executemany('INSERT INTO videos VALUES (?,?,?,?,?,?,?,?)',
+                        newVideos)
+            except sqlite3.IntegrityError:
+                self.printInfos('Cannot add %s' % str(newVideos))
+                print(1+str(2))
+
             self.conn.commit()
 
         if updated:
