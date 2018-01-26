@@ -128,19 +128,32 @@ class DataBase:
             self.conn.commit()
 
         if updated:
-            self.channelUpdate(url, feedDate)
+            channel['url'] = url
+            channel['updated'] = feedDate
+            self.updateChannel(url, channel)
 
         return updated
 
-    def channelUpdate(self, url, date):
-        self.cursor.execute("UPDATE channels SET last_update = ? WHERE url = ?",
-                [date, url])
+    def updateChannel(self, channel):
+        sql = """UPDATE channels
+                    SET title = ?,
+                    SET type = ?,
+                    SET genre = ?,
+                    SET auto = ?,
+                    SET last_update = ?,
+                    WHERE url = ?"""
+        args = (
+                channel['title'],
+                channel['type'],
+                channel['genre'],
+                channel['auto'],
+                channel['updated'],
+                channel['url'],
+        )
+        self.cursor.execute(sql, args)
         self.conn.commit()
 
-    def channelSetAuto(self, url, auto=True):
-        pass
-
-    def updateItem(self, item):
+    def updateVideo(self, video):
         sql = """UPDATE videos
                     SET duration = ?,
                         url = ?,
@@ -151,9 +164,9 @@ class DataBase:
                           title = ? and
                           date = ?"""
         args = (
-                item['duration'], item['link'], item['status'],
-                item['filename'], item['tags'],
-                item['url'], item['title'], item['date']
+                video['duration'], video['link'], video['status'],
+                video['filename'], video['tags'],
+                video['url'], video['title'], video['date']
         )
         self.cursor.execute(sql, args)
         self.conn.commit()

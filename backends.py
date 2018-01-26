@@ -38,14 +38,14 @@ class DownloadManager():
         exit when the main thread ends."""
         while True:
             item, channel = q.get()
-            self.download(item,channel)
+            self.download(item, channel)
             q.task_done()
 
     def add(self, item, channel, update=True):
         if update:
             self.printInfos('Add to download: %s' % item['title'])
             item['status'] = 'downloading'
-            self.itemList.db.updateItem(item)
+            self.itemList.db.updateVideo(item)
             self.itemList.updateVideoAreas()
         self.queue.put((item, channel))
 
