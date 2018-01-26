@@ -25,6 +25,10 @@ def getData(url, printInfos=print, new=False):
         ydl_opts = {'logger': Logger(), 'ignoreerrors': True}
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info( url, download=False)
+        if None == result:
+            printInfos("Cannot get data from %s" % url)
+            return None
+
         entries = result['entries']
 
         data = {}

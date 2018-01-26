@@ -68,10 +68,15 @@ class ItemList():
         # Check not already present in db
         channel = self.db.getChannel(url)
         if None != channel:
-            return '"%s" already present' % channel['title']
+            self.printInfos('"%s" already present (%s)' % \
+                    (channel['url'], channel['title']))
+            return False
 
         # Retrieve url feed
         data = backends.getData(url, self.printInfos, True)
+
+        if None == data:
+            return False
 
         # Add channel to db
         self.db.addChannel(url, data['title'], data['type'], genre, auto, data)
@@ -98,6 +103,9 @@ class ItemList():
 
             data = backends.getData(url, self.printInfos)
 
+            if None == data:
+                continue
+
             # Automatic download
             if not '' == channel['auto']:
                 regex = re.compile(channel['auto'])
@@ -105,8 +113,8 @@ class ItemList():
                 for s in subdata:
                     self.downloadManager.add(s, channel)
 
-            if data:
-                updated = updated or self.db.addVideos(data)
+            updated = updated or self.db.addVideos(data)
+
         # TODO directly update itemList
         if updated:
             self.updateVideos(db.selectVideos())
