@@ -5,6 +5,7 @@ import shlex
 from utils import durationToStr, tsToDate, printLog
 from itemlist import ItemList
 from utils import printLog
+from keymap import getAction
 
 class UI():
     def __init__(self, dbName):
@@ -28,41 +29,48 @@ class UI():
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
-        tabs.addVideos('new', 'New')
-        tabs.addVideos('downloaded', 'Playlist')
-        tabs.addVideos('downloading', 'Downloading')
+        tabs.addVideos('new', 'New', 'remote')
+        tabs.addVideos('downloaded', 'Playlist', 'local')
+        tabs.addVideos('downloading', 'Downloading', 'download')
         tabs.addChannels('Channels')
         tabs.showTab(0)
 
         while True:
             # Wait for key
             key = screen.getch()
-            self.printInfos(str(key))
+            area = tabs.getCurrentArea()
+
+            areaKeyClass = area.getKeyClass()
             idx = tabs.getCurrentArea().getIdx()
 
-            what = None
-            if key in (ord('j'), curses.KEY_DOWN):
-                what = 'line'
-                way = 'down'
-            elif key == ord('k'):
-                what = 'line'
-                way = 'up'
-            elif key == 6:
-                what = 'page'
-                way = 'down'
-            elif key == 2:
-                what = 'page'
-                way = 'up'
-            elif key == ord('g'):
-                what = 'all'
-                way = 'up'
-            elif key == ord('G'):
-                what = 'all'
-                way = 'down'
+            action = getAction(areaKeyClass, key)
+            printLog(action)
 
-            if what:
-                tabs.moveScreen(what, way)
-            elif key == ord(':'):
+            if None == action:
+                self.printInfos('Key %s not mapped for keyClass %s' %
+                        (str(key), areaKeyClass))
+
+            ####################################################################
+            # All tab commands
+            ####################################################################
+
+            elif 'line_down' == action:
+                tabs.moveScreen('line', 'down')
+            elif 'line_up' == action:
+                tabs.moveScreen('line', 'up')
+            elif 'page_down' == action:
+                tabs.moveScreen('page', 'down')
+            elif 'page_up' == action:
+                tabs.moveScreen('page', 'up')
+            elif 'bottom' == action:
+                tabs.moveScreen('all', 'down')
+            elif 'top' == action:
+                tabs.moveScreen('all', 'up')
+
+            elif 'tab_next' == action:
+                tabs.showNextTab()
+
+            elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
                 command = shlex.split(string)
                 self.printInfos('Run: '+str(command))
@@ -77,34 +85,56 @@ class UI():
                     else:
                         self.itemList.addChannel(*command[1:])
 
-            elif key == ord('q'):
-                break
-            elif key == ord('\n'):
-                self.itemList.download(idx)
-            elif key == ord('p'):
-                self.itemList.play(idx)
-            elif key == ord('s'):
-                self.itemList.stop()
-            elif key == ord('a'):
-                self.itemList.playadd(idx)
-            elif key == ord('u'):
-                updated = self.itemList.updateVideos()
-
-            elif key == ord('/'):
+            elif 'search_get' == action:
                 searchString = self.statusArea.runCommand('/')
                 self.printInfos('Search: '+searchString)
                 tabs.highlight(searchString)
-            elif key == ord('n'):
+            elif 'search_next' == action:
                 tabs.nextHighlight()
+
+            elif 'quit' == action:
+                break
+
+            ####################################################################
+            # Allvideos commands
+            ####################################################################
             # Highlight channel name
-            elif key == ord('*'):
+            elif 'search_channel' == action:
                 line = tabs.getCurrentLine()
                 channel = line.split(u" \u2022 ")[1]
                 self.printInfos('Search: '+channel)
                 tabs.highlight(channel)
 
-            elif key == ord('\t'):
-                tabs.showNextTab()
+            elif 'video_play' == action:
+                self.itemList.play(idx)
+
+            elif 'video_playadd' == action:
+                self.itemList.playadd(idx)
+
+            elif 'video_stop' == action:
+                self.itemList.stop()
+
+            ####################################################################
+            # Remote video commands
+            ####################################################################
+            elif 'video_download' == action:
+                self.itemList.download(idx)
+
+            elif 'video_update' == action:
+                updated = self.itemList.updateVideos()
+
+            ####################################################################
+            # Local video commands
+            ####################################################################
+
+            ####################################################################
+            # Downloading video commands
+            ####################################################################
+
+            ####################################################################
+            # Channel commands
+            ####################################################################
+
 
     def printInfos(self, string):
         self.statusArea.print(string)
@@ -118,9 +148,9 @@ class Tabs:
         self.areas = []
         self.titleArea = TitleArea(screen, '')
 
-    def addVideos(self, status, name):
+    def addVideos(self, status, name, keyClass):
         area = VideoArea(self.screen, status, self.itemList.videos, name,
-                self.printInfos)
+                keyClass, self.printInfos)
         self.areas.append(area)
         self.itemList.videoAreas.append(area)
 
@@ -346,10 +376,14 @@ class ItemArea:
             self.printLine(self.cursor, self.content[self.firstLine+self.cursor], True)
         self.win.refresh()
 
+    def getKeyClass(self):
+        return self.keyClass
+
 class VideoArea(ItemArea):
-    def __init__(self, screen, status, items, name, printInfos):
+    def __init__(self, screen, status, items, name, keyClass, printInfos):
         super().__init__(screen, items, name, printInfos)
         self.status = status
+        self.keyClass = 'videos_'+keyClass
 
     def getSelection(self):
         self.selection = []
@@ -387,6 +421,7 @@ class VideoArea(ItemArea):
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, printInfos):
         super().__init__(screen, items, name, printInfos)
+        self.keyClass = 'channels'
 
     def getSelection(self):
         # TODO add filter
