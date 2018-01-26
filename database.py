@@ -49,7 +49,7 @@ class DataBase:
         data = {}
         data['channel'] = channel
         data['url'] = url
-        data['title'] = videoList[1]
+        data['title'] = str(videoList[1]) # str if title is only a number
         data['date'] = videoList[2]
         data['duration'] = videoList[3]
         data['link'] = videoList[4]
