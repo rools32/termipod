@@ -15,18 +15,26 @@ def getData(url, printInfos=print):
     data = {}
     data['url'] = url
     data['title'] = feed['title']
-    data['updated'] = mktime(feed['updated_parsed'])
     data['type'] = 'rss'
 
     data['items'] = []
     entries = rss.entries
+    maxtime = 0
     for entry in entries:
         video = {}
         video['channel'] = data['title']
         video['url'] = url
         video['title'] = entry['title']
         video['date'] = int(mktime(entry['published_parsed']))
-        video['link'] = list(map(lambda x: x['href'], entry['links']))[1]
+        maxtime = max(maxtime, video['date'])
+
+        video['link'] = None
+        video['linkType'] = None # TODO add in database
+        for link in entry['links']:
+            if 'video' in link['type'] or 'audio' in link['type']:
+                video['link'] = link['href']
+                video['linkType'] = link['type']
+
         if 'itunes_duration' in entry:
             sduration = entry['itunes_duration']
             video['duration'] = sum([ int(x)*60**i for (i, x) in
@@ -37,6 +45,12 @@ def getData(url, printInfos=print):
         video['filename'] = ''
         video['tags'] = ''
         data['items'].append(video)
+
+    if 'updated_parsed' in feed:
+        data['updated'] = mktime(feed['updated_parsed'])
+    else:
+        data['updated'] = maxtime
+
     return data
 
 def download(url, filename, printInfos=print):
