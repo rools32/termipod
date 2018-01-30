@@ -132,15 +132,16 @@ class DataBase:
                 updated = True
 
             # Add new items to database
-            try:
-                with self.mutex:
-                    params = ','.join('?'*len(newVideos[0]))
-                    self.cursor.executemany(
-                        'INSERT INTO videos VALUES (%s)' % params,
-                        newVideos)
-                    self.conn.commit()
-            except sqlite3.IntegrityError:
-                self.printInfos('Cannot add %s' % str(newVideos))
+            if updated:
+                try:
+                    with self.mutex:
+                        params = ','.join('?'*len(newVideos[0]))
+                        self.cursor.executemany(
+                            'INSERT INTO videos VALUES (%s)' % params,
+                            newVideos)
+                        self.conn.commit()
+                except sqlite3.IntegrityError:
+                    self.printInfos('Cannot add %s' % str(newVideos))
 
         if updated:
             channel['url'] = url
