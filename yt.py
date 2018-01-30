@@ -49,9 +49,6 @@ def getData(url, printInfos=print, new=False):
                 entry['upload_date'], "%Y%m%d").timetuple()))
             video['link'] = entry['webpage_url']
             video['duration'] = entry['duration']
-            video['status'] = 'new'
-            video['filename'] = ''
-            video['tags'] = ''
             data['items'].append(video)
 
         return data
@@ -80,10 +77,6 @@ def getData(url, printInfos=print, new=False):
             video['title'] = entry['title']
             video['date'] = int(mktime(entry['published_parsed']))
             video['link'] = entry['link']
-            video['duration'] = -1
-            video['status'] = 'new'
-            video['filename'] = ''
-            video['tags'] = ''
             data['items'].append(video)
 
         return data

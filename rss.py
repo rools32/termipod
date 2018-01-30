@@ -39,11 +39,6 @@ def getData(url, printInfos=print):
             sduration = entry['itunes_duration']
             video['duration'] = sum([ int(x)*60**i for (i, x) in
                 enumerate(sduration.split(':')[::-1]) ])
-        else:
-            video['duration'] = 0
-        video['status'] = 'new'
-        video['filename'] = ''
-        video['tags'] = ''
         data['items'].append(video)
 
     if 'updated_parsed' in feed:

@@ -55,13 +55,15 @@ class DataBase:
         data['duration'] = videoList[3]
         data['link'] = videoList[4]
         data['status'] = videoList[5]
-        data['filename'] = videoList[6]
-        data['tags'] = videoList[7]
+        data['state'] = videoList[6]
+        data['filename'] = videoList[7]
+        data['tags'] = videoList[8]
         return data
 
     def videoToList(self, video):
         return (video['url'], video['title'], video['date'], video['duration'],
-                video['link'], video['status'], video['filename'], video['tags'])
+                video['link'], video['status'], video['state'],
+                video['filename'], video['tags'])
 
     def getChannel(self, url):
         """ Get Channel by url (primary key) """
@@ -95,7 +97,8 @@ class DataBase:
     def addChannel(self, url, title, feedtype, genre, auto, data):
         # use chennelDictoToList TODO
         channel = [ url, title, feedtype, genre, auto, 0]
-        self.cursor.execute('INSERT INTO channels VALUES (?,?,?,?,?,?)',
+        params = ','.join('?'*len(channel))
+        self.cursor.execute('INSERT INTO channels VALUES (%s)' % params,
                  channel)
         self.conn.commit()
 
@@ -112,16 +115,25 @@ class DataBase:
         feedDate = data['updated']
         if (feedDate > updatedDate): # new items
             # Filter feed to keep only new items
-            newVideos = [ self.videoToList(v)
-                for v in data['items'] if v['date'] > updatedDate ]
+            newVideos = []
+            for video in data['items']:
+                if video['date'] > updatedDate:
+                    if not 'duration' in video: video['duration'] = 0
+                    if not 'status' in video: video['status'] = 'remote'
+                    if not 'state' in video: video['state'] = 'unread'
+                    if not 'filename' in video: video['filename'] = ''
+                    if not 'tags' in video: video['tags'] = ''
+                    newVideos.append(self.videoToList(video))
 
             if len(newVideos):
                 updated = True
 
             # Add new items to database
             try:
-                self.cursor.executemany('INSERT INTO videos VALUES (?,?,?,?,?,?,?,?)',
-                        newVideos)
+                params = ','.join('?'*len(newVideos[0]))
+                self.cursor.executemany(
+                    'INSERT INTO videos VALUES (%s)' % params,
+                    newVideos)
             except sqlite3.IntegrityError:
                 self.printInfos('Cannot add %s' % str(newVideos))
 
@@ -158,6 +170,7 @@ class DataBase:
                     SET duration = ?,
                         url = ?,
                         status = ?,
+                        state = ?,
                         filename = ?,
                         tags = ?
                     WHERE channel_url = ? and
@@ -165,7 +178,7 @@ class DataBase:
                           date = ?"""
         args = (
                 video['duration'], video['link'], video['status'],
-                video['filename'], video['tags'],
+                video['state'], video['filename'], video['tags'],
                 video['channel'], video['title'], video['date']
         )
         self.cursor.execute(sql, args)

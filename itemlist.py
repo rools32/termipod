@@ -60,6 +60,15 @@ class ItemList():
         item = self.videos[idx]
         self.player.add(item)
 
+    def switchRead(self, idx):
+        item = self.videos[idx]
+        if 'read' == item['state']:
+            item['state'] = 'unread'
+        else:
+            item['state'] = 'read'
+        self.db.updateVideo(item)
+        self.updateVideoAreas()
+
     def stop(self):
         self.player.stop()
 
@@ -105,7 +114,8 @@ class ItemList():
         else:
             newValue = auto
         channel['auto'] = newValue
-        self.printInfos('Auto for channel %s is set to: "%s"' % (title, newValue))
+        self.printInfos('Auto for channel %s is set to: "%s"' \
+                % (title, newValue))
 
         self.updateChannelAreas()
         self.db.updateChannel(channel)
@@ -119,7 +129,8 @@ class ItemList():
 
         for i, url in enumerate(urls):
             channel = self.db.getChannel(url)
-            self.printInfos('Update channel %s (%d/%d)...' % (channel['title'], i+1, len(urls)))
+            self.printInfos('Update channel %s (%d/%d)...' \
+                    % (channel['title'], i+1, len(urls)))
 
             data = backends.getData(url, self.printInfos)
 
@@ -129,7 +140,8 @@ class ItemList():
             # Automatic download
             if not '' == channel['auto']:
                 regex = re.compile(channel['auto'])
-                subdata = [ item for item in data['items'] if regex.match(item['title']) ]
+                subdata = [ item for item in data['items'] \
+                        if regex.match(item['title']) ]
                 for s in subdata:
                     self.downloadManager.add(s, channel)
 

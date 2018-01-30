@@ -28,9 +28,9 @@ class UI():
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
-        tabs.addVideos('new', 'New', 'remote')
-        tabs.addVideos('downloaded', 'Playlist', 'local')
-        tabs.addVideos('downloading', 'Downloading', 'download')
+        tabs.addVideos('remote', 'Remote videos')
+        tabs.addVideos('local', 'Playlist')
+        tabs.addVideos('download', 'Downloading')
         tabs.addChannels('Channels')
         tabs.showTab(0)
 
@@ -120,6 +120,12 @@ class UI():
             elif 'channel_filter' == action:
                 tabs.channelFilterSwitch()
 
+            elif 'state_filter' == action:
+                tabs.stateSwitch()
+
+            elif 'video_read' == action:
+                self.itemList.switchRead(idx)
+
             ####################################################################
             # Remote video commands
             ####################################################################
@@ -156,9 +162,9 @@ class Tabs:
         self.areas = []
         self.titleArea = TitleArea(screen, '')
 
-    def addVideos(self, status, name, keyClass):
+    def addVideos(self, status, name):
         area = VideoArea(self.screen, status, self.itemList.videos, name,
-                keyClass, self.printInfos)
+                self.printInfos)
         self.areas.append(area)
         self.itemList.videoAreas.append(area)
 
@@ -198,6 +204,10 @@ class Tabs:
     def channelFilterSwitch(self):
         area = self.getCurrentArea()
         area.channelFilterSwitch()
+
+    def stateSwitch(self):
+        area = self.getCurrentArea()
+        area.switchState()
 
     def screenInfos(self):
         area = self.getCurrentArea()
@@ -404,10 +414,11 @@ class ItemArea:
         return self.keyClass
 
 class VideoArea(ItemArea):
-    def __init__(self, screen, status, items, name, keyClass, printInfos):
+    def __init__(self, screen, status, items, name, printInfos):
         super().__init__(screen, items, name, printInfos)
         self.status = status
-        self.keyClass = 'videos_'+keyClass
+        self.state = 'all'
+        self.keyClass = 'videos_'+status
         self.channelFilter = False
 
     def extractChannelName(self, line):
@@ -421,12 +432,18 @@ class VideoArea(ItemArea):
         if False != self.channelFilter:
             self.channelFilter = False
         else:
-            printLog('hey')
             channel = self.getCurrentChannel()
             printLog(channel)
             self.channelFilter = channel
 
         # Update screen
+        self.resetContent()
+
+    def switchState(self):
+        states = ['all', 'unread', 'read']
+        idx = states.index(self.state)
+        self.state = states[(idx+1)%len(states)]
+        self.printInfos('Show %s videos' % self.state)
         self.resetContent()
 
     def getSelection(self):
@@ -436,6 +453,8 @@ class VideoArea(ItemArea):
             if self.channelFilter and self.channelFilter != item['channel']:
                 continue
             if self.status != item['status']:
+                continue
+            if 'all' != self.state and self.state != item['state']:
                 continue
 
             self.selection.append(index)
