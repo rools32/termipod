@@ -42,9 +42,9 @@ class DataBase:
         self.cursor.execute("""SELECT * FROM videos
                 ORDER BY date DESC""")
         rows = self.cursor.fetchall()
-        return list(map(self.listToItem, rows))
+        return list(map(self.listToVideo, rows))
 
-    def listToItem(self, videoList):
+    def listToVideo(self, videoList):
         url = videoList[0]
         channel = self.getChannel(url)['title']
         data = {}
@@ -59,9 +59,9 @@ class DataBase:
         data['tags'] = videoList[7]
         return data
 
-    def itemToList(self, item):
-        return (item['url'], item['title'], item['date'], item['duration'],
-                item['link'], item['status'], item['filename'], item['tags'])
+    def videoToList(self, video):
+        return (video['url'], video['title'], video['date'], video['duration'],
+                video['link'], video['status'], video['filename'], video['tags'])
 
     def getChannel(self, url):
         """ Get Channel by url (primary key) """
@@ -112,7 +112,7 @@ class DataBase:
         feedDate = data['updated']
         if (feedDate > updatedDate): # new items
             # Filter feed to keep only new items
-            newVideos = [ self.itemToList(v)
+            newVideos = [ self.videoToList(v)
                 for v in data['items'] if v['date'] > updatedDate ]
 
             if len(newVideos):
