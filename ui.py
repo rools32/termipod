@@ -99,6 +99,13 @@ class UI():
             elif 'quit' == action:
                 break
 
+            elif 'select_item' == action:
+                tabs.selectItem()
+            elif 'select_until' == action:
+                tabs.selectUntil()
+            elif 'select_clear' == action:
+                tabs.selectClear()
+
             ####################################################################
             # Allvideos commands
             ####################################################################
@@ -124,13 +131,19 @@ class UI():
                 tabs.stateSwitch()
 
             elif 'video_read' == action:
-                self.itemList.switchRead(idx)
+                if not len(area.userSelection):
+                    self.itemList.switchRead([idx])
+                else:
+                    self.itemList.switchRead(area.userSelection)
 
             ####################################################################
             # Remote video commands
             ####################################################################
             elif 'video_download' == action:
-                self.itemList.download(idx)
+                if not len(area.userSelection):
+                    self.itemList.download([idx])
+                else:
+                    self.itemList.download(area.userSelection)
 
             elif 'video_update' == action:
                 updated = self.itemList.updateVideoList()
@@ -217,6 +230,18 @@ class Tabs:
         area = self.getCurrentArea()
         area.nextHighlight(reverse)
 
+    def selectItem(self):
+        area = self.getCurrentArea()
+        area.addToUserSelection()
+
+    def selectUntil(self):
+        area = self.getCurrentArea()
+        area.addUntilToUserSelection()
+
+    def selectClear(self):
+        area = self.getCurrentArea()
+        area.clearUserSelection()
+
     def getCurrentLine(self):
         area = self.getCurrentArea()
         return area.getCurrentLine()
@@ -239,6 +264,37 @@ class ItemArea:
         self.content = None
         self.shown = False
         self.items = items
+        self.userSelection = []
+
+    def addToUserSelection(self, idx=None):
+        if None == idx:
+            idx = self.getIdx()
+
+        if idx in self.userSelection:
+            self.userSelection.remove(idx)
+        else:
+            self.userSelection.append(idx)
+
+    def addUntilToUserSelection(self):
+        idx = self.getIdx()
+        if idx < self.userSelection[-1]:
+            step = -1
+        else:
+            step = 1
+
+        start = self.selection.index(self.userSelection[-1])
+        end = self.selection.index(idx)
+
+        for i in range(start, end, step):
+            sel = self.selection[i+step]
+            self.addToUserSelection(sel)
+
+        self.display(redraw=True)
+        printLog(self.userSelection)
+
+    def clearUserSelection(self):
+        self.userSelection = []
+        self.display(redraw=True)
 
     def resetContent(self):
         self.content = None
@@ -299,6 +355,7 @@ class ItemArea:
     def printLine(self, line, string, bold=False):
         normalStyle = curses.color_pair(2)
         boldStyle = curses.color_pair(1)
+        selectStyle = curses.color_pair(3)
         highlightStyle = curses.color_pair(4)
         self.win.move(line, 0)
         self.win.clrtoeol()
@@ -306,7 +363,11 @@ class ItemArea:
         if bold:
             self.win.addstr(line, 0, string, boldStyle)
         else:
-            if self.highlightOn:
+            # If line is in user selection
+            if self.selection[line] in self.userSelection:
+                self.win.addstr(line, 0, string, selectStyle)
+
+            elif self.highlightOn:
                 styles = (normalStyle, highlightStyle)
 
                 # Split with highlight string and put it back

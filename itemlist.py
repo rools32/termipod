@@ -43,13 +43,17 @@ class ItemList():
         self.videos.append(video)
         self.updateStrings()
 
-    def download(self, idx):
-        item = self.videos[idx]
-        link = item['link']
+    def download(self, indices):
+        if int == type(indices):
+            indices = [indices]
 
-        channel = self.db.getChannel(item['url'])
-        self.downloadManager.add(item, channel)
-        self.db.updateVideo(item)
+        for idx in indices:
+            item = self.videos[idx]
+            link = item['link']
+
+            channel = self.db.getChannel(item['url'])
+            self.downloadManager.add(item, channel)
+            self.db.updateVideo(item)
         self.updateVideoAreas()
 
     def play(self, idx):
@@ -60,13 +64,17 @@ class ItemList():
         item = self.videos[idx]
         self.player.add(item)
 
-    def switchRead(self, idx):
-        item = self.videos[idx]
-        if 'read' == item['state']:
-            item['state'] = 'unread'
-        else:
-            item['state'] = 'read'
-        self.db.updateVideo(item)
+    def switchRead(self, indices):
+        if int == type(indices):
+            indices = [indices]
+
+        for idx in indices:
+            item = self.videos[idx]
+            if 'read' == item['state']:
+                item['state'] = 'unread'
+            else:
+                item['state'] = 'read'
+            self.db.updateVideo(item)
         self.updateVideoAreas()
 
     def stop(self):

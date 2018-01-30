@@ -28,6 +28,10 @@ maps = [
 
     ('', ord('q'), 'quit'),
 
+    ('', ord(' '), 'select_item'),
+    ('', ord('$'), 'select_until'),
+    ('', ord('^'), 'select_clear'),
+
     ('videos', ord('*'), 'search_channel'),
     ('videos', ord('l'), 'video_play'),
     ('videos', ord('a'), 'video_playadd'),
