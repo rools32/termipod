@@ -181,6 +181,11 @@ class DataBase:
                     WHERE channel_url = ? and
                           title = ? and
                           date = ?"""
+        if not 'duration' in video: video['duration'] = 0
+        if not 'status' in video: video['status'] = 'remote'
+        if not 'state' in video: video['state'] = 'unread'
+        if not 'filename' in video: video['filename'] = ''
+        if not 'tags' in video: video['tags'] = ''
         args = (
                 video['duration'], video['link'], video['status'],
                 video['state'], video['filename'], video['tags'],
