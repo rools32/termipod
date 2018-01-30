@@ -117,8 +117,9 @@ class ItemList():
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
 
-        for url in urls:
+        for i, url in enumerate(urls):
             channel = self.db.getChannel(url)
+            self.printInfos('Update channel %s (%d/%d)...' % (channel['title'], i+1, len(urls)))
 
             data = backends.getData(url, self.printInfos)
 
