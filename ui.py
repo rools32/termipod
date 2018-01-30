@@ -93,6 +93,8 @@ class UI():
                 tabs.highlight(searchString)
             elif 'search_next' == action:
                 tabs.nextHighlight()
+            elif 'search_prev' == action:
+                tabs.nextHighlight(reverse=True)
 
             elif 'quit' == action:
                 break
@@ -201,9 +203,9 @@ class Tabs:
         area = self.getCurrentArea()
         area.screenInfos()
 
-    def nextHighlight(self):
+    def nextHighlight(self, reverse=False):
         area = self.getCurrentArea()
-        area.nextHighlight()
+        area.nextHighlight(reverse)
 
     def getCurrentLine(self):
         area = self.getCurrentArea()
@@ -261,14 +263,20 @@ class ItemArea:
         self.display(redraw=True)
         self.nextHighlight()
 
-    def nextHighlight(self):
+    def nextHighlight(self, reverse=False):
         itemIdx = None
-        for i in range(self.firstLine+self.cursor+1, len(self.content)):
-            if self.highlightString in self.content[i]:
-                itemIdx = i
-                break
-        self.printInfos(itemIdx)
-        if itemIdx:
+        if not reverse:
+            for i in range(self.firstLine+self.cursor+1, len(self.content)):
+                if self.highlightString in self.content[i]:
+                    itemIdx = i
+                    break
+        else:
+            for i in range(self.firstLine+self.cursor-1, -1, -1):
+                if self.highlightString in self.content[i]:
+                    itemIdx = i
+                    break
+
+        if None != itemIdx:
             self.moveCursor(itemIdx)
 
     def noHighlight(self):

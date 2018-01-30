@@ -24,6 +24,7 @@ maps = [
     ('', ord(':'), 'command_get'),
     ('', ord('/'), 'search_get'),
     ('', ord('n'), 'search_next'),
+    ('', ord('N'), 'search_prev'),
 
     ('', ord('q'), 'quit'),
 
