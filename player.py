@@ -25,7 +25,7 @@ class Player():
         @self.player.property_observer('eof-reached')
         def updatePlayed(_name, value):
             if True == value:
-                db = DataBase(self.itemList.dbName)
+                db = DataBase(self.itemList.dbName, self.printInfos)
                 self.item['status'] = 'old'
                 db.updateItem(self.item)
                 self.itemList.updatesAreas()

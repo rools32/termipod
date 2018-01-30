@@ -8,7 +8,7 @@ from utils import *
 class ItemList():
     def __init__(self, dbName, printInfos=print):
         self.dbName = dbName
-        self.db = DataBase(dbName)
+        self.db = DataBase(dbName, printInfos)
         self.videos = self.db.selectVideos()
         self.channels = self.db.selectChannels()
         self.printInfos = printInfos
@@ -136,4 +136,4 @@ class ItemList():
 
         # TODO directly update itemList
         if updated:
-            self.updateVideos(db.selectVideos())
+            self.updateVideos(self.db.selectVideos())

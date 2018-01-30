@@ -2,7 +2,8 @@ import sqlite3
 from utils import *
 
 class DataBase:
-    def __init__(self, name):
+    def __init__(self, name, printInfos=print):
+        self.printInfos = printInfos
         self.conn = sqlite3.connect(name)
         #conn = sqlite3.connect(':memory:')
         self.cursor = self.conn.cursor()
@@ -123,14 +124,13 @@ class DataBase:
                         newVideos)
             except sqlite3.IntegrityError:
                 self.printInfos('Cannot add %s' % str(newVideos))
-                print(1+str(2))
 
             self.conn.commit()
 
         if updated:
             channel['url'] = url
             channel['updated'] = feedDate
-            self.updateChannel(url, channel)
+            self.updateChannel(channel)
 
         return updated
 
@@ -166,7 +166,7 @@ class DataBase:
         args = (
                 video['duration'], video['link'], video['status'],
                 video['filename'], video['tags'],
-                video['url'], video['title'], video['date']
+                video['channel'], video['title'], video['date']
         )
         self.cursor.execute(sql, args)
         self.conn.commit()
