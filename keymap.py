@@ -19,6 +19,8 @@ maps = [
     ('', ord('G'), 'bottom'),
     ('', ord('\t'), 'tab_next'),
 
+    ('', 7, 'screen_infos'),
+
     ('', ord(':'), 'command_get'),
     ('', ord('/'), 'search_get'),
     ('', ord('n'), 'search_next'),

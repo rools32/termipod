@@ -67,6 +67,9 @@ class UI():
             elif 'top' == action:
                 tabs.moveScreen('all', 'up')
 
+            elif 'screen_infos' == action:
+                tabs.screenInfos()
+
             elif 'tab_next' == action:
                 tabs.showNextTab()
 
@@ -189,6 +192,10 @@ class Tabs:
         area = self.getCurrentArea()
         area.highlight(searchString)
 
+    def screenInfos(self):
+        area = self.getCurrentArea()
+        area.screenInfos()
+
     def nextHighlight(self):
         area = self.getCurrentArea()
         area.nextHighlight()
@@ -228,6 +235,11 @@ class ItemArea:
 
     def itemsToString(self, channels):
         return list(map(lambda x: self.itemToString(x, self.width), channels))
+
+    def screenInfos(self):
+        line = self.firstLine+self.cursor+1
+        total = len(self.selection)
+        self.printInfos('%d/%d' % (line, total))
 
     def getIdx(self):
         if len(self.selection):
