@@ -53,7 +53,6 @@ class ItemList():
 
             channel = self.db.getChannel(item['url'])
             self.downloadManager.add(item, channel)
-            self.db.updateVideo(item)
         self.updateVideoAreas()
 
     def play(self, idx):

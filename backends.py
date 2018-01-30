@@ -5,7 +5,6 @@ from threading import Thread
 import rss
 import yt
 from utils import *
-from database import DataBase
 
 def getData(url, printInfos=print, new=False):
     if 'youtube' in url:
@@ -73,6 +72,5 @@ class DownloadManager():
         # Change status and filename
         video['filename'] = filename
         video['status'] = 'local'
-        db = DataBase(self.itemList.dbName, self.printInfos)
-        db.updateVideo(video)
+        self.itemList.db.updateVideo(video)
         self.itemList.updateVideoAreas()

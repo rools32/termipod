@@ -1,6 +1,5 @@
 import mpv
 from utils import *
-from database import DataBase
 
 class Player():
     def __init__(self, itemList, printInfos=print):
@@ -25,7 +24,7 @@ class Player():
         @self.player.property_observer('eof-reached')
         def updatePlayed(_name, value):
             if True == value:
-                db = DataBase(self.itemList.dbName, self.printInfos)
+                db = self.itemList.db
                 self.item['status'] = 'old'
                 db.updateItem(self.item)
                 self.itemList.updatesAreas()

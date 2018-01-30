@@ -1,11 +1,13 @@
 import sqlite3
+from multiprocessing import Lock
+
 from utils import *
 
 class DataBase:
     def __init__(self, name, printInfos=print):
+        self.mutex = Lock()
         self.printInfos = printInfos
-        self.conn = sqlite3.connect(name)
-        #conn = sqlite3.connect(':memory:')
+        self.conn = sqlite3.connect(name, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
@@ -98,9 +100,10 @@ class DataBase:
         # use chennelDictoToList TODO
         channel = [ url, title, feedtype, genre, auto, 0]
         params = ','.join('?'*len(channel))
-        self.cursor.execute('INSERT INTO channels VALUES (%s)' % params,
-                 channel)
-        self.conn.commit()
+        with self.mutex:
+            self.cursor.execute('INSERT INTO channels VALUES (%s)' % params,
+                     channel)
+            self.conn.commit()
 
     def addVideos(self, data):
         updated = False
@@ -130,14 +133,14 @@ class DataBase:
 
             # Add new items to database
             try:
-                params = ','.join('?'*len(newVideos[0]))
-                self.cursor.executemany(
-                    'INSERT INTO videos VALUES (%s)' % params,
-                    newVideos)
+                with self.mutex:
+                    params = ','.join('?'*len(newVideos[0]))
+                    self.cursor.executemany(
+                        'INSERT INTO videos VALUES (%s)' % params,
+                        newVideos)
+                    self.conn.commit()
             except sqlite3.IntegrityError:
                 self.printInfos('Cannot add %s' % str(newVideos))
-
-            self.conn.commit()
 
         if updated:
             channel['url'] = url
@@ -162,8 +165,9 @@ class DataBase:
                 channel['updated'],
                 channel['url'],
         )
-        self.cursor.execute(sql, args)
-        self.conn.commit()
+        with self.mutex:
+            self.cursor.execute(sql, args)
+            self.conn.commit()
 
     def updateVideo(self, video):
         sql = """UPDATE videos
@@ -179,7 +183,8 @@ class DataBase:
         args = (
                 video['duration'], video['link'], video['status'],
                 video['state'], video['filename'], video['tags'],
-                video['channel'], video['title'], video['date']
+                video['url'], video['title'], video['date']
         )
-        self.cursor.execute(sql, args)
-        self.conn.commit()
+        with self.mutex:
+            self.cursor.execute(sql, args)
+            self.conn.commit()
