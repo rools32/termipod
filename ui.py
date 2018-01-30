@@ -463,35 +463,6 @@ class ChannelArea(ItemArea):
         string += date
 
         return string
-    def getIdx(self):
-        if len(self.selection):
-            return self.selection[self.firstLine+self.cursor]
-        else:
-            return -1
-
-    def highlight(self, string):
-        self.highlightOn = True
-        self.highlightString = string
-        self.display(redraw=True)
-        self.nextHighlight()
-
-    def nextHighlight(self):
-        itemIdx = None
-        for i in range(self.firstLine+self.cursor+1, len(self.content)):
-            if self.highlightString in self.content[i]:
-                itemIdx = i
-                break
-        self.printInfos(itemIdx)
-        if itemIdx:
-            self.moveCursor(itemIdx)
-
-    def noHighlight(self):
-        self.highlightOn = False
-        self.display(redraw=True)
-
-    def moveCursor(self, itemIdx):
-        self.moveScreen('line', 'down', itemIdx-self.cursor-self.firstLine)
-
 
 class TitleArea:
     def __init__(self, screen, title):
