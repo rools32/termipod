@@ -27,30 +27,30 @@ class DownloadManager():
             worker.setDaemon(True)
             worker.start()
 
-        for item in self.itemList.videos:
-            if 'downloading' == item['status']:
-                channel = self.itemList.db.getChannel(item['url'])
-                self.add(item, channel, update=False)
+        for video in self.itemList.videos:
+            if 'downloading' == video['status']:
+                channel = self.itemList.db.getChannel(video['url'])
+                self.add(video, channel, update=False)
 
     def handleQueue(self, q):
         """This is the worker thread function. It processes items in the queue one
         after another.  These daemon threads go into an infinite loop, and only
         exit when the main thread ends."""
         while True:
-            item, channel = q.get()
-            self.download(item, channel)
+            video, channel = q.get()
+            self.download(video, channel)
             q.task_done()
 
-    def add(self, item, channel, update=True):
+    def add(self, video, channel, update=True):
         if update:
-            self.printInfos('Add to download: %s' % item['title'])
-            item['status'] = 'downloading'
-            self.itemList.db.updateVideo(item)
+            self.printInfos('Add to download: %s' % video['title'])
+            video['status'] = 'downloading'
+            self.itemList.db.updateVideo(video)
             self.itemList.updateVideoAreas()
-        self.queue.put((item, channel))
+        self.queue.put((video, channel))
 
-    def download(self, item, channel):
-        link = item['link']
+    def download(self, video, channel):
+        link = video['link']
 
         # Set filename # TODO handle collision add into db even before downloading
         path = strToFilename(channel['title'])
@@ -60,18 +60,18 @@ class DownloadManager():
         # Download file
         if 'rss' == channel['type']:
             ext = link.split('.')[-1]
-            filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
-                    strToFilename(item['title']), ext)
+            filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
+                    strToFilename(video['title']), ext)
             rss.download(link, filename, self.printInfos)
 
         elif 'youtube' == channel['type']:
-            filename = "%s/%s_%s.%s" % (path, tsToDate(item['date']),
-                    strToFilename(item['title']), 'mp4')
+            filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
+                    strToFilename(video['title']), 'mp4')
             yt.download(link, filename, self.printInfos)
 
         # Change status and filename
-        item['filename'] = filename
-        item['status'] = 'downloaded'
-        db = DataBase(self.itemList.dbName)
-        db.updateItem(item)
+        video['filename'] = filename
+        video['status'] = 'downloaded'
+        db = DataBase(self.itemList.dbName, self.printInfos)
+        db.updateVideo(video)
         self.itemList.updateVideoAreas()
