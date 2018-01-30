@@ -31,6 +31,7 @@ maps = [
     ('videos', ord('l'), 'video_play'),
     ('videos', ord('a'), 'video_playadd'),
     ('videos', ord('h'), 'video_stop'),
+    ('videos', ord('c'), 'channel_filter'),
 
     ('videos_remote', ord('\n'), 'video_download'),
     ('videos_remote', ord('u'), 'video_update'),

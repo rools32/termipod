@@ -41,7 +41,7 @@ class UI():
             area = tabs.getCurrentArea()
 
             areaKeyClass = area.getKeyClass()
-            idx = tabs.getCurrentArea().getIdx()
+            idx = area.getIdx()
 
             action = getAction(areaKeyClass, key)
             printLog(action)
@@ -103,8 +103,7 @@ class UI():
             ####################################################################
             # Highlight channel name
             elif 'search_channel' == action:
-                line = tabs.getCurrentLine()
-                channel = line.split(u" \u2022 ")[1]
+                channel = area.getCurrentChannel()
                 self.printInfos('Search: '+channel)
                 tabs.highlight(channel)
 
@@ -116,6 +115,9 @@ class UI():
 
             elif 'video_stop' == action:
                 self.itemList.stop()
+
+            elif 'channel_filter' == action:
+                tabs.channelFilterSwitch()
 
             ####################################################################
             # Remote video commands
@@ -191,6 +193,10 @@ class Tabs:
     def highlight(self, searchString):
         area = self.getCurrentArea()
         area.highlight(searchString)
+
+    def channelFilterSwitch(self):
+        area = self.getCurrentArea()
+        area.channelFilterSwitch()
 
     def screenInfos(self):
         area = self.getCurrentArea()
@@ -395,14 +401,39 @@ class VideoArea(ItemArea):
         super().__init__(screen, items, name, printInfos)
         self.status = status
         self.keyClass = 'videos_'+keyClass
+        self.channelFilter = False
+
+    def extractChannelName(self, line):
+        return line.split(u" \u2022 ")[1]
+
+    def getCurrentChannel(self):
+        line = self.getCurrentLine()
+        return self.extractChannelName(line)
+
+    def channelFilterSwitch(self):
+        if False != self.channelFilter:
+            self.channelFilter = False
+        else:
+            printLog('hey')
+            channel = self.getCurrentChannel()
+            printLog(channel)
+            self.channelFilter = channel
+
+        # Update screen
+        self.resetContent()
 
     def getSelection(self):
         self.selection = []
         items = []
         for index, item in enumerate(self.items):
-            if item['status'] == self.status:
-                self.selection.append(index)
-                items.append(item)
+            if self.channelFilter and self.channelFilter != item['channel']:
+                continue
+            if self.status != item['status']:
+                continue
+
+            self.selection.append(index)
+            items.append(item)
+
         return items
 
     def itemToString(self, item, width):
