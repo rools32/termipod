@@ -4,7 +4,6 @@ import shlex
 
 from utils import durationToStr, tsToDate, printLog
 from itemlist import ItemList
-from utils import printLog
 from keymap import getAction
 
 class UI():
@@ -126,7 +125,7 @@ class UI():
                 self.itemList.download(idx)
 
             elif 'video_update' == action:
-                updated = self.itemList.updateVideos()
+                updated = self.itemList.updateVideoList()
 
             ####################################################################
             # Local video commands
@@ -521,10 +520,17 @@ class StatusArea:
         self.win.keypad(1)
         self.print('')
 
-    def print(self, string):
+    def print(self, value):
+        string = str(value)
+        if len(string) > self.width:
+            shortString = string[:self.width-4]+'.'*3
+        else:
+            shortString = string
+
         self.win.move(0, 0)
         self.win.clrtoeol()
-        self.win.addstr(0, 0, str(string))
+        self.win.addstr(0, 0, str(shortString))
+        printLog(string)
         self.win.refresh()
 
     def runCommand(self, prefix):

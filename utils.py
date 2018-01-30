@@ -2,10 +2,15 @@ from datetime import datetime, timedelta
 import unicodedata
 
 def printLog(string):
-    pass
+    if printLog.reset:
+        mode = 'w'
+        printLog.reset = False
+    else:
+        mode = 'a'
     filename = 'log.txt'
-    with open(filename, 'a') as myfile:
+    with open(filename, mode) as myfile:
         myfile.write(str(string)+"\n")
+printLog.reset = True
 
 def tsToDate(ts):
     return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d')
