@@ -20,6 +20,7 @@ def strToFilename(string):
             .decode('ascii').replace(' ', '-')
 
 def durationToStr(duration):
+    if duration < 0: duration = 0
     return str(timedelta(seconds=duration))
 
 
