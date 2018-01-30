@@ -134,6 +134,8 @@ class UI():
             ####################################################################
             # Channel commands
             ####################################################################
+            elif 'channel_auto' == action:
+                self.itemList.channelAuto(idx)
 
 
     def printInfos(self, string):

@@ -95,16 +95,19 @@ class ItemList():
         """ Switch auto value or set it to a value if argument auto is
         provided """
         channel = self.channels[idx]
+        title = channel['title']
 
         if None == auto:
             if '' == channel['auto']:
-                channel['auto'] = '.*'
+                newValue = '.*'
             else:
-                channel['auto'] = ''
+                newValue = ''
         else:
-            channel['auto'] = auto
+            newValue = auto
+        channel['auto'] = newValue
+        self.printInfos('Auto for channel %s is set to: "%s"' % (title, newValue))
 
-        self.itemList.updateChannelAreas()
+        self.updateChannelAreas()
         self.db.updateChannel(channel)
 
     def updateVideoList(self, urls=None):

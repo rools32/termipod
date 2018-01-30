@@ -32,6 +32,8 @@ maps = [
 
     ('videos_remote', ord('\n'), 'video_download'),
     ('videos_remote', ord('u'), 'video_update'),
+
+    ('channels', ord('a'), 'channel_auto'),
 ]
 
 for m in maps:

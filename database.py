@@ -137,10 +137,10 @@ class DataBase:
     def updateChannel(self, channel):
         sql = """UPDATE channels
                     SET title = ?,
-                    SET type = ?,
-                    SET genre = ?,
-                    SET auto = ?,
-                    SET last_update = ?,
+                        type = ?,
+                        genre = ?,
+                        auto = ?,
+                        last_update = ?
                     WHERE url = ?"""
         args = (
                 channel['title'],
