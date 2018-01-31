@@ -64,12 +64,16 @@ class DownloadManager():
             ext = link.split('.')[-1]
             filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
                     strToFilename(video['title']), ext)
-            rss.download(link, filename, self.printInfos)
+            ret = rss.download(link, filename, self.printInfos)
 
         elif 'youtube' == channel['type']:
             filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
                     strToFilename(video['title']), 'mp4')
-            yt.download(link, filename, self.printInfos)
+            ret = yt.download(link, filename, self.printInfos)
+
+        if 0 != ret: # Download did not happen
+            self.printInfos('Download failed %s' % link)
+            return
 
         # Change status and filename
         video['filename'] = filename

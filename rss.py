@@ -52,5 +52,6 @@ def download(url, filename, printInfos=print):
     try:
         urllib.request.urlretrieve(url, filename)
     except:
-        exit()
-        printInfos('Oups') # TODO better handling errors
+        return 1
+    else:
+        return 0

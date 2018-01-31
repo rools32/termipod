@@ -17,7 +17,7 @@ class Logger(object):
 def download(url, filename, printInfos=print):
     ydl_opts = {'logger': Logger(), 'outtmpl': filename, 'format': 'mp4'}
     with youtube_dl.YoutubeDL(ydl_opts) as ydl:
-        ydl.download([url])
+        return ydl.download([url])
 
 def getData(url, printInfos=print, new=False):
     # If first add, we use ytdl to get old videos
