@@ -610,7 +610,7 @@ class StatusArea:
 
     def print(self, value):
         string = str(value)
-        if len(string) > self.width:
+        if len(string)+1 > self.width:
             shortString = string[:self.width-4]+'.'*3
         else:
             shortString = string
