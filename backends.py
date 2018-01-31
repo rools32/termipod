@@ -23,7 +23,7 @@ class DownloadManager():
 
         # Set up some threads to fetch the items to download
         for i in range(self.nthreads):
-            worker = Thread(target=self.handleQueue, args=(self.queue,))
+            worker = Thread(target=self.handleQueue)
             worker.setDaemon(True)
             worker.start()
 
@@ -32,14 +32,15 @@ class DownloadManager():
                 channel = self.itemList.db.getChannel(video['url'])
                 self.add(video, channel, update=False)
 
-    def handleQueue(self, q):
+    def handleQueue(self):
         """This is the worker thread function. It processes items in the queue one
         after another.  These daemon threads go into an infinite loop, and only
         exit when the main thread ends."""
+        q = self.queue
         while True:
             video, channel = q.get()
-            self.download(video, channel)
             q.task_done()
+            self.download(video, channel)
 
     def add(self, video, channel, update=True):
         if update:
