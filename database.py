@@ -33,6 +33,7 @@ class DataBase:
                     duration int,
                     url str,
                     status int,
+                    state int,
                     filename str,
                     tags str,
                     PRIMARY KEY (channel_url, title, date)
