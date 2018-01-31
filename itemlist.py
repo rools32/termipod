@@ -1,4 +1,5 @@
 import re
+import operator
 
 import backends
 import player
@@ -17,19 +18,25 @@ class ItemList():
         self.player = player.Player(self, self.printInfos)
         self.downloadManager = backends.DownloadManager(self, self.printInfos)
 
-    def updateChannels(self, channels=None):
+    def updateChannels(self, channels=None, replace=True):
         if None == channels:
             channels = self.db.selectVideos()
-        self.channels.clear()
-        self.channels.extend(channels)
-        self.updateChannelAreas()
 
-    def updateVideos(self, videos=None):
+        if replace:
+            self.channels.clear()
+
+        self.channels[0:0] = channels
+        self.updateChannelAreas() # TODO smart if !replace
+
+    def updateVideos(self, videos=None, replace=True):
         if None == videos:
             videos = self.db.selectVideos()
-        self.videos.clear()
-        self.videos.extend(videos)
-        self.updateVideoAreas()
+
+        if replace:
+            self.videos.clear()
+
+        self.videos[0:0] = videos
+        self.updateVideoAreas() # TODO smart if !replace
 
     def updateVideoAreas(self):
         for area in self.videoAreas:
@@ -95,15 +102,18 @@ class ItemList():
             return False
 
         # Add channel to db
-        self.db.addChannel(url, data['title'], data['type'], genre, auto, data)
+        data['genre'] = genre
+        data['auto'] = auto
+        updated = data['updated']
+        data['updated'] = 0 # set to 0 in db for addVideos
+        self.db.addChannel(data)
+        data['updated'] = updated
 
         # Update video list
-        self.db.addVideos(data)
+        videos = self.db.addVideos(data)
 
-        # TODO directly update itemList without using db
-
-        self.updateChannels(self.db.selectChannels())
-        self.updateVideos(self.db.selectVideos())
+        self.updateChannels([data], replace=False)
+        self.updateVideos(videos, replace=False)
 
         self.printInfos(data['title']+' added')
 
@@ -129,7 +139,7 @@ class ItemList():
 
     def updateVideoList(self, urls=None):
         self.printInfos('Update...')
-        updated = False
+        allNewVideos = []
 
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
@@ -144,16 +154,19 @@ class ItemList():
             if None == data:
                 continue
 
+            newVideos = self.db.addVideos(data)
+            if not len(newVideos):
+                continue
+
+            allNewVideos = newVideos+allNewVideos
+
             # Automatic download
             if not '' == channel['auto']:
                 regex = re.compile(channel['auto'])
-                subdata = [ item for item in data['items'] \
-                        if regex.match(item['title']) ]
-                for s in subdata:
+                subVideos = [ video for video in newVideos \
+                        if regex.match(video['title']) ]
+                for s in subVideos:
                     self.downloadManager.add(s, channel)
 
-            updated = updated or self.db.addVideos(data)
-
-        # TODO directly update itemList
-        if updated:
-            self.updateVideos(self.db.selectVideos())
+        allNewVideos.sort(key=operator.itemgetter('date'), reverse=True)
+        self.updateVideos(allNewVideos, replace=False)

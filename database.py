@@ -97,9 +97,8 @@ class DataBase:
         return (channel['url'], channel['title'], channel['type'],
                 channel['genre'], channel['auto'], channel['updated'])
 
-    def addChannel(self, url, title, feedtype, genre, auto, data):
-        # use chennelDictoToList TODO
-        channel = [ url, title, feedtype, genre, auto, 0]
+    def addChannel(self, data):
+        channel = self.channelToList(data)
         params = ','.join('?'*len(channel))
         with self.mutex:
             self.cursor.execute('INSERT INTO channels VALUES (%s)' % params,
@@ -117,9 +116,10 @@ class DataBase:
         # Find out if feed has updates
         updatedDate = channel['updated']
         feedDate = data['updated']
+        newVideos = []
+        newEntries = []
         if (feedDate > updatedDate): # new items
             # Filter feed to keep only new items
-            newVideos = []
             for video in data['items']:
                 if video['date'] > updatedDate:
                     if not 'duration' in video: video['duration'] = 0
@@ -127,29 +127,27 @@ class DataBase:
                     if not 'state' in video: video['state'] = 'unread'
                     if not 'filename' in video: video['filename'] = ''
                     if not 'tags' in video: video['tags'] = ''
-                    newVideos.append(self.videoToList(video))
-
-            if len(newVideos):
-                updated = True
+                    newEntries.append(self.videoToList(video))
+                    newVideos.append(video)
 
             # Add new items to database
-            if updated:
+            if len(newEntries):
                 try:
                     with self.mutex:
-                        params = ','.join('?'*len(newVideos[0]))
+                        params = ','.join('?'*len(newEntries[0]))
                         self.cursor.executemany(
                             'INSERT INTO videos VALUES (%s)' % params,
-                            newVideos)
+                            newEntries)
                         self.conn.commit()
                 except sqlite3.IntegrityError:
                     self.printInfos('Cannot add %s' % str(newVideos))
 
-        if updated:
+        if len(newVideos):
             channel['url'] = url
             channel['updated'] = feedDate
             self.updateChannel(channel)
 
-        return updated
+        return newVideos
 
     def updateChannel(self, channel):
         sql = """UPDATE channels
