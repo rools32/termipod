@@ -7,7 +7,9 @@ import yt
 from utils import *
 
 def getData(url, printInfos=print, new=False):
-    if 'youtube' in url:
+    if 'http' != url[:4]: # local file
+        data = rss.getData(url, printInfos)
+    elif 'youtube' in url:
         data = yt.getData(url, printInfos, new)
     else:
         data = rss.getData(url, printInfos)
