@@ -29,11 +29,12 @@ def getDuration(video):
     return duration
 
 class DownloadManager():
-    def __init__(self, itemList, printInfos=print):
+    def __init__(self, itemList, wait=False, printInfos=print):
         self.nthreads = 2
         self.itemList = itemList
         self.printInfos = printInfos
         self.queue = Queue()
+        self.wait = wait
 
         # Set up some threads to fetch the items to download
         for i in range(self.nthreads):
@@ -45,7 +46,8 @@ class DownloadManager():
             if 'download' == video['location']:
                 channel = self.itemList.db.getChannel(video['url'])
                 self.add(video, channel, update=False)
-        self.waitDone()
+        if self.wait:
+            self.waitDone()
 
     def handleQueue(self):
         """This is the worker thread function. It processes items in the queue one

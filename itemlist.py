@@ -18,7 +18,8 @@ class ItemList():
         self.videoAreas = []
         self.channelAreas = []
         self.player = player.Player(self, self.printInfos)
-        self.downloadManager = backends.DownloadManager(self, self.printInfos)
+        self.downloadManager = \
+                backends.DownloadManager(self, self.wait, self.printInfos)
 
         # Mark removed files as read
         updated = False
