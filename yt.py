@@ -31,9 +31,19 @@ def getData(url, printInfos=print, new=False):
 
         entries = result['entries']
 
+        # Find channel name
+        channel_title = None
+        for entry in entries:
+            if None != entry:
+                channel_title = entry['uploader']
+                break
+
+        if None == channel_title:
+            return None
+
         data = {}
         data['url'] = url
-        data['title'] = channel_title = entries[0]['uploader']
+        data['title'] = channel_title
         data['updated'] = int(time())
         data['type'] = 'youtube'
 
