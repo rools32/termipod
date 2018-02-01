@@ -372,7 +372,7 @@ class ItemArea:
             self.win.addstr(line, 0, string, boldStyle)
         else:
             # If line is in user selection
-            if self.selection[line] in self.userSelection:
+            if self.selection[line+self.firstLine] in self.userSelection:
                 self.win.addstr(line, 0, string, selectStyle)
 
             elif self.highlightOn:
