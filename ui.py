@@ -167,6 +167,10 @@ class UI():
             elif 'channel_auto' == action:
                 self.itemList.channelAuto(idx)
 
+            elif 'channel_auto_custom' == action:
+                auto = self.statusArea.runCommand('auto: ')
+                self.itemList.channelAuto(idx, auto)
+
 
     def printInfos(self, string):
         self.statusArea.print(string)

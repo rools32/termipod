@@ -45,6 +45,7 @@ maps = [
     ('videos_remote', ord('u'), 'video_update'),
 
     ('channels', ord('a'), 'channel_auto'),
+    ('channels', ord('A'), 'channel_auto_custom'),
 ]
 
 for m in maps:
