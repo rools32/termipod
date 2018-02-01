@@ -124,6 +124,11 @@ class UI():
             elif 'video_stop' == action:
                 self.itemList.stop()
 
+            elif 'video_remove' == action:
+                # TODO if is being played: self.itemList.stop()
+                self.itemList.remove(idx)
+                self.itemList.updateVideoAreas()
+
             elif 'channel_filter' == action:
                 tabs.channelFilterSwitch()
 

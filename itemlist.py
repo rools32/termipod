@@ -1,5 +1,6 @@
 import re
 import operator
+import os, os.path
 
 import backends
 import player
@@ -86,6 +87,22 @@ class ItemList():
 
     def stop(self):
         self.player.stop()
+
+    def remove(self, idx=None, video=None, unlink=True):
+        if idx:
+            video = self.videos[idx]
+
+        if not video:
+            return
+
+        if unlink:
+            self.printInfos('Remove "%s" file' % video['filename'])
+            os.unlink(video['filename'])
+
+        self.printInfos('Mark "%s" as local and read' % video['title'])
+        video['state'] = 'read'
+        video['status'] = 'remote'
+        self.db.updateVideo(video)
 
     def addChannel(self, url, auto='', genre=''):
         self.printInfos('Add '+url)
