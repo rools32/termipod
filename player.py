@@ -25,7 +25,7 @@ class Player():
         def updatePlayed(_name, value):
             if True == value:
                 db = self.itemList.db
-                self.item['status'] = 'old'
+                self.item['state'] = 'read'
                 db.updateItem(self.item)
                 self.itemList.updatesAreas()
                 self.item = None

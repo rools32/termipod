@@ -16,26 +16,26 @@ class DataBase:
         if not 'channels' in tables:
             self.cursor.executescript("""
                 CREATE TABLE channels (
-                    url str PRIMARY KEY,
-                    title STR,
-                    type STR,
-                    genre STR,
-                    auto INT,
-                    last_update INT
+                    url TEXT PRIMARY KEY,
+                    title TEXT,
+                    type TEXT,
+                    genre TEXT,
+                    auto INTEGER,
+                    last_update INTEGER
                 );
             """)
         if not 'videos' in tables:
             self.cursor.executescript("""
                 CREATE TABLE videos (
-                    channel_url str,
-                    title str,
-                    date int,
-                    duration int,
-                    url str,
-                    status int,
-                    state int,
-                    filename str,
-                    tags str,
+                    channel_url TEXT,
+                    title TEXT,
+                    date INTEGER,
+                    duration INTEGER,
+                    url TEXT,
+                    location TEXT,
+                    state INTEGER,
+                    filename TEXT,
+                    tags TEXT,
                     PRIMARY KEY (channel_url, title, date)
                 );
             """)
@@ -57,7 +57,7 @@ class DataBase:
         data['date'] = videoList[2]
         data['duration'] = videoList[3]
         data['link'] = videoList[4]
-        data['status'] = videoList[5]
+        data['location'] = videoList[5]
         data['state'] = videoList[6]
         data['filename'] = videoList[7]
         data['tags'] = videoList[8]
@@ -65,7 +65,7 @@ class DataBase:
 
     def videoToList(self, video):
         return (video['url'], video['title'], video['date'], video['duration'],
-                video['link'], video['status'], video['state'],
+                video['link'], video['location'], video['state'],
                 video['filename'], video['tags'])
 
     def getChannel(self, url):
@@ -123,7 +123,7 @@ class DataBase:
             for video in data['items']:
                 if video['date'] > updatedDate:
                     if not 'duration' in video: video['duration'] = 0
-                    if not 'status' in video: video['status'] = 'remote'
+                    if not 'location' in video: video['location'] = 'remote'
                     if not 'state' in video: video['state'] = 'unread'
                     if not 'filename' in video: video['filename'] = ''
                     if not 'tags' in video: video['tags'] = ''
@@ -173,7 +173,7 @@ class DataBase:
         sql = """UPDATE videos
                     SET duration = ?,
                         url = ?,
-                        status = ?,
+                        location = ?,
                         state = ?,
                         filename = ?,
                         tags = ?
@@ -181,12 +181,12 @@ class DataBase:
                           title = ? and
                           date = ?"""
         if not 'duration' in video: video['duration'] = 0
-        if not 'status' in video: video['status'] = 'remote'
+        if not 'location' in video: video['location'] = 'remote'
         if not 'state' in video: video['state'] = 'unread'
         if not 'filename' in video: video['filename'] = ''
         if not 'tags' in video: video['tags'] = ''
         args = (
-                video['duration'], video['link'], video['status'],
+                video['duration'], video['link'], video['location'],
                 video['state'], video['filename'], video['tags'],
                 video['url'], video['title'], video['date']
         )

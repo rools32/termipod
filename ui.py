@@ -180,8 +180,8 @@ class Tabs:
         self.areas = []
         self.titleArea = TitleArea(screen, '')
 
-    def addVideos(self, status, name):
-        area = VideoArea(self.screen, status, self.itemList.videos, name,
+    def addVideos(self, location, name):
+        area = VideoArea(self.screen, location, self.itemList.videos, name,
                 self.printInfos)
         self.areas.append(area)
         self.itemList.videoAreas.append(area)
@@ -480,11 +480,11 @@ class ItemArea:
         return self.keyClass
 
 class VideoArea(ItemArea):
-    def __init__(self, screen, status, items, name, printInfos):
+    def __init__(self, screen, location, items, name, printInfos):
         super().__init__(screen, items, name, printInfos)
-        self.status = status
+        self.location = location
         self.state = 'unread'
-        self.keyClass = 'videos_'+status
+        self.keyClass = 'videos_'+location
         self.channelFilter = False
 
     def extractChannelName(self, line):
@@ -518,7 +518,7 @@ class VideoArea(ItemArea):
         for index, item in enumerate(self.items):
             if self.channelFilter and self.channelFilter != item['channel']:
                 continue
-            if self.status != item['status']:
+            if self.location != item['location']:
                 continue
             if 'all' != self.state and self.state != item['state']:
                 continue

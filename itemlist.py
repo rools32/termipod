@@ -23,7 +23,7 @@ class ItemList():
         # Mark removed files as read
         updated = False
         for video in self.videos:
-            if 'local' == video['status'] and not os.path.isfile(video['filename']):
+            if 'local' == video['location'] and not os.path.isfile(video['filename']):
                 self.remove(video=video, unlink=False)
                 updated = True
 
@@ -112,7 +112,7 @@ class ItemList():
 
         self.printInfos('Mark "%s" as local and read' % video['title'])
         video['state'] = 'read'
-        video['status'] = 'remote'
+        video['location'] = 'remote'
         self.db.updateVideo(video)
 
     def addChannel(self, url, auto='', genre=''):

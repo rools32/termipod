@@ -29,7 +29,7 @@ class DownloadManager():
             worker.start()
 
         for video in self.itemList.videos:
-            if 'download' == video['status']:
+            if 'download' == video['location']:
                 channel = self.itemList.db.getChannel(video['url'])
                 self.add(video, channel, update=False)
         self.waitDone()
@@ -47,7 +47,7 @@ class DownloadManager():
     def add(self, video, channel, update=True):
         if update:
             self.printInfos('Add to download: %s' % video['title'])
-            video['status'] = 'download'
+            video['location'] = 'download'
             self.itemList.db.updateVideo(video)
             self.itemList.updateVideoAreas()
         self.queue.put((video, channel))
@@ -79,8 +79,8 @@ class DownloadManager():
             self.printInfos('Download failed %s' % link)
             return
 
-        # Change status and filename
+        # Change location and filename
         video['filename'] = filename
-        video['status'] = 'local'
+        video['location'] = 'local'
         self.itemList.db.updateVideo(video)
         self.itemList.updateVideoAreas()
