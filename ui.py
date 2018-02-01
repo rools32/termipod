@@ -335,6 +335,9 @@ class ItemArea:
         self.nextHighlight()
 
     def nextHighlight(self, reverse=False):
+        if None == self.highlightString:
+            return
+
         itemIdx = None
         if not reverse:
             for i in range(self.firstLine+self.cursor+1, len(self.content)):
