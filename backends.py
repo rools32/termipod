@@ -32,6 +32,7 @@ class DownloadManager():
             if 'download' == video['status']:
                 channel = self.itemList.db.getChannel(video['url'])
                 self.add(video, channel, update=False)
+        self.waitDone()
 
     def handleQueue(self):
         """This is the worker thread function. It processes items in the queue one
@@ -40,8 +41,8 @@ class DownloadManager():
         q = self.queue
         while True:
             video, channel = q.get()
-            q.task_done()
             self.download(video, channel)
+            q.task_done()
 
     def add(self, video, channel, update=True):
         if update:
@@ -50,6 +51,9 @@ class DownloadManager():
             self.itemList.db.updateVideo(video)
             self.itemList.updateVideoAreas()
         self.queue.put((video, channel))
+
+    def waitDone(self):
+        self.queue.join()
 
     def download(self, video, channel):
         link = video['link']

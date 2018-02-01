@@ -7,8 +7,9 @@ from database import DataBase
 from utils import *
 
 class ItemList():
-    def __init__(self, dbName, printInfos=print):
+    def __init__(self, dbName, printInfos=print, wait=False):
         self.dbName = dbName
+        self.wait = wait
         self.db = DataBase(dbName, printInfos)
         self.videos = self.db.selectVideos()
         self.channels = self.db.selectChannels()
@@ -144,6 +145,7 @@ class ItemList():
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
 
+        needToWait = False
         for i, url in enumerate(urls):
             channel = self.db.getChannel(url)
             self.printInfos('Update channel %s (%d/%d)...' \
@@ -167,6 +169,11 @@ class ItemList():
                         if regex.match(video['title']) ]
                 for s in subVideos:
                     self.downloadManager.add(s, channel)
+                    needToWait = True
+
+        if self.wait and needToWait:
+            self.printInfos('Wait for downloads to complete...')
+            self.downloadManager.waitDone()
 
         allNewVideos.sort(key=operator.itemgetter('date'), reverse=True)
         self.updateVideos(allNewVideos, replace=False)

@@ -21,7 +21,7 @@ if len(sys.argv) == 1:
     UI(dbName)
 
 else:
-    itemList = ItemList(dbName)
+    itemList = ItemList(dbName, wait=True)
 
     if args.up:
         itemList.updateVideoList()
