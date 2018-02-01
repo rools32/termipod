@@ -1,6 +1,8 @@
 import os, os.path
+from time import sleep
 from queue import Queue
 from threading import Thread
+import subprocess
 
 import rss
 import yt
@@ -41,8 +43,12 @@ class DownloadManager():
         q = self.queue
         while True:
             video, channel = q.get()
-            self.download(video, channel)
+            ret = self.download(video, channel)
             q.task_done()
+            if None == ret:
+                sleep(5)
+                self.add(video, channel, update=False)
+
 
     def add(self, video, channel, update=True):
         if update:
@@ -58,12 +64,13 @@ class DownloadManager():
     def download(self, video, channel):
         link = video['link']
 
-        # Set filename # TODO handle collision add into db even before downloading
+        # Set filename # TODO handle collision
         path = strToFilename(channel['title'])
         if not os.path.exists(path):
             os.makedirs(path)
 
         # Download file
+        self.printInfos('Download %s...' % video['title'])
         if 'rss' == channel['type']:
             ext = link.split('.')[-1]
             filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
@@ -84,3 +91,5 @@ class DownloadManager():
         video['location'] = 'local'
         self.itemList.db.updateVideo(video)
         self.itemList.updateVideoAreas()
+
+        return 0
