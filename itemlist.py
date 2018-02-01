@@ -20,6 +20,17 @@ class ItemList():
         self.player = player.Player(self, self.printInfos)
         self.downloadManager = backends.DownloadManager(self, self.printInfos)
 
+        # Mark removed files as read
+        updated = False
+        for video in self.videos:
+            if 'local' == video['status'] and not os.path.isfile(video['filename']):
+                self.remove(video=video, unlink=False)
+                updated = True
+
+        if updated:
+            self.updateVideoAreas()
+
+
     def updateChannels(self, channels=None, replace=True):
         if None == channels:
             channels = self.db.selectVideos()
