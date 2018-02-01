@@ -7,13 +7,15 @@ class DataBase:
     def __init__(self, name, printInfos=print):
         self.mutex = Lock()
         self.printInfos = printInfos
+        self.version = 1
+
         self.conn = sqlite3.connect(name, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table';")
-        tables = map(lambda x: x[0], self.cursor.fetchall())
+        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        tables = list(map(lambda x: x[0], self.cursor.fetchall()))
 
-        if not 'channels' in tables:
+        if not len(tables):
             self.cursor.executescript("""
                 CREATE TABLE channels (
                     url TEXT PRIMARY KEY,
@@ -24,7 +26,6 @@ class DataBase:
                     last_update INTEGER
                 );
             """)
-        if not 'videos' in tables:
             self.cursor.executescript("""
                 CREATE TABLE videos (
                     channel_url TEXT,
@@ -39,7 +40,24 @@ class DataBase:
                     PRIMARY KEY (channel_url, title, date)
                 );
             """)
+            self.setUserVersion(self.version)
+
+        else:
+            dbVersion = self.getUserVersion()
+            if self.version != dbVersion:
+                self.printInfos(('Database is version "%d" but "%d" '
+                    'needed: please update') % (dbVersion, self.version))
+                exit(1)
+
         self.conn.commit()
+
+    def getUserVersion(self):
+        self.cursor.execute('PRAGMA user_version')
+        return self.cursor.fetchone()[0]
+
+    def setUserVersion(self, version):
+        self.cursor.execute('PRAGMA user_version={:d}'.format(version))
+
 
     def selectVideos(self):
         self.cursor.execute("""SELECT * FROM videos

@@ -622,6 +622,7 @@ class StatusArea:
 
     def print(self, value):
         string = str(value)
+        printLog(string)
         if len(string)+1 > self.width:
             shortString = string[:self.width-4]+'.'*3
         else:
@@ -630,7 +631,6 @@ class StatusArea:
         self.win.move(0, 0)
         self.win.clrtoeol()
         self.win.addstr(0, 0, str(shortString))
-        printLog(string)
         self.win.refresh()
 
     def runCommand(self, prefix):
