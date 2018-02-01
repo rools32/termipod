@@ -35,6 +35,7 @@ class DownloadManager():
         self.printInfos = printInfos
         self.queue = Queue()
         self.wait = wait
+        self.maxRetries = 3
 
         # Set up some threads to fetch the items to download
         for i in range(self.nthreads):
@@ -59,8 +60,16 @@ class DownloadManager():
             ret = self.download(video, channel)
             q.task_done()
             if None == ret:
+                if not video['link'] in self.handleQueue.retries:
+                    self.handleQueue.retries[video['link']] = 1
+
+                if self.maxRetries <= self.handleQueue.retries[video['link']]:
+                    continue
+
+                self.handleQueue.retries[video['link']] += 1
                 sleep(5)
                 self.add(video, channel, update=False)
+    handleQueue.retries = {}
 
 
     def add(self, video, channel, update=True):
