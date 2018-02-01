@@ -1,4 +1,5 @@
 import os, os.path
+import shlex
 from time import sleep
 from queue import Queue
 from threading import Thread
@@ -16,6 +17,16 @@ def getData(url, printInfos=print, new=False):
     else:
         data = rss.getData(url, printInfos)
     return data
+
+def getDuration(video):
+    filename = os.path.abspath(video['filename']).replace('"','\\"')
+    commandline = 'ffprobe -i "%s" -show_entries format=duration -v quiet -of csv="p=0"' % filename
+    args = shlex.split(commandline)
+    result = subprocess.Popen(args,
+            stdout=subprocess.PIPE, stderr=subprocess.STDOUT)
+    output = result.communicate()
+    duration = int(float(output[0]))
+    return duration
 
 class DownloadManager():
     def __init__(self, itemList, printInfos=print):
@@ -89,6 +100,10 @@ class DownloadManager():
         # Change location and filename
         video['filename'] = filename
         video['location'] = 'local'
+
+        if 0 == video['duration']:
+            video['duration'] = getDuration(video)
+
         self.itemList.db.updateVideo(video)
         self.itemList.updateVideoAreas()
 
