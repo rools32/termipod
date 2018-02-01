@@ -483,7 +483,7 @@ class VideoArea(ItemArea):
     def __init__(self, screen, status, items, name, printInfos):
         super().__init__(screen, items, name, printInfos)
         self.status = status
-        self.state = 'all'
+        self.state = 'unread'
         self.keyClass = 'videos_'+status
         self.channelFilter = False
 
