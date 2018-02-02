@@ -23,4 +23,26 @@ def durationToStr(duration):
     if duration < 0: duration = 0
     return str(timedelta(seconds=duration))
 
+# Truncate the line or add spaces if needed
+# When !truncate list is returned for each line
+def formatString(string, width, truncate=True):
+    space = width-len(string)
 
+    # If line is too long
+    if truncate:
+        if 0 > space:
+            return string[:space-3]+'...'
+        else:
+            return string+' '*space
+
+    else:
+        strings = []
+        while 0 > space:
+            strings.append(string[:space])
+            string = string[space:]
+            space = width-len(string)
+
+        if 0 <= space:
+            strings.append(string+' '*space)
+
+        return strings

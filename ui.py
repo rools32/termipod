@@ -2,7 +2,7 @@ import curses
 import curses.textpad
 import shlex
 
-from utils import durationToStr, tsToDate, printLog
+from utils import durationToStr, tsToDate, printLog, formatString
 from itemlist import ItemList
 from keymap import getAction, mapToHelp
 
@@ -76,10 +76,7 @@ class UI():
                 tabs.showNextTab(reverse=True)
 
             elif 'help' == action:
-                lines = mapToHelp(area.keyClass)
-                base = area.cursor
-                PopupArea(screen, lines, base)
-                area.display(redraw=True)
+                area.showHelp()
 
             elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
@@ -289,6 +286,7 @@ class Tabs:
 class ItemArea:
     def __init__(self, screen, items, name, displayName, printInfos):
         self.printInfos = printInfos
+        self.screen = screen
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
@@ -428,6 +426,11 @@ class ItemArea:
                     styleIdx = (styleIdx+1)%2
             else:
                 self.win.addstr(line, 0, string, normalStyle)
+
+    def showHelp(self):
+        lines = mapToHelp(self.keyClass)
+        PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
+        self.display(redraw=True)
 
     def moveScreen(self, what, way, number=1):
         redraw = False
@@ -673,29 +676,39 @@ class StatusArea:
         return string
 
 class PopupArea:
-    def __init__(self, screen, lines, base):
-        screenHeight, screenWidth = screen.getmaxyx()
+    def __init__(self, screen, areaSize, rawLines, base, margin=5):
+        screenHeight, screenWidth = areaSize
+
+        self.outerMargin = margin
+        self.innerMargin = 2
+        self.width = screenWidth-self.outerMargin*2
+        self.textWidth = self.width-self.innerMargin*2
+
+        lines = []
+        for l in rawLines:
+            lines.extend(formatString(l, self.textWidth, truncate=False))
+
         self.height = len(lines)+2 # for border
-        self.widthPadding = 5
-        self.width = screenWidth-self.widthPadding*2-2
 
         # Compute first line position
         if self.height > screenHeight-2:
+            printLog('TODO: implement scrollable popup')
             exit(1) # TODO
         start = max(1, base-int(len(lines)/2))
         if start+self.height > screenHeight-1:
             start = screenHeight-1-self.height
 
         self.win = curses.newwin(self.height, self.width, start,
-                self.widthPadding)
+                self.outerMargin)
         self.win.bkgd(curses.color_pair(3))
         self.win.keypad(1)
         self.win.border('|', '|', '-', '-', '+', '+', '+', '+')
 
         for line in range(1, 1+len(lines)):
-            self.win.move(line, 2)
+            self.win.move(line, self.innerMargin)
             self.win.clrtoeol()
-            self.win.addstr(line, 2, str(lines[line-1]))
+            self.win.addstr(line, self.innerMargin, str(lines[line-1]))
         self.win.refresh()
 
         key = screen.getch()
+        curses.ungetch(key)
