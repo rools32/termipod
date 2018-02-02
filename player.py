@@ -1,77 +1,98 @@
 import mpv
+import os
 from utils import *
 
 class Player():
     def __init__(self, itemList, printInfos=print):
         self.itemList = itemList
         self.printInfos = printInfos
-        self.item = None
         self.player = None
+        self.currentFilename = None
+        self.playlist = {}
 
     def start(self):
         self.player = mpv.MPV(log_handler=self.mpv_log, ytdl=True,
-                input_default_bindings=True, input_vo_keyboard=True)
+                input_default_bindings=True, input_vo_keyboard=True,
+                osc=True, config=True)
         self.player.force_window = True
+        self.player.keep_open = 'always'
+        self.player.keep_open_pause = False # To continue after next file
 
         @self.player.on_key_press('q')
-        def my_q_binding():
-            pass
-
-        @self.player.on_key_press('s')
-        def my_s_binding():
+        def stop():
             self.stop()
+
+        @self.player.on_key_press('d')
+        def remove_and_next():
+            self.markAsPlayed(unlink=True)
+            self.next()
+
+        @self.player.on_key_press('r')
+        def read_and_next():
+            self.markAsPlayed()
+            self.next()
 
         @self.player.property_observer('eof-reached')
         def updatePlayed(_name, value):
-            if True == value:
-                db = self.itemList.db
-                self.item['state'] = 'read'
-                db.updateItem(self.item)
-                self.itemList.updatesAreas()
-                self.item = None
-                del db
+            if value: # can be True thanks to keep_open
+                read_and_next()
+
+        @self.player.property_observer('stream-path')
+        def updatePlayed(_name, value):
+            self.currentFilename = value
 
     def mpv_log(self, loglevel, component, message):
-        pass
+        printLog(message)
 
+    def markAsPlayed(self, unlink=False):
+        db = self.itemList.db
+        video = self.playlist[self.currentFilename]
+        video['state'] = 'read'
+        self.printInfos('Mark as read %s' % video['filename'])
 
-    def play(self, item, mode='append-play'):
-        self.item = item
+        if unlink:
+            self.printInfos('Remove %s' % video['filename'])
+            os.unlink(video['filename'])
+            video['filename'] = ''
 
-        self.printInfos('Play '+item['title'])
+        db.updateVideo(video)
+        self.itemList.updateVideoAreas()
 
-        needNext = True
+    def play(self, video, now=True):
+        if now:
+            self.printInfos('Play '+video['title'])
+        else:
+            self.printInfos('Enqueue '+video['title'])
+
         if not self.player:
-            needNext = False
             self.start()
 
-        if '' != item['filename']:
-            target=item['filename']
+        if 'local' == video['location'] and '' != video['filename']:
+            target=video['filename']
         else:
-            target=item['link']
+            target=video['link']
 
-        self.player.loadfile(target, 'replace')
-        # FIXME append-play does not do play!
-        #self.player.play(item['filename'])
+        self.playlist[target] = video
+        self.player.loadfile(target, 'append-play')
+        if now:
+            self.player.playlist_pos = self.player.playlist_count-1
 
     def next(self):
-        self.player.playlist_next(mode='force')
+        if self.player.playlist_pos+1 == self.player.playlist_count:
+            self.stop()
+        else:
+            self.player.playlist_next(mode='force')
 
     def prev(self):
         self.player.playlist_prev(mode='force')
 
-    def add(self, item):
-        if '' != item['filename']:
-            target=item['filename']
-        else:
-            target=item['link']
-
-        self.player.loadfile(target, 'append')
+    def add(self, video):
+        self.play(video, now=False)
 
     def stop(self):
         if self.player:
             #self.player.quit_watch_later()
             self.player.write_watch_later_config() # FIXME do not work
-            self.player.command('stop')
+            self.player.terminate()
             del self.player
             self.player = None
