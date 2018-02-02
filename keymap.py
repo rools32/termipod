@@ -1,3 +1,6 @@
+from utils import printLog
+import curses
+
 keys = {}
 
 def addKey(areaType, key, action):
@@ -10,7 +13,30 @@ def getAction(areaType, key):
             return keys[(t, key)]
     return None
 
-maps = [
+def mapToHelp(areaType):
+    elements = []
+    maxLen = 0
+    for m in keymaps:
+        if m[0] in areaType:
+            keyseq = curses.keyname(m[1]).decode("utf-8")
+            if '^J' == keyseq:
+                keyseq = 'Return'
+            elif ' ' == keyseq:
+                keyseq = 'Space'
+            elif '^I' == keyseq:
+                keyseq = 'Tab'
+            elements.append((keyseq, m[2]))
+            maxLen = max(maxLen, len(keyseq))
+
+    lines = []
+    for e in elements:
+        length = len(e[0])
+        numSpaces = maxLen-length+1
+        lines.append('<%s>%s%s' % (e[0], ' '*numSpaces, e[1]))
+
+    return lines
+
+keymaps = [
     ('', ord('j'), 'line_down'),
     ('', ord('k'), 'line_up'),
     ('', 6, 'page_down'),
@@ -18,6 +44,7 @@ maps = [
     ('', ord('g'), 'top'),
     ('', ord('G'), 'bottom'),
     ('', ord('\t'), 'tab_next'),
+    ('', ord('?'), 'help'),
 
     ('', 7, 'screen_infos'),
 
@@ -48,5 +75,5 @@ maps = [
     ('channels', ord('A'), 'channel_auto_custom'),
 ]
 
-for m in maps:
+for m in keymaps:
     addKey(*m)

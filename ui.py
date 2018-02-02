@@ -4,7 +4,7 @@ import shlex
 
 from utils import durationToStr, tsToDate, printLog
 from itemlist import ItemList
-from keymap import getAction
+from keymap import getAction, mapToHelp
 
 class UI():
     def __init__(self, dbName):
@@ -71,6 +71,12 @@ class UI():
 
             elif 'tab_next' == action:
                 tabs.showNextTab()
+
+            elif 'help' == action:
+                lines = mapToHelp(area.keyClass)
+                base = area.cursor
+                PopupArea(screen, lines, base)
+                area.display(redraw=True)
 
             elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
