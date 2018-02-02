@@ -78,6 +78,9 @@ class UI():
             elif 'help' == action:
                 area.showHelp()
 
+            elif 'infos' == action:
+                area.showInfos()
+
             elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
                 command = shlex.split(string)
@@ -359,6 +362,9 @@ class ItemArea:
         else:
             return -1
 
+    def getCurrentItem(self):
+        return self.items[self.getIdx()]
+
     def getCurrentLine(self):
         return self.content[self.firstLine+self.cursor]
 
@@ -429,6 +435,13 @@ class ItemArea:
 
     def showHelp(self):
         lines = mapToHelp(self.keyClass)
+        PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
+        self.display(redraw=True)
+
+    def showInfos(self):
+        item = self.getCurrentItem()
+        lines = self.itemToString(item, multiLines=True)
+
         PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
         self.display(redraw=True)
 
@@ -570,27 +583,30 @@ class VideoArea(ItemArea):
 
         return items
 
-    def itemToString(self, item, width):
-        date = tsToDate(item['date'])
-        duration = durationToStr(item['duration'])
+    def itemToString(self, item, width=0, multiLines=False):
+        formattedItem = dict(item)
+        formattedItem['date'] = tsToDate(item['date'])
+        formattedItem['duration'] = durationToStr(item['duration'])
         separator = u" \u2022 "
 
-        string = date
-        string += separator
-        string += item['channel']
-        string += separator
-        string += item['title']
+        if not multiLines:
+            string = formattedItem['date']
+            string += separator
+            string += formattedItem['channel']
+            string += separator
+            string += formattedItem['title']
 
-        # Truncate the line or add spaces if needed
-        space = width-1-len(string+separator+duration)
-        if space < 0:
-            string = string[:space-3]
-            string += '...'
+            string = formatString(string,
+                    width-1-len(separator+formattedItem['duration']))
+            string += separator
+            string += formattedItem['duration']
+
         else:
-            string += ' '*space
-
-        string += separator
-        string += duration
+            fields = ['title', 'channel', 'date', 'duration', 'filename']
+            string = []
+            for f in fields:
+                s = '%s%s: %s' % (separator, f, formattedItem[f])
+                string.append(s)
 
         return string
 
