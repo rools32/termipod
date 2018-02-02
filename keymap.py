@@ -44,6 +44,7 @@ keymaps = [
     ('', ord('g'), 'top'),
     ('', ord('G'), 'bottom'),
     ('', ord('\t'), 'tab_next'),
+    ('', 90, 'tab_prev'),
     ('', ord('?'), 'help'),
 
     ('', 7, 'screen_infos'),

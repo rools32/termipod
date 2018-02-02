@@ -72,6 +72,9 @@ class UI():
             elif 'tab_next' == action:
                 tabs.showNextTab()
 
+            elif 'tab_prev' == action:
+                tabs.showNextTab(reverse=True)
+
             elif 'help' == action:
                 lines = mapToHelp(area.keyClass)
                 base = area.cursor
@@ -236,8 +239,12 @@ class Tabs:
         self.titleArea = TitleArea(self.screen, area.displayName)
         area.display(True)
 
-    def showNextTab(self):
-        self.showTab((self.currentIdx+1)%len(self.areas))
+    def showNextTab(self, reverse=False):
+        if reverse:
+            way = -1
+        else:
+            way = 1
+        self.showTab((self.currentIdx+1*way)%len(self.areas))
 
     def moveScreen(self, what, way):
         area = self.getCurrentArea()
