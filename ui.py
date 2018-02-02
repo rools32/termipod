@@ -640,4 +640,30 @@ class StatusArea:
         string = tb.edit()[len(prefix):-1] # remove ':' and last char
         return string
 
+class PopupArea:
+    def __init__(self, screen, lines, base):
+        screenHeight, screenWidth = screen.getmaxyx()
+        self.height = len(lines)+2 # for border
+        self.widthPadding = 5
+        self.width = screenWidth-self.widthPadding*2-2
 
+        # Compute first line position
+        if self.height > screenHeight-2:
+            exit(1) # TODO
+        start = max(1, base-int(len(lines)/2))
+        if start+self.height > screenHeight-1:
+            start = screenHeight-1-self.height
+
+        self.win = curses.newwin(self.height, self.width, start,
+                self.widthPadding)
+        self.win.bkgd(curses.color_pair(3))
+        self.win.keypad(1)
+        self.win.border('|', '|', '-', '-', '+', '+', '+', '+')
+
+        for line in range(1, 1+len(lines)):
+            self.win.move(line, 2)
+            self.win.clrtoeol()
+            self.win.addstr(line, 2, str(lines[line-1]))
+        self.win.refresh()
+
+        key = screen.getch()
