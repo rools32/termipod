@@ -31,7 +31,7 @@ class UI():
         tabs.addVideos('remote', 'Remote videos')
         tabs.addVideos('local', 'Playlist')
         tabs.addVideos('download', 'Downloading')
-        tabs.addChannels('Channels')
+        tabs.addChannels('channels', 'Channels')
         tabs.showTab(0)
 
         while True:
@@ -177,6 +177,11 @@ class UI():
                 auto = self.statusArea.runCommand('auto: ')
                 self.itemList.channelAuto(idx, auto)
 
+            elif 'channel_show_videos' == action:
+                channel = self.itemList.channels[idx]
+                self.itemList.channelAuto(idx)
+                tabs.showTab('remote')
+                tabs.channelFilterSwitch(channel['title'])
 
     def printInfos(self, string):
         self.statusArea.print(string)
@@ -190,15 +195,22 @@ class Tabs:
         self.areas = []
         self.titleArea = TitleArea(screen, '')
 
+    def getAreaIdx(self, name):
+        for idx, area in enumerate(self.areas):
+            printLog(area.name)
+            if name == area.name:
+                return idx
+        return None
+
     def addVideos(self, location, name):
         area = VideoArea(self.screen, location, self.itemList.videos, name,
                 self.printInfos)
         self.areas.append(area)
         self.itemList.videoAreas.append(area)
 
-    def addChannels(self, name):
+    def addChannels(self, name, displayName):
         area = ChannelArea(self.screen, self.itemList.channels, name,
-                self.printInfos)
+                displayName, self.printInfos)
         self.areas.append(area)
         self.itemList.channelAreas.append(area)
 
@@ -208,14 +220,20 @@ class Tabs:
     def getArea(self, idx):
         return self.areas[idx]
 
-    def showTab(self, idx):
+    def showTab(self, target):
+        if str == type(target):
+            printLog(target)
+            idx = self.getAreaIdx(target)
+        else:
+            idx = target
+
         # Hide previous tab
         if -1 != self.currentIdx:
             self.getCurrentArea().shown = False
 
         self.currentIdx = idx
         area = self.getArea(idx)
-        self.titleArea = TitleArea(self.screen, area.name)
+        self.titleArea = TitleArea(self.screen, area.displayName)
         area.display(True)
 
     def showNextTab(self):
@@ -229,9 +247,9 @@ class Tabs:
         area = self.getCurrentArea()
         area.highlight(searchString)
 
-    def channelFilterSwitch(self):
+    def channelFilterSwitch(self, channel=None):
         area = self.getCurrentArea()
-        area.channelFilterSwitch()
+        area.channelFilterSwitch(channel)
 
     def stateSwitch(self):
         area = self.getCurrentArea()
@@ -262,12 +280,13 @@ class Tabs:
         return area.getCurrentLine()
 
 class ItemArea:
-    def __init__(self, screen, items, name, printInfos):
+    def __init__(self, screen, items, name, displayName, printInfos):
         self.printInfos = printInfos
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
         self.name = name
+        self.displayName = displayName
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
         self.win.keypad(1) # to handle special keys as one key
@@ -494,7 +513,7 @@ class ItemArea:
 
 class VideoArea(ItemArea):
     def __init__(self, screen, location, items, name, printInfos):
-        super().__init__(screen, items, name, printInfos)
+        super().__init__(screen, items, location, name, printInfos)
         self.location = location
         self.state = 'unread'
         self.keyClass = 'videos_'+location
@@ -507,12 +526,12 @@ class VideoArea(ItemArea):
         line = self.getCurrentLine()
         return self.extractChannelName(line)
 
-    def channelFilterSwitch(self):
-        if False != self.channelFilter:
+    def channelFilterSwitch(self, channel=None):
+        if None == channel and False != self.channelFilter:
             self.channelFilter = False
         else:
-            channel = self.getCurrentChannel()
-            printLog(channel)
+            if None == channel:
+                channel = self.getCurrentChannel()
             self.channelFilter = channel
 
         # Update screen
@@ -566,8 +585,8 @@ class VideoArea(ItemArea):
         return string
 
 class ChannelArea(ItemArea):
-    def __init__(self, screen, items, name, printInfos):
-        super().__init__(screen, items, name, printInfos)
+    def __init__(self, screen, items, name, displayName, printInfos):
+        super().__init__(screen, items, name, displayName, printInfos)
         self.keyClass = 'channels'
 
     def getSelection(self):

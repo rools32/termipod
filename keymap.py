@@ -73,6 +73,7 @@ keymaps = [
 
     ('channels', ord('a'), 'channel_auto'),
     ('channels', ord('A'), 'channel_auto_custom'),
+    ('channels', ord('\n'), 'channel_show_videos'),
 ]
 
 for m in keymaps:
