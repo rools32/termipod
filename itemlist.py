@@ -108,8 +108,18 @@ class ItemList():
             return
 
         if unlink:
-            self.printInfos('Remove "%s" file' % video['filename'])
-            os.unlink(video['filename'])
+            if '' == video['filename']:
+                self.printInfos('Filename is empty')
+
+            elif os.path.isfile(video['filename']):
+                try:
+                    os.unlink(video['filename'])
+                except:
+                    self.printInfos('Cannot remove "%s"' % video['filename'])
+                else:
+                    self.printInfos('File "%s" removed' % video['filename'])
+            else:
+                self.printInfos('File "%s" is absent' % video['filename'])
 
         self.printInfos('Mark "%s" as local and read' % video['title'])
         video['state'] = 'read'
