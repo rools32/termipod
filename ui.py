@@ -599,7 +599,7 @@ class VideoArea(ItemArea):
             string += formattedItem['title']
 
             string = formatString(string,
-                    width-1-len(separator+formattedItem['duration']))
+                    width-len(separator+formattedItem['duration']))
             string += separator
             string += formattedItem['duration']
 

@@ -2,6 +2,22 @@ from datetime import datetime, timedelta
 import unicodedata
 import config
 
+def printableStr(string):
+    newStr = ''
+
+    for c in string:
+        # For zero-width characters
+        if unicodedata.category(c)[0] in ('M', 'C'):
+            continue
+
+        w = unicodedata.east_asian_width(c)
+        if w in ('N', 'Na', 'H', 'A'):
+            newStr += c
+        else:
+            newStr += '🖥'
+
+    return newStr
+
 def printLog(string):
     if printLog.reset:
         mode = 'w'
@@ -27,6 +43,7 @@ def durationToStr(duration):
 # Truncate the line or add spaces if needed
 # When !truncate list is returned for each line
 def formatString(string, width, truncate=True):
+    string = printableStr(string)
     space = width-len(string)
 
     # If line is too long
