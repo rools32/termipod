@@ -2,7 +2,7 @@ import feedparser as fp
 import youtube_dl
 from datetime import datetime
 from time import mktime, time
-from utils import printLog
+from utils import printLog, printableStr
 
 class Logger(object):
     def debug(self, msg):
@@ -38,7 +38,7 @@ def getData(url, printInfos=print, new=False):
         channel_title = None
         for entry in entries:
             if None != entry:
-                channel_title = entry['uploader']
+                channel_title = printableStr(entry['uploader'])
                 break
 
         if None == channel_title:
@@ -57,7 +57,7 @@ def getData(url, printInfos=print, new=False):
             video = {}
             video['channel'] = data['title']
             video['url'] = url
-            video['title'] = entry['title']
+            video['title'] = printableStr(entry['title'])
             video['date'] = int(mktime(datetime.strptime(
                 entry['upload_date'], "%Y%m%d").timetuple()))
             video['link'] = entry['webpage_url']
@@ -77,7 +77,7 @@ def getData(url, printInfos=print, new=False):
 
         data = {}
         data['url'] = url
-        data['title'] = feed['title']
+        data['title'] = printableStr(feed['title'])
         data['updated'] = mktime(feed['published_parsed'])
         data['type'] = 'youtube'
 
@@ -87,7 +87,7 @@ def getData(url, printInfos=print, new=False):
             video = {}
             video['channel'] = data['title']
             video['url'] = url
-            video['title'] = entry['title']
+            video['title'] = printableStr(entry['title'])
             video['date'] = int(mktime(entry['published_parsed']))
             video['link'] = entry['link']
             data['items'].append(video)

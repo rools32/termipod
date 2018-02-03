@@ -43,7 +43,6 @@ def durationToStr(duration):
 # Truncate the line or add spaces if needed
 # When !truncate list is returned for each line
 def formatString(string, width, truncate=True):
-    string = printableStr(string)
     space = width-len(string)
 
     # If line is too long

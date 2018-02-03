@@ -1,6 +1,6 @@
 import feedparser as fp
 from time import mktime, time
-from utils import printLog
+from utils import printLog, printableStr
 import urllib.request
 
 
@@ -14,7 +14,7 @@ def getData(url, printInfos=print):
 
     data = {}
     data['url'] = url
-    data['title'] = feed['title']
+    data['title'] = printableStr(feed['title'])
     data['type'] = 'rss'
 
     data['items'] = []
@@ -24,7 +24,7 @@ def getData(url, printInfos=print):
         video = {}
         video['channel'] = data['title']
         video['url'] = url
-        video['title'] = entry['title']
+        video['title'] = printableStr(entry['title'])
         video['date'] = int(mktime(entry['published_parsed']))
         maxtime = max(maxtime, video['date'])
 
