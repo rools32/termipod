@@ -51,7 +51,8 @@ def getData(url, printInfos=print):
 def download(url, filename, printInfos=print):
     try:
         urllib.request.urlretrieve(url, filename)
-    except:
+    except urllib.error.URLError:
+        printInfos('Cannot access to %s' % url)
         return 1
     else:
         return 0
