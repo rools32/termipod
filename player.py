@@ -1,5 +1,7 @@
 import mpv
 import os
+from time import sleep
+
 from utils import *
 
 class Player():
@@ -17,6 +19,29 @@ class Player():
         self.player.force_window = True
         self.player.keep_open = 'always'
         self.player.keep_open_pause = False # To continue after next file
+
+        @self.player.on_key_press('?')
+        def help():
+            separator = u" \u2022 "
+            helpMsg = ''
+            helpMsg += 'Added keys:'
+            helpMsg += '\n'
+            helpMsg += separator+"'r' to mark as read"
+            helpMsg += '\n'
+            helpMsg += separator+"'d' to mark as read, delete and play next"
+            helpMsg += '\n'
+            helpMsg += '\n'
+            helpMsg += separator+"File auto marked as read if fully read"
+            helpMsg += '\n'
+            helpMsg += separator+"'>' to go to next file without marking as read"
+
+            # If help is not shown we show it
+            if helpMsg != self.player.osd_msg1:
+                self.player.osd_msg1 = helpMsg
+
+            # we hide help msg
+            else:
+                self.player.osd_msg1 = ''
 
         @self.player.on_key_press('q')
         def stop():
