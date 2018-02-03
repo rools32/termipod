@@ -34,7 +34,7 @@ def tsToDate(ts):
 
 def strToFilename(string):
     return unicodedata.normalize('NFKD', string).encode('ascii', 'ignore')\
-            .decode('ascii').replace(' ', '-')
+            .decode('ascii').replace(' ', '-').replace('/', '-')
 
 def durationToStr(duration):
     if duration < 0: duration = 0
