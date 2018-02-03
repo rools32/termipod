@@ -49,7 +49,7 @@ def formatString(string, width, truncate=True):
     # If line is too long
     if truncate:
         if 0 > space:
-            return string[:space-3]+'...'
+            return string[:space-1]+'…'
         else:
             return string+' '*space
 
