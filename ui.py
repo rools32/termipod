@@ -209,13 +209,13 @@ class Tabs:
 
     def addVideos(self, location, name):
         area = VideoArea(self.screen, location, self.itemList.videos, name,
-                self.printInfos)
+                self.titleArea, self.printInfos)
         self.areas.append(area)
         self.itemList.videoAreas.append(area)
 
     def addChannels(self, name, displayName):
         area = ChannelArea(self.screen, self.itemList.channels, name,
-                displayName, self.printInfos)
+                displayName, self.titleArea, self.printInfos)
         self.areas.append(area)
         self.itemList.channelAreas.append(area)
 
@@ -238,7 +238,7 @@ class Tabs:
 
         self.currentIdx = idx
         area = self.getArea(idx)
-        self.titleArea = TitleArea(self.screen, area.displayName)
+        self.titleArea = TitleArea(self.screen, area.getTitleName())
         area.display(True)
 
     def showNextTab(self, reverse=False):
@@ -289,9 +289,10 @@ class Tabs:
         return area.getCurrentLine()
 
 class ItemArea:
-    def __init__(self, screen, items, name, displayName, printInfos):
+    def __init__(self, screen, items, name, displayName, titleArea, printInfos):
         self.printInfos = printInfos
         self.screen = screen
+        self.titleArea = titleArea
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
@@ -537,12 +538,15 @@ class ItemArea:
         return self.keyClass
 
 class VideoArea(ItemArea):
-    def __init__(self, screen, location, items, name, printInfos):
-        super().__init__(screen, items, location, name, printInfos)
+    def __init__(self, screen, location, items, name, titleArea, printInfos):
+        super().__init__(screen, items, location, name, titleArea, printInfos)
         self.location = location
         self.state = 'unread'
         self.keyClass = 'videos_'+location
         self.channelFilter = False
+
+    def getTitleName(self):
+        return '%s (%s)' % (self.displayName, self.state)
 
     def extractChannelName(self, line):
         return line.split(u" \u2022 ")[1]
@@ -567,6 +571,7 @@ class VideoArea(ItemArea):
         idx = states.index(self.state)
         self.state = states[(idx+1)%len(states)]
         self.printInfos('Show %s videos' % self.state)
+        self.titleArea.print(self.getTitleName())
         self.resetContent()
 
     def getSelection(self):
@@ -613,9 +618,13 @@ class VideoArea(ItemArea):
         return string
 
 class ChannelArea(ItemArea):
-    def __init__(self, screen, items, name, displayName, printInfos):
-        super().__init__(screen, items, name, displayName, printInfos)
+    def __init__(self, screen, items, name, displayName, titleArea, printInfos):
+        super().__init__(screen, items, name, displayName, titleArea,
+                printInfos)
         self.keyClass = 'channels'
+
+    def getTitleName(self):
+        return self.displayName
 
     def getSelection(self):
         # TODO add filter
