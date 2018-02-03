@@ -1,22 +1,23 @@
 #!/usr/bin/python
-from itemlist import ItemList
 from ui import UI
 import argparse
 import sys
+import os
+
+from itemlist import ItemList
+import config
 
 # Instantiate the parser
 parser = argparse.ArgumentParser(\
         description='Manage your podcasts\nNo argument for UI')
-parser.add_argument('--add', type=str,
-                    help='Add channel')
-parser.add_argument('--auto', type=str,
-                    help='Auto filter (regex)')
-parser.add_argument('--up', action='store_true',
-                    help='Update channels')
+parser.add_argument('--add', type=str, help='Add channel')
+parser.add_argument('--auto', type=str, help='Auto filter (regex)')
+parser.add_argument('--up', action='store_true', help='Update channels')
 args = parser.parse_args()
 
+dbName = config.dbFile
+os.chdir(config.mediaDir)
 
-dbName = 'pypod.db'
 if len(sys.argv) == 1:
     UI(dbName)
 

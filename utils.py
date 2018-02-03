@@ -1,5 +1,6 @@
 from datetime import datetime, timedelta
 import unicodedata
+import config
 
 def printLog(string):
     if printLog.reset:
@@ -7,7 +8,7 @@ def printLog(string):
         printLog.reset = False
     else:
         mode = 'a'
-    filename = 'log.txt'
+    filename = config.logFile
     with open(filename, mode) as myfile:
         myfile.write(str(string)+"\n")
 printLog.reset = True

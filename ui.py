@@ -149,6 +149,7 @@ class UI():
                     self.itemList.switchRead([idx])
                 else:
                     self.itemList.switchRead(area.userSelection)
+                    area.userSelection = []
 
             ####################################################################
             # Remote video commands
@@ -158,6 +159,7 @@ class UI():
                     self.itemList.download([idx])
                 else:
                     self.itemList.download(area.userSelection)
+                    area.userSelection = []
 
             elif 'video_update' == action:
                 updated = self.itemList.updateVideoList()
@@ -688,7 +690,7 @@ class StatusArea:
         self.print(prefix)
         #curses.curs_set(2)
         tb = curses.textpad.Textbox(self.win)
-        string = tb.edit()[len(prefix):-1] # remove ':' and last char
+        string = tb.edit()[len(prefix):-1] # remove prefix and last char
         return string
 
 class PopupArea:
