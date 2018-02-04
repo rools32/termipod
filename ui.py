@@ -519,20 +519,19 @@ class ItemArea:
         # We draw all the page (shift)
         if redraw == True:
             self.userSelection = [] # reset user selection
-            self.win.erase()
-            lastLine = min(self.firstLine+self.height, len(self.content))
-            lineNumber = 0
-            for line in self.content[self.firstLine:lastLine]:
-                # Line where cursor is, bold
-                if lineNumber == self.cursor:
-                    self.printLine(lineNumber, line, True)
+
+            for lineNumber in range(self.height):
+                if self.firstLine+lineNumber < len(self.content):
+                    line = self.content[self.firstLine+lineNumber]
+                    # Line where cursor is, bold
+                    if lineNumber == self.cursor:
+                        self.printLine(lineNumber, line, True)
+                    else:
+                        self.printLine(lineNumber, line)
+                # Erase previous text for empty lines (bottom of scroll)
                 else:
-                    self.printLine(lineNumber, line)
-                lineNumber += 1
-            # Erase previous text for empty lines (bottom of scroll)
-            for lineNumber in range(lineNumber, self.height):
-                self.win.move(lineNumber, 0)
-                self.win.clrtoeol()
+                    self.win.move(lineNumber, 0)
+                    self.win.clrtoeol()
 
         elif self.oldCursor != self.cursor:
             self.printLine(self.oldCursor, self.content[self.firstLine+self.oldCursor])
