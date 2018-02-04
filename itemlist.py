@@ -215,6 +215,7 @@ class ItemList():
                 for s in subVideos:
                     self.downloadManager.add(s, channel)
                     needToWait = True
+        self.printInfos('Update channels done!')
 
         if self.wait and needToWait:
             self.printInfos('Wait for downloads to complete...')

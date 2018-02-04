@@ -145,7 +145,7 @@ class UI():
                 tabs.stateSwitch()
 
             elif 'video_read' == action:
-                if not len(area.userSelection):
+                if 0 == len(area.userSelection):
                     self.itemList.switchRead([idx])
                 else:
                     self.itemList.switchRead(area.userSelection)
