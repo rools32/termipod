@@ -50,15 +50,21 @@ class ItemList():
             self.videos.clear()
 
         self.videos[0:0] = videos
-        self.updateVideoAreas() # TODO smart if !replace
+        if replace:
+            self.updateVideoAreas()
+        else:
+            self.updateVideoAreas(videos)
 
-    def updateVideoAreas(self):
+    def updateVideoAreas(self, videos=None):
         for area in self.videoAreas:
-            area.resetContent()
+            if None == videos:
+                area.resetContent()
+            else:
+                area.updateContent(videos)
 
     def updateChannelAreas(self):
         for area in self.channelAreas:
-            area.resetContent()
+                area.resetContent()
 
     def add(self, video):
         self.videos.append(video)
@@ -84,6 +90,9 @@ class ItemList():
         item = self.videos[idx]
         self.player.add(item)
 
+    def stop(self):
+        self.player.stop()
+
     def switchRead(self, indices):
         if int == type(indices):
             indices = [indices]
@@ -96,9 +105,6 @@ class ItemList():
                 item['state'] = 'read'
             self.db.updateVideo(item)
         self.updateVideoAreas()
-
-    def stop(self):
-        self.player.stop()
 
     def remove(self, idx=None, video=None, unlink=True):
         if idx:

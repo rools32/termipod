@@ -309,6 +309,7 @@ class ItemArea:
         self.content = None
         self.shown = False
         self.items = items
+        self.selection = []
         self.userSelection = []
 
     def addToUserSelection(self, idx=None):
@@ -346,10 +347,17 @@ class ItemArea:
         if self.shown:
             self.display(True)
 
-    def updateContent(self):
-        items = self.getSelection()
-        self.content = self.itemsToString(items)
-        return True # TODO depending on the context
+    def updateContent(self, items=None):
+        # Rebuild
+        if None == items or None == self.content:
+            items = self.getSelection()
+            self.content = self.itemsToString(items)
+            return True
+        # Update
+        else:
+            items = self.getSelection(items)
+            self.content[0:0] = self.itemsToString(items)
+            return False
 
     def itemsToString(self, channels):
         return list(map(lambda x: self.itemToString(x, self.width), channels))
@@ -448,45 +456,50 @@ class ItemArea:
         PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
         self.display(redraw=True)
 
+    def positionToIdx(self, firstLine, cursor):
+        return firstLine+cursor
+
+    def idxToPosition(self, idx):
+        firstLine = int(idx/self.height)*self.height
+        cursor = idx-firstLine
+        return (firstLine, cursor)
+
     def moveScreen(self, what, way, number=1):
         redraw = False
         # Move one line down
+        idx = self.positionToIdx(self.firstLine, self.cursor)
         if what == 'line' and way == 'down':
-            self.oldCursor = self.cursor
             # More lines below
-            if self.firstLine+self.cursor+number < len(self.content):
-                self.cursor += number
+            idx += number
         # Move one line up
         elif what == 'line' and way == 'up':
-            self.oldCursor = self.cursor
             # More lines above
-            if self.firstLine+self.cursor-number >= 0:
-                self.cursor -= number
+            idx -= number
         # Move one page down
         elif what == 'page' and way == 'down':
-            self.oldCursor = self.cursor
-            self.cursor = \
-                    min(self.cursor+self.height*number, len(self.content)-1)
+            idx += self.height*number
         # Move one page up
         elif what == 'page' and way == 'up':
-            self.oldCursor = self.cursor
-            self.cursor -= self.height*number
+            idx -= self.height*number
         elif what == 'all' and way == 'up':
-            self.oldCursor = self.cursor
-            self.cursor = -self.firstLine
+            idx = 0
         elif what == 'all' and way == 'down':
-            self.oldCursor = self.cursor
-            self.cursor = len(self.content)-1-self.firstLine
+            idx = len(self.content)-1
 
-        # If cursor moved
-        if self.cursor != self.oldCursor:
-            if self.cursor < 0 and self.firstLine == 0:
-                self.cursor = 0
-            if self.cursor >= self.height or self.cursor < 0:
-                redraw = True
-                self.firstLine = \
-                    int((self.cursor+self.firstLine)/self.height)*self.height
-                self.cursor %= self.height
+        if 0 > idx:
+            idx = 0
+        elif len(self.content) <= idx:
+            idx = len(self.content)-1
+
+        firstLine, cursor = self.idxToPosition(idx)
+
+        # If first line is not the same: we redraw everything
+        if (firstLine != self.firstLine):
+            redraw = True
+
+        self.oldCursor = self.cursor
+        self.cursor = cursor
+        self.firstLine = firstLine
 
         self.display(redraw)
 
@@ -503,17 +516,9 @@ class ItemArea:
         if None == self.content:
             redraw = self.updateContent()
 
-        if len(self.content):
-            if self.firstLine >= len(self.content):
-                self.firstLine = max(len(self.content)-self.height, 0)
-                self.cursor = min(self.height-1, len(self.content)-1)
-                redraw = True
-            if self.firstLine+self.cursor >= len(self.content):
-                self.cursor = min(self.height-1, len(self.content)-1-self.firstLine)
-                redraw = True
-
         # We draw all the page (shift)
         if redraw == True:
+            self.userSelection = [] # reset user selection
             self.win.erase()
             lastLine = min(self.firstLine+self.height, len(self.content))
             lineNumber = 0
@@ -574,10 +579,19 @@ class VideoArea(ItemArea):
         self.titleArea.print(self.getTitleName())
         self.resetContent()
 
-    def getSelection(self):
+    # if newItems update selection (do not replace)
+    def getSelection(self, newItems=None):
+        if None == newItems:
+            replace = True
+            newItems = self.items
+        else:
+            replace = False
+            oldSelection = self.selection
+
         self.selection = []
         items = []
-        for index, item in enumerate(self.items):
+
+        for index, item in enumerate(newItems):
             if self.channelFilter and self.channelFilter != item['channel']:
                 continue
             if self.location != item['location']:
@@ -587,6 +601,13 @@ class VideoArea(ItemArea):
 
             self.selection.append(index)
             items.append(item)
+
+        if not replace:
+            shift = len(newItems)
+            oldSelection = [ s+shift for s in oldSelection ]
+            self.userSelection = [ s+shift for s in self.userSelection ]
+            self.selection += oldSelection
+            self.firstLine += len(items)
 
         return items
 
