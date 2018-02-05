@@ -10,7 +10,6 @@ class UI():
     def __init__(self, dbName):
         screen = curses.initscr()
         height,width = screen.getmaxyx()
-        #printLog('Height: %d, Width: %d' % (height, width))
         screen.immedok(True)
         curses.start_color()
         curses.curs_set(0) # disable cursor
@@ -202,7 +201,6 @@ class Tabs:
 
     def getAreaIdx(self, name):
         for idx, area in enumerate(self.areas):
-            printLog(area.name)
             if name == area.name:
                 return idx
         return None
@@ -227,7 +225,6 @@ class Tabs:
 
     def showTab(self, target):
         if str == type(target):
-            printLog(target)
             idx = self.getAreaIdx(target)
         else:
             idx = target
@@ -306,6 +303,7 @@ class ItemArea:
         self.oldCursor = 0
         self.cursor = 0
         self.firstLine = 0
+        self.lastGlobalIdx = None
         self.content = None
         self.shown = False
         self.items = items
@@ -336,7 +334,6 @@ class ItemArea:
             self.addToUserSelection(sel)
 
         self.display(redraw=True)
-        printLog(self.userSelection)
 
     def clearUserSelection(self):
         self.userSelection = []
@@ -371,7 +368,7 @@ class ItemArea:
         if len(self.selection):
             return self.selection[self.firstLine+self.cursor]
         else:
-            return -1
+            return None
 
     def getCurrentItem(self):
         return self.items[self.getIdx()]
@@ -501,6 +498,7 @@ class ItemArea:
         self.cursor = cursor
         self.firstLine = firstLine
 
+        self.lastGlobalIdx = self.selection[idx]
         self.display(redraw)
 
     def resetDisplay(self):
@@ -515,6 +513,31 @@ class ItemArea:
         # the same line if possible
         if None == self.content:
             redraw = self.updateContent()
+
+            if None != self.lastGlobalIdx:
+                # Set cursor on the same item than before redisplay
+                for globalIdx in \
+                        range(self.lastGlobalIdx, self.selection[-1]+1):
+                    try:
+                        idx = self.selection.index(globalIdx)
+                    except ValueError:
+                        self.firstLine, self.cursor = (0, 0)
+                        self.globalIdx = self.selection[0]
+                        redraw = True
+                    else:
+                        self.firstLine, self.cursor = self.idxToPosition(idx)
+                        self.globalIdx = self.selection[idx]
+                        redraw = True
+                        break
+                redraw = True
+            else:
+                self.firstLine, self.cursor = (0, 0)
+
+        # Check cursor position
+        idx = self.positionToIdx(self.firstLine, self.cursor)
+        if len(self.content) <= idx:
+            idx = len(self.content)-1
+            self.firstLine, self.cursor = self.idxToPosition(idx)
 
         # We draw all the page (shift)
         if redraw == True:
