@@ -88,7 +88,7 @@ class UI():
                 if command[0] in ('q', 'quit'):
                     exit()
                 elif command[0] in ('h', 'help'):
-                    self.printInfos('Help!!!!!!')
+                    area.showHelp()
                 elif command[0] in ('add',):
                     if 1 == len(command):
                         addHelp = 'Usage: add url [auto] [genre]'

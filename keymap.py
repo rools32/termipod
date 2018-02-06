@@ -30,11 +30,55 @@ def mapToHelp(areaType):
 
     lines = []
     for e in elements:
+        helpStr = descriptions[e[1]]
         length = len(e[0])
         numSpaces = maxLen-length+1
-        lines.append('<%s>%s%s' % (e[0], ' '*numSpaces, e[1]))
+        lines.append('<%s>%s%s' % (e[0], ' '*numSpaces, helpStr))
 
     return lines
+
+descriptions = {
+        'line_down': 'Go one line down',
+        'line_up': 'Go one line up',
+        'page_down': 'Go one page down',
+        'page_up': 'Go one page up',
+        'top': 'Go top',
+        'bottom': 'Go bottom',
+        'tab_next': 'Go next tab',
+        'tab_prev': 'Go previous tab',
+        'help': 'Show help',
+
+        'screen_infos': 'Show screen information',
+
+        'command_get': 'Command input',
+        'search_get': 'Search pattern',
+        'search_next': 'Move to next search pattern',
+        'search_prev': 'Move to previous search pattern',
+
+        'quit': 'Quit',
+
+        'select_item': 'Select item',
+        'select_until': 'Grow selection',
+        'select_clear': 'Clear selection',
+
+        'search_channel': 'Highlight channel',
+        'video_play': 'Play media',
+        'video_playadd': 'Enqueue media',
+        'video_stop': 'Stop playing',
+        'video_remove': 'Remove media',
+        'video_read': 'Makr as read',
+        'video_skip': 'Makr as skipped',
+        'channel_filter': 'Filter same channel',
+        'state_filter': 'Show next state  panel',
+        'infos': 'Show information',
+
+        'video_download': 'Download media',
+        'video_update': 'Update media list',
+
+        'channel_auto': 'Set channel as auto',
+        'channel_auto_custom': 'Set custom value for auto',
+        'channel_show_videos': 'Show videos of channel',
+    }
 
 keymaps = [
     ('', ord('j'), 'line_down'),
