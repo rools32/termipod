@@ -26,6 +26,7 @@ def getData(url, printInfos=print):
         medium['url'] = url
         medium['title'] = printableStr(entry['title'])
         medium['date'] = int(mktime(entry['published_parsed']))
+        medium['description'] = entry['summary']
         maxtime = max(maxtime, medium['date'])
 
         medium['link'] = None

@@ -71,6 +71,7 @@ descriptions = {
         'channel_filter': 'Filter same channel',
         'state_filter': 'Show next state  panel',
         'infos': 'Show information',
+        'description': 'Show description',
 
         'medium_download': 'Download media',
         'medium_update': 'Update media list',
@@ -114,6 +115,7 @@ keymaps = [
     ('media', ord('c'), 'channel_filter'),
     ('media', ord('s'), 'state_filter'),
     ('media', ord('i'), 'infos'), # TODO for channels too (s/'media'/'')
+    ('media', ord('I'), 'description'), # TODO for channels too (s/'media'/'')
 
     ('media_remote', ord('\n'), 'medium_download'),
     ('media_remote', ord('u'), 'medium_update'),

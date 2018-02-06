@@ -81,6 +81,9 @@ class UI():
             elif 'infos' == action:
                 area.showInfos()
 
+            elif 'description' == action:
+                area.showDescription()
+
             elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
                 command = shlex.split(string)
@@ -190,6 +193,9 @@ class UI():
                 self.itemList.channelAuto(idx)
                 tabs.showTab('remote')
                 tabs.channelFilterSwitch(channel['title'])
+
+            else:
+                self.printInfos('Unknown action "%s"' % action)
 
     def printInfos(self, string):
         self.statusArea.print(string)
@@ -500,14 +506,24 @@ class ItemArea:
 
     def showHelp(self):
         lines = mapToHelp(self.keyClass)
-        PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
+        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
+                printInfos=self.printInfos)
         self.display(redraw=True)
 
     def showInfos(self):
         item = self.getCurrentItem()
         lines = self.itemToString(item, multiLines=True)
 
-        PopupArea(self.screen, (self.height, self.width), lines, self.cursor)
+        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
+                printInfos=self.printInfos)
+        self.display(redraw=True)
+
+    def showDescription(self):
+        item = self.getCurrentItem()
+        lines = item['description'].split('\n')
+
+        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
+                printInfos=self.printInfos)
         self.display(redraw=True)
 
     def positionToIdx(self, firstLine, cursor):
@@ -794,7 +810,7 @@ class StatusArea:
         return string
 
 class PopupArea:
-    def __init__(self, screen, areaSize, rawLines, base, margin=5):
+    def __init__(self, screen, areaSize, rawLines, base, margin=5, printInfos=print):
         screenHeight, screenWidth = areaSize
 
         self.outerMargin = margin
@@ -809,11 +825,14 @@ class PopupArea:
         self.height = len(lines)+2 # for border
 
         # Compute first line position
-        if self.height > screenHeight-2:
-            printLog('TODO: implement scrollable popup')
-            exit(1) # TODO
+        if self.height > screenHeight:
+            lines = lines[:screenHeight-2]
+            lines[-1] = lines[-1][:-1]+'…'
+            printInfos('Truncated, too many lines!')
+            self.height = len(lines)+2
+
         start = max(1, base-int(len(lines)/2))
-        if start+self.height > screenHeight-1:
+        if start+self.height-1 > screenHeight:
             start = screenHeight-1-self.height
 
         self.win = curses.newwin(self.height, self.width, start,
@@ -822,10 +841,10 @@ class PopupArea:
         self.win.keypad(1)
         self.win.border('|', '|', '-', '-', '+', '+', '+', '+')
 
-        for line in range(1, 1+len(lines)):
-            self.win.move(line, self.innerMargin)
+        for line in range(len(lines)):
+            self.win.move(line+1, self.innerMargin)
             self.win.clrtoeol()
-            self.win.addstr(line, self.innerMargin, str(lines[line-1]))
+            self.win.addstr(line+1, self.innerMargin, str(lines[line]))
         self.win.refresh()
 
         key = screen.getch()

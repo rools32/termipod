@@ -37,6 +37,7 @@ class DataBase:
                     state INTEGER,
                     filename TEXT,
                     tags TEXT,
+                    description TEXT,
                     PRIMARY KEY (channel_url, title, date)
                 );
             """)
@@ -79,12 +80,13 @@ class DataBase:
         data['state'] = mediumList[6]
         data['filename'] = mediumList[7]
         data['tags'] = mediumList[8]
+        data['description'] = mediumList[9]
         return data
 
     def mediumToList(self, medium):
         return (medium['url'], medium['title'], medium['date'], medium['duration'],
                 medium['link'], medium['location'], medium['state'],
-                medium['filename'], medium['tags'])
+                medium['filename'], medium['tags'], medium['description'])
 
     def getChannel(self, url):
         """ Get Channel by url (primary key) """

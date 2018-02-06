@@ -60,6 +60,7 @@ def getData(url, printInfos=print, new=False):
             medium['title'] = printableStr(entry['title'])
             medium['date'] = int(mktime(datetime.strptime(
                 entry['upload_date'], "%Y%m%d").timetuple()))
+            medium['description'] = entry['description']
             medium['link'] = entry['webpage_url']
             medium['duration'] = entry['duration']
             data['items'].append(medium)
@@ -89,6 +90,7 @@ def getData(url, printInfos=print, new=False):
             medium['url'] = url
             medium['title'] = printableStr(entry['title'])
             medium['date'] = int(mktime(entry['published_parsed']))
+            medium['description'] = entry['description']
             medium['link'] = entry['link']
             data['items'].append(medium)
 
