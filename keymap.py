@@ -66,6 +66,7 @@ keymaps = [
     ('videos', ord('h'), 'video_stop'),
     ('videos', ord('d'), 'video_remove'),
     ('videos', ord('r'), 'video_read'),
+    ('videos', ord('R'), 'video_skip'),
     ('videos', ord('c'), 'channel_filter'),
     ('videos', ord('s'), 'state_filter'),
     ('videos', ord('i'), 'infos'), # TODO for channels too (s/'videos'/'')

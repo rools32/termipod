@@ -108,17 +108,20 @@ class ItemList():
     def stop(self):
         self.player.stop()
 
-    def switchRead(self, indices):
+    def switchRead(self, indices, skip=False):
         if int == type(indices):
             indices = [indices]
 
         videos = []
         for idx in indices:
             video = self.videos[idx]
-            if 'read' == video['state']:
+            if video['state'] in ('read', 'skipped'):
                 video['state'] = 'unread'
             else:
-                video['state'] = 'read'
+                if skip:
+                    video['state'] = 'skipped'
+                else:
+                    video['state'] = 'read'
             self.db.updateVideo(video)
             videos.append(video)
 

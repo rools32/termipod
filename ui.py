@@ -143,11 +143,15 @@ class UI():
             elif 'state_filter' == action:
                 tabs.stateSwitch()
 
-            elif 'video_read' == action:
-                if 0 == len(area.userSelection):
-                    self.itemList.switchRead([idx])
+            elif action in ('video_read', 'video_skip'):
+                if 'video_skip' == action:
+                    skip = True
                 else:
-                    self.itemList.switchRead(area.userSelection)
+                    skip = False
+                if 0 == len(area.userSelection):
+                    self.itemList.switchRead([idx], skip)
+                else:
+                    self.itemList.switchRead(area.userSelection, skip)
                     area.userSelection = []
 
             ####################################################################
@@ -652,7 +656,7 @@ class VideoArea(ItemArea):
         self.resetContents()
 
     def switchState(self):
-        states = ['all', 'unread', 'read']
+        states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.state)
         self.state = states[(idx+1)%len(states)]
         self.printInfos('Show %s videos' % self.state)
