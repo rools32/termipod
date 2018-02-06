@@ -40,7 +40,7 @@ class DownloadManager():
         # Set up some threads to fetch the items to download
         for i in range(self.nthreads):
             worker = Thread(target=self.handleQueue)
-            worker.setDaemon(True)
+            worker.daemon = True
             worker.start()
 
         for medium in self.itemList.media:

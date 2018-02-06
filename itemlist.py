@@ -1,6 +1,7 @@
 import re
 import operator
 import os, os.path
+from threading import Thread
 
 import backends
 import player
@@ -208,10 +209,17 @@ class ItemList():
 
     def updateMediumList(self, urls=None):
         self.printInfos('Update...')
-        allNewMedia = []
-
         if None == urls:
             urls = list(map(lambda x: x['url'], self.db.selectChannels()))
+
+        thread = Thread(target = self.updateTask, args = (urls, ))
+        thread.daemon = True
+        thread.start()
+        if self.wait:
+            thread.join()
+
+    def updateTask(self, urls):
+        allNewMedia = []
 
         needToWait = False
         for i, url in enumerate(urls):
@@ -240,9 +248,10 @@ class ItemList():
                     needToWait = True
         self.printInfos('Update channels done!')
 
+        allNewMedia.sort(key=operator.itemgetter('date'), reverse=True)
+        self.addMedia(allNewMedia)
+
         if self.wait and needToWait:
             self.printInfos('Wait for downloads to complete...')
             self.downloadManager.waitDone()
 
-        allNewMedia.sort(key=operator.itemgetter('date'), reverse=True)
-        self.addMedia(allNewMedia)
