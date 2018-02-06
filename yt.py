@@ -23,7 +23,7 @@ def download(url, filename, printInfos=print):
             return 1
 
 def getData(url, printInfos=print, new=False):
-    # If first add, we use ytdl to get old videos
+    # If first add, we use ytdl to get old media
     if new:
         ydl_opts = {'logger': Logger(), 'ignoreerrors': True}
         with youtube_dl.YoutubeDL(ydl_opts) as ydl:
@@ -54,15 +54,15 @@ def getData(url, printInfos=print, new=False):
         for entry in entries:
             if None == entry :
                 continue
-            video = {}
-            video['channel'] = data['title']
-            video['url'] = url
-            video['title'] = printableStr(entry['title'])
-            video['date'] = int(mktime(datetime.strptime(
+            medium = {}
+            medium['channel'] = data['title']
+            medium['url'] = url
+            medium['title'] = printableStr(entry['title'])
+            medium['date'] = int(mktime(datetime.strptime(
                 entry['upload_date'], "%Y%m%d").timetuple()))
-            video['link'] = entry['webpage_url']
-            video['duration'] = entry['duration']
-            data['items'].append(video)
+            medium['link'] = entry['webpage_url']
+            medium['duration'] = entry['duration']
+            data['items'].append(medium)
 
         return data
 
@@ -84,13 +84,13 @@ def getData(url, printInfos=print, new=False):
         data['items'] = []
         entries = rss.entries
         for entry in entries:
-            video = {}
-            video['channel'] = data['title']
-            video['url'] = url
-            video['title'] = printableStr(entry['title'])
-            video['date'] = int(mktime(entry['published_parsed']))
-            video['link'] = entry['link']
-            data['items'].append(video)
+            medium = {}
+            medium['channel'] = data['title']
+            medium['url'] = url
+            medium['title'] = printableStr(entry['title'])
+            medium['date'] = int(mktime(entry['published_parsed']))
+            medium['link'] = entry['link']
+            data['items'].append(medium)
 
         return data
 

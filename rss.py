@@ -21,25 +21,25 @@ def getData(url, printInfos=print):
     entries = rss.entries
     maxtime = 0
     for entry in entries:
-        video = {}
-        video['channel'] = data['title']
-        video['url'] = url
-        video['title'] = printableStr(entry['title'])
-        video['date'] = int(mktime(entry['published_parsed']))
-        maxtime = max(maxtime, video['date'])
+        medium = {}
+        medium['channel'] = data['title']
+        medium['url'] = url
+        medium['title'] = printableStr(entry['title'])
+        medium['date'] = int(mktime(entry['published_parsed']))
+        maxtime = max(maxtime, medium['date'])
 
-        video['link'] = None
-        video['linkType'] = None # TODO add in database
+        medium['link'] = None
+        medium['linkType'] = None # TODO add in database
         for link in entry['links']:
-            if 'video' in link['type'] or 'audio' in link['type']:
-                video['link'] = link['href']
-                video['linkType'] = link['type']
+            if 'medium' in link['type'] or 'audio' in link['type']:
+                medium['link'] = link['href']
+                medium['linkType'] = link['type']
 
         if 'itunes_duration' in entry:
             sduration = entry['itunes_duration']
-            video['duration'] = sum([ int(x)*60**i for (i, x) in
+            medium['duration'] = sum([ int(x)*60**i for (i, x) in
                 enumerate(sduration.split(':')[::-1]) ])
-        data['items'].append(video)
+        data['items'].append(medium)
 
     if 'updated_parsed' in feed:
         data['updated'] = mktime(feed['updated_parsed'])

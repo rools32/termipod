@@ -28,9 +28,9 @@ class UI():
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
         # New tabs
-        tabs.addVideos('remote', 'Remote videos')
-        tabs.addVideos('local', 'Playlist')
-        tabs.addVideos('download', 'Downloading')
+        tabs.addMedia('remote', 'Remote media')
+        tabs.addMedia('local', 'Playlist')
+        tabs.addMedia('download', 'Downloading')
         tabs.addChannels('channels', 'Channels')
         tabs.showTab(0)
 
@@ -116,7 +116,7 @@ class UI():
                 tabs.selectClear()
 
             ####################################################################
-            # Allvideos commands
+            # Allmedia commands
             ####################################################################
             # Highlight channel name
             elif 'search_channel' == action:
@@ -124,16 +124,16 @@ class UI():
                 self.printInfos('Search: '+channel)
                 tabs.highlight(channel)
 
-            elif 'video_play' == action:
+            elif 'medium_play' == action:
                 self.itemList.play(idx)
 
-            elif 'video_playadd' == action:
+            elif 'medium_playadd' == action:
                 self.itemList.playadd(idx)
 
-            elif 'video_stop' == action:
+            elif 'medium_stop' == action:
                 self.itemList.stop()
 
-            elif 'video_remove' == action:
+            elif 'medium_remove' == action:
                 # TODO if is being played: self.itemList.stop()
                 self.itemList.remove(idx)
 
@@ -143,8 +143,8 @@ class UI():
             elif 'state_filter' == action:
                 tabs.stateSwitch()
 
-            elif action in ('video_read', 'video_skip'):
-                if 'video_skip' == action:
+            elif action in ('medium_read', 'medium_skip'):
+                if 'medium_skip' == action:
                     skip = True
                 else:
                     skip = False
@@ -155,24 +155,24 @@ class UI():
                     area.userSelection = []
 
             ####################################################################
-            # Remote video commands
+            # Remote medium commands
             ####################################################################
-            elif 'video_download' == action:
+            elif 'medium_download' == action:
                 if not len(area.userSelection):
                     self.itemList.download([idx])
                 else:
                     self.itemList.download(area.userSelection)
                     area.userSelection = []
 
-            elif 'video_update' == action:
-                updated = self.itemList.updateVideoList()
+            elif 'medium_update' == action:
+                updated = self.itemList.updateMediumList()
 
             ####################################################################
-            # Local video commands
+            # Local medium commands
             ####################################################################
 
             ####################################################################
-            # Downloading video commands
+            # Downloading medium commands
             ####################################################################
 
             ####################################################################
@@ -185,7 +185,7 @@ class UI():
                 auto = self.statusArea.runCommand('auto: ')
                 self.itemList.channelAuto(idx, auto)
 
-            elif 'channel_show_videos' == action:
+            elif 'channel_show_media' == action:
                 channel = self.itemList.channels[idx]
                 self.itemList.channelAuto(idx)
                 tabs.showTab('remote')
@@ -209,11 +209,11 @@ class Tabs:
                 return idx
         return None
 
-    def addVideos(self, location, name):
-        area = VideoArea(self.screen, location, self.itemList.videos, name,
+    def addMedia(self, location, name):
+        area = MediumArea(self.screen, location, self.itemList.media, name,
                 self.titleArea, self.printInfos)
         self.areas.append(area)
-        self.itemList.addVideoArea(area)
+        self.itemList.addMediumArea(area)
 
     def addChannels(self, name, displayName):
         area = ChannelArea(self.screen, self.itemList.channels, name,
@@ -625,11 +625,11 @@ class ItemArea:
     def getKeyClass(self):
         return self.keyClass
 
-class VideoArea(ItemArea):
+class MediumArea(ItemArea):
     def __init__(self, screen, location, items, name, titleArea, printInfos):
         self.location = location
         self.state = 'unread'
-        self.keyClass = 'videos_'+location
+        self.keyClass = 'media_'+location
         self.channelFilter = False
 
         super().__init__(screen, items, location, name, titleArea, printInfos)
@@ -659,7 +659,7 @@ class VideoArea(ItemArea):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.state)
         self.state = states[(idx+1)%len(states)]
-        self.printInfos('Show %s videos' % self.state)
+        self.printInfos('Show %s media' % self.state)
         self.titleArea.print(self.getTitleName())
         self.resetContents()
 
@@ -683,13 +683,13 @@ class VideoArea(ItemArea):
 
         return (matchingItems, otherItems)
 
-    def itemToString(self, video, multiLines=False, width=None):
+    def itemToString(self, medium, multiLines=False, width=None):
         if None == width:
             width = self.width
 
-        formattedItem = dict(video)
-        formattedItem['date'] = tsToDate(video['date'])
-        formattedItem['duration'] = durationToStr(video['duration'])
+        formattedItem = dict(medium)
+        formattedItem['date'] = tsToDate(medium['date'])
+        formattedItem['duration'] = durationToStr(medium['duration'])
         separator = u" \u2022 "
 
         if not multiLines:

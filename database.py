@@ -27,7 +27,7 @@ class DataBase:
                 );
             """)
             self.cursor.executescript("""
-                CREATE TABLE videos (
+                CREATE TABLE media (
                     channel_url TEXT,
                     title TEXT,
                     date INTEGER,
@@ -59,32 +59,32 @@ class DataBase:
         self.cursor.execute('PRAGMA user_version={:d}'.format(version))
 
 
-    def selectVideos(self):
-        self.cursor.execute("""SELECT * FROM videos
+    def selectMedia(self):
+        self.cursor.execute("""SELECT * FROM media
                 ORDER BY date DESC""")
         rows = self.cursor.fetchall()
-        return list(map(self.listToVideo, rows))
+        return list(map(self.listToMedium, rows))
 
-    def listToVideo(self, videoList):
-        url = videoList[0]
+    def listToMedium(self, mediumList):
+        url = mediumList[0]
         channel = self.getChannel(url)['title']
         data = {}
         data['channel'] = channel
         data['url'] = url
-        data['title'] = str(videoList[1]) # str if title is only a number
-        data['date'] = videoList[2]
-        data['duration'] = videoList[3]
-        data['link'] = videoList[4]
-        data['location'] = videoList[5]
-        data['state'] = videoList[6]
-        data['filename'] = videoList[7]
-        data['tags'] = videoList[8]
+        data['title'] = str(mediumList[1]) # str if title is only a number
+        data['date'] = mediumList[2]
+        data['duration'] = mediumList[3]
+        data['link'] = mediumList[4]
+        data['location'] = mediumList[5]
+        data['state'] = mediumList[6]
+        data['filename'] = mediumList[7]
+        data['tags'] = mediumList[8]
         return data
 
-    def videoToList(self, video):
-        return (video['url'], video['title'], video['date'], video['duration'],
-                video['link'], video['location'], video['state'],
-                video['filename'], video['tags'])
+    def mediumToList(self, medium):
+        return (medium['url'], medium['title'], medium['date'], medium['duration'],
+                medium['link'], medium['location'], medium['state'],
+                medium['filename'], medium['tags'])
 
     def getChannel(self, url):
         """ Get Channel by url (primary key) """
@@ -123,7 +123,7 @@ class DataBase:
                      channel)
             self.conn.commit()
 
-    def addVideos(self, data):
+    def addMedia(self, data):
         updated = False
         url = data['url']
 
@@ -134,19 +134,19 @@ class DataBase:
         # Find out if feed has updates
         updatedDate = channel['updated']
         feedDate = data['updated']
-        newVideos = []
+        newMedia = []
         newEntries = []
         if (feedDate > updatedDate): # new items
             # Filter feed to keep only new items
-            for video in data['items']:
-                if video['date'] > updatedDate:
-                    if not 'duration' in video: video['duration'] = 0
-                    if not 'location' in video: video['location'] = 'remote'
-                    if not 'state' in video: video['state'] = 'unread'
-                    if not 'filename' in video: video['filename'] = ''
-                    if not 'tags' in video: video['tags'] = ''
-                    newEntries.append(self.videoToList(video))
-                    newVideos.append(video)
+            for medium in data['items']:
+                if medium['date'] > updatedDate:
+                    if not 'duration' in medium: medium['duration'] = 0
+                    if not 'location' in medium: medium['location'] = 'remote'
+                    if not 'state' in medium: medium['state'] = 'unread'
+                    if not 'filename' in medium: medium['filename'] = ''
+                    if not 'tags' in medium: medium['tags'] = ''
+                    newEntries.append(self.mediumToList(medium))
+                    newMedia.append(medium)
 
             # Add new items to database
             if len(newEntries):
@@ -154,18 +154,18 @@ class DataBase:
                     with self.mutex:
                         params = ','.join('?'*len(newEntries[0]))
                         self.cursor.executemany(
-                            'INSERT INTO videos VALUES (%s)' % params,
+                            'INSERT INTO media VALUES (%s)' % params,
                             newEntries)
                         self.conn.commit()
                 except sqlite3.IntegrityError:
-                    self.printInfos('Cannot add %s' % str(newVideos))
+                    self.printInfos('Cannot add %s' % str(newMedia))
 
-        if len(newVideos):
+        if len(newMedia):
             channel['url'] = url
             channel['updated'] = feedDate
             self.updateChannel(channel)
 
-        return newVideos
+        return newMedia
 
     def updateChannel(self, channel):
         sql = """UPDATE channels
@@ -187,8 +187,8 @@ class DataBase:
             self.cursor.execute(sql, args)
             self.conn.commit()
 
-    def updateVideo(self, video):
-        sql = """UPDATE videos
+    def updateMedium(self, medium):
+        sql = """UPDATE media
                     SET duration = ?,
                         url = ?,
                         location = ?,
@@ -198,15 +198,15 @@ class DataBase:
                     WHERE channel_url = ? and
                           title = ? and
                           date = ?"""
-        if not 'duration' in video: video['duration'] = 0
-        if not 'location' in video: video['location'] = 'remote'
-        if not 'state' in video: video['state'] = 'unread'
-        if not 'filename' in video: video['filename'] = ''
-        if not 'tags' in video: video['tags'] = ''
+        if not 'duration' in medium: medium['duration'] = 0
+        if not 'location' in medium: medium['location'] = 'remote'
+        if not 'state' in medium: medium['state'] = 'unread'
+        if not 'filename' in medium: medium['filename'] = ''
+        if not 'tags' in medium: medium['tags'] = ''
         args = (
-                video['duration'], video['link'], video['location'],
-                video['state'], video['filename'], video['tags'],
-                video['url'], video['title'], video['date']
+                medium['duration'], medium['link'], medium['location'],
+                medium['state'], medium['filename'], medium['tags'],
+                medium['url'], medium['title'], medium['date']
         )
         with self.mutex:
             self.cursor.execute(sql, args)

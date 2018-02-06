@@ -62,22 +62,22 @@ descriptions = {
         'select_clear': 'Clear selection',
 
         'search_channel': 'Highlight channel',
-        'video_play': 'Play media',
-        'video_playadd': 'Enqueue media',
-        'video_stop': 'Stop playing',
-        'video_remove': 'Remove media',
-        'video_read': 'Makr as read',
-        'video_skip': 'Makr as skipped',
+        'medium_play': 'Play media',
+        'medium_playadd': 'Enqueue media',
+        'medium_stop': 'Stop playing',
+        'medium_remove': 'Remove media',
+        'medium_read': 'Makr as read',
+        'medium_skip': 'Makr as skipped',
         'channel_filter': 'Filter same channel',
         'state_filter': 'Show next state  panel',
         'infos': 'Show information',
 
-        'video_download': 'Download media',
-        'video_update': 'Update media list',
+        'medium_download': 'Download media',
+        'medium_update': 'Update media list',
 
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',
-        'channel_show_videos': 'Show videos of channel',
+        'channel_show_media': 'Show media of channel',
     }
 
 keymaps = [
@@ -104,23 +104,23 @@ keymaps = [
     ('', ord('$'), 'select_until'),
     ('', ord('^'), 'select_clear'),
 
-    ('videos', ord('*'), 'search_channel'),
-    ('videos', ord('l'), 'video_play'),
-    ('videos', ord('a'), 'video_playadd'),
-    ('videos', ord('h'), 'video_stop'),
-    ('videos', ord('d'), 'video_remove'),
-    ('videos', ord('r'), 'video_read'),
-    ('videos', ord('R'), 'video_skip'),
-    ('videos', ord('c'), 'channel_filter'),
-    ('videos', ord('s'), 'state_filter'),
-    ('videos', ord('i'), 'infos'), # TODO for channels too (s/'videos'/'')
+    ('media', ord('*'), 'search_channel'),
+    ('media', ord('l'), 'medium_play'),
+    ('media', ord('a'), 'medium_playadd'),
+    ('media', ord('h'), 'medium_stop'),
+    ('media', ord('d'), 'medium_remove'),
+    ('media', ord('r'), 'medium_read'),
+    ('media', ord('R'), 'medium_skip'),
+    ('media', ord('c'), 'channel_filter'),
+    ('media', ord('s'), 'state_filter'),
+    ('media', ord('i'), 'infos'), # TODO for channels too (s/'media'/'')
 
-    ('videos_remote', ord('\n'), 'video_download'),
-    ('videos_remote', ord('u'), 'video_update'),
+    ('media_remote', ord('\n'), 'medium_download'),
+    ('media_remote', ord('u'), 'medium_update'),
 
     ('channels', ord('a'), 'channel_auto'),
     ('channels', ord('A'), 'channel_auto_custom'),
-    ('channels', ord('\n'), 'channel_show_videos'),
+    ('channels', ord('\n'), 'channel_show_media'),
 ]
 
 for m in keymaps:

@@ -18,8 +18,8 @@ def getData(url, printInfos=print, new=False):
         data = rss.getData(url, printInfos)
     return data
 
-def getDuration(video):
-    filename = os.path.abspath(video['filename']).replace('"','\\"')
+def getDuration(medium):
+    filename = os.path.abspath(medium['filename']).replace('"','\\"')
     commandline = 'ffprobe -i "%s" -show_entries format=duration -v quiet -of csv="p=0"' % filename
     args = shlex.split(commandline)
     result = subprocess.Popen(args,
@@ -43,10 +43,10 @@ class DownloadManager():
             worker.setDaemon(True)
             worker.start()
 
-        for video in self.itemList.videos:
-            if 'download' == video['location']:
-                channel = self.itemList.db.getChannel(video['url'])
-                self.add(video, channel, update=False)
+        for medium in self.itemList.media:
+            if 'download' == medium['location']:
+                channel = self.itemList.db.getChannel(medium['url'])
+                self.add(medium, channel, update=False)
         if self.wait:
             self.waitDone()
 
@@ -56,35 +56,35 @@ class DownloadManager():
         exit when the main thread ends."""
         q = self.queue
         while True:
-            video, channel = q.get()
-            ret = self.download(video, channel)
+            medium, channel = q.get()
+            ret = self.download(medium, channel)
             q.task_done()
             if None == ret:
-                if not video['link'] in self.handleQueue.retries:
-                    self.handleQueue.retries[video['link']] = 1
+                if not medium['link'] in self.handleQueue.retries:
+                    self.handleQueue.retries[medium['link']] = 1
 
-                if self.maxRetries <= self.handleQueue.retries[video['link']]:
+                if self.maxRetries <= self.handleQueue.retries[medium['link']]:
                     continue
 
-                self.handleQueue.retries[video['link']] += 1
+                self.handleQueue.retries[medium['link']] += 1
                 sleep(5)
-                self.add(video, channel, update=False)
+                self.add(medium, channel, update=False)
     handleQueue.retries = {}
 
 
-    def add(self, video, channel, update=True):
+    def add(self, medium, channel, update=True):
         if update:
-            self.printInfos('Add to download: %s' % video['title'])
-            video['location'] = 'download'
-            self.itemList.db.updateVideo(video)
-            self.itemList.updateVideoAreas(modifiedVideos=[video])
-        self.queue.put((video, channel))
+            self.printInfos('Add to download: %s' % medium['title'])
+            medium['location'] = 'download'
+            self.itemList.db.updateMedium(medium)
+            self.itemList.updateMediumAreas(modifiedMedia=[medium])
+        self.queue.put((medium, channel))
 
     def waitDone(self):
         self.queue.join()
 
-    def download(self, video, channel):
-        link = video['link']
+    def download(self, medium, channel):
+        link = medium['link']
 
         # Set filename # TODO handle collision
         path = strToFilename(channel['title'])
@@ -92,16 +92,16 @@ class DownloadManager():
             os.makedirs(path)
 
         # Download file
-        self.printInfos('Download %s...' % video['title'])
+        self.printInfos('Download %s...' % medium['title'])
         if 'rss' == channel['type']:
             ext = link.split('.')[-1]
-            filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
-                    strToFilename(video['title']), ext)
+            filename = "%s/%s_%s.%s" % (path, tsToDate(medium['date']),
+                    strToFilename(medium['title']), ext)
             ret = rss.download(link, filename, self.printInfos)
 
         elif 'youtube' == channel['type']:
-            filename = "%s/%s_%s.%s" % (path, tsToDate(video['date']),
-                    strToFilename(video['title']), 'mp4')
+            filename = "%s/%s_%s.%s" % (path, tsToDate(medium['date']),
+                    strToFilename(medium['title']), 'mp4')
             ret = yt.download(link, filename, self.printInfos)
 
         if 0 != ret: # Download did not happen
@@ -109,13 +109,13 @@ class DownloadManager():
             return
 
         # Change location and filename
-        video['filename'] = filename
-        video['location'] = 'local'
+        medium['filename'] = filename
+        medium['location'] = 'local'
 
-        if 0 == video['duration']:
-            video['duration'] = getDuration(video)
+        if 0 == medium['duration']:
+            medium['duration'] = getDuration(medium)
 
-        self.itemList.db.updateVideo(video)
-        self.itemList.updateVideoAreas(modifiedVideos=[video])
+        self.itemList.db.updateMedium(medium)
+        self.itemList.updateMediumAreas(modifiedMedia=[medium])
 
         return 0

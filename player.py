@@ -71,33 +71,33 @@ class Player():
 
     def markAsPlayed(self, unlink=False):
         db = self.itemList.db
-        video = self.playlist[self.currentFilename]
-        video['state'] = 'read'
-        self.printInfos('Mark as read %s' % video['filename'])
+        medium = self.playlist[self.currentFilename]
+        medium['state'] = 'read'
+        self.printInfos('Mark as read %s' % medium['filename'])
 
         if unlink:
-            self.printInfos('Remove %s' % video['filename'])
-            os.unlink(video['filename'])
-            video['filename'] = ''
+            self.printInfos('Remove %s' % medium['filename'])
+            os.unlink(medium['filename'])
+            medium['filename'] = ''
 
-        db.updateVideo(video)
-        self.itemList.updateVideoAreas()
+        db.updateMedium(medium)
+        self.itemList.updateMediumAreas()
 
-    def play(self, video, now=True):
+    def play(self, medium, now=True):
         if now:
-            self.printInfos('Play '+video['title'])
+            self.printInfos('Play '+medium['title'])
         else:
-            self.printInfos('Enqueue '+video['title'])
+            self.printInfos('Enqueue '+medium['title'])
 
         if not self.player:
             self.start()
 
-        if 'local' == video['location'] and '' != video['filename']:
-            target=video['filename']
+        if 'local' == medium['location'] and '' != medium['filename']:
+            target=medium['filename']
         else:
-            target=video['link']
+            target=medium['link']
 
-        self.playlist[target] = video
+        self.playlist[target] = medium
         self.player.loadfile(target, 'append-play')
         if now:
             self.player.playlist_pos = self.player.playlist_count-1
@@ -111,8 +111,8 @@ class Player():
     def prev(self):
         self.player.playlist_prev(mode='force')
 
-    def add(self, video):
-        self.play(video, now=False)
+    def add(self, medium):
+        self.play(medium, now=False)
 
     def stop(self):
         if self.player:
