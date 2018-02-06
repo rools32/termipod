@@ -1,6 +1,7 @@
 import curses
 import curses.textpad
 import shlex
+from bisect import bisect
 
 from utils import durationToStr, tsToDate, printLog, formatString
 from itemlist import ItemList
@@ -93,7 +94,7 @@ class UI():
                         addHelp = 'Usage: add url [auto] [genre]'
                         self.printInfos(addHelp)
                     else:
-                        self.itemList.addChannel(*command[1:])
+                        self.itemList.newChannel(*command[1:])
 
             elif 'search_get' == action:
                 searchString = self.statusArea.runCommand('/')
@@ -135,7 +136,6 @@ class UI():
             elif 'video_remove' == action:
                 # TODO if is being played: self.itemList.stop()
                 self.itemList.remove(idx)
-                self.itemList.updateVideoAreas()
 
             elif 'channel_filter' == action:
                 tabs.channelFilterSwitch()
@@ -209,13 +209,13 @@ class Tabs:
         area = VideoArea(self.screen, location, self.itemList.videos, name,
                 self.titleArea, self.printInfos)
         self.areas.append(area)
-        self.itemList.videoAreas.append(area)
+        self.itemList.addVideoArea(area)
 
     def addChannels(self, name, displayName):
         area = ChannelArea(self.screen, self.itemList.channels, name,
                 displayName, self.titleArea, self.printInfos)
         self.areas.append(area)
-        self.itemList.channelAreas.append(area)
+        self.itemList.addChannelArea(area)
 
     def getCurrentArea(self):
         return self.getArea(self.currentIdx)
@@ -303,12 +303,14 @@ class ItemArea:
         self.oldCursor = 0
         self.cursor = 0
         self.firstLine = 0
-        self.lastGlobalIdx = None
-        self.content = None
+        self.lastSelectedItem = None
+        self.contents = None
         self.shown = False
         self.items = items
         self.selection = []
         self.userSelection = []
+
+        self.addContents()
 
     def addToUserSelection(self, idx=None):
         if None == idx:
@@ -339,25 +341,69 @@ class ItemArea:
         self.userSelection = []
         self.display(redraw=True)
 
-    def resetContent(self):
-        self.content = None
+    def resetContents(self):
+        self.contents = None
         if self.shown:
             self.display(True)
 
-    def updateContent(self, items=None):
-        # Rebuild
-        if None == items or None == self.content:
-            items = self.getSelection()
-            self.content = self.itemsToString(items)
-            return True
-        # Update
-        else:
-            items = self.getSelection(items)
-            self.content[0:0] = self.itemsToString(items)
-            return False
+    def addContents(self, items=None):
+        if None == self.contents:
+            self.contents = []
 
-    def itemsToString(self, channels):
-        return list(map(lambda x: self.itemToString(x, self.width), channels))
+        if None == items:
+            items = self.items
+            self.contents = []
+            self.selection = []
+            self.userSelection = []
+        else:
+            shift = len(items)
+            self.selection = [ s+shift for s in self.selection ]
+            self.userSelection = [ s+shift for s in self.userSelection ]
+
+        items = self.filter(items)[0]
+        self.selection[0:0] = [ item['index'] for item in items ]
+        self.contents[0:0] = self.itemsToString(items)
+
+        if self.shown:
+            self.display(True)
+
+    def updateContents(self, items):
+        if None == self.contents:
+            self.contents = []
+            items = self.items
+            replace = True
+        else:
+            replace = False
+
+        # Check if item is kept or not
+        shownItems, hiddenItems = self.filter(items)
+        for item in shownItems:
+            try:
+                idx = self.selection.index(item['index'])
+            except ValueError: # if item not in selection
+                # We need to show it: update contents and selection
+                position = bisect(self.selection, item['index'])
+                self.contents.insert(position, self.itemToString(item))
+                self.selection.insert(position, item['index'])
+            else: # if item in selection
+                # Update shown information
+                self.contents[idx] = self.itemToString(item)
+
+        for item in hiddenItems:
+            try:
+                idx = self.selection.index(item['index'])
+            except ValueError: # if item not in selection
+                pass # Noting to do
+            else: # if item in selection
+                # Hide it: update contents and selection
+                del self.contents[idx]
+                del self.selection[idx]
+
+        if self.shown:
+            self.display(True) # TODO depending on changes
+
+    def itemsToString(self, items):
+        return list(map(lambda x: self.itemToString(x), items))
 
     def screenInfos(self):
         line = self.firstLine+self.cursor+1
@@ -374,7 +420,7 @@ class ItemArea:
         return self.items[self.getIdx()]
 
     def getCurrentLine(self):
-        return self.content[self.firstLine+self.cursor]
+        return self.contents[self.firstLine+self.cursor]
 
     def highlight(self, string):
         self.highlightOn = True
@@ -388,13 +434,13 @@ class ItemArea:
 
         itemIdx = None
         if not reverse:
-            for i in range(self.firstLine+self.cursor+1, len(self.content)):
-                if self.highlightString in self.content[i]:
+            for i in range(self.firstLine+self.cursor+1, len(self.contents)):
+                if self.highlightString in self.contents[i]:
                     itemIdx = i
                     break
         else:
             for i in range(self.firstLine+self.cursor-1, -1, -1):
-                if self.highlightString in self.content[i]:
+                if self.highlightString in self.contents[i]:
                     itemIdx = i
                     break
 
@@ -415,6 +461,11 @@ class ItemArea:
         highlightStyle = curses.color_pair(4)
         self.win.move(line, 0)
         self.win.clrtoeol()
+
+        if not len(string):
+            self.win.refresh()
+            return
+
         style = None
         if bold:
             self.win.addstr(line, 0, string, boldStyle)
@@ -440,6 +491,8 @@ class ItemArea:
                     styleIdx = (styleIdx+1)%2
             else:
                 self.win.addstr(line, 0, string, normalStyle)
+
+        self.win.refresh()
 
     def showHelp(self):
         lines = mapToHelp(self.keyClass)
@@ -481,12 +534,12 @@ class ItemArea:
         elif what == 'all' and way == 'up':
             idx = 0
         elif what == 'all' and way == 'down':
-            idx = len(self.content)-1
+            idx = len(self.contents)-1
 
         if 0 > idx:
             idx = 0
-        elif len(self.content) <= idx:
-            idx = len(self.content)-1
+        elif len(self.contents) <= idx:
+            idx = len(self.contents)-1
 
         firstLine, cursor = self.idxToPosition(idx)
 
@@ -498,7 +551,7 @@ class ItemArea:
         self.cursor = cursor
         self.firstLine = firstLine
 
-        self.lastGlobalIdx = self.selection[idx]
+        self.lastSelectedItem = self.items[self.selection[idx]]
         self.display(redraw)
 
     def resetDisplay(self):
@@ -509,68 +562,73 @@ class ItemArea:
 
     def display(self, redraw=False):
         self.shown = True
-        # If new content, we need to check cursor is still valid and set it on
-        # the same line if possible
-        if None == self.content:
-            redraw = self.updateContent()
 
-            if None != self.lastGlobalIdx:
+        if None == self.contents:
+            redraw = True
+            self.addContents()
+            return
+
+        if len(self.contents) and redraw:
+            if None != self.lastSelectedItem:
                 # Set cursor on the same item than before redisplay
                 for globalIdx in \
-                        range(self.lastGlobalIdx, self.selection[-1]+1):
+                        range(self.lastSelectedItem['index'],
+                                self.selection[-1]+1):
                     try:
                         idx = self.selection.index(globalIdx)
                     except ValueError:
                         self.firstLine, self.cursor = (0, 0)
-                        self.globalIdx = self.selection[0]
+                        self.lastSelectedItem = self.items[self.selection[0]]
                         redraw = True
                     else:
                         self.firstLine, self.cursor = self.idxToPosition(idx)
-                        self.globalIdx = self.selection[idx]
+                        self.lastSelectedItem = self.items[self.selection[idx]]
                         redraw = True
                         break
                 redraw = True
             else:
                 self.firstLine, self.cursor = (0, 0)
+                self.lastSelectedItem = self.items[self.selection[0]]
 
         # Check cursor position
         idx = self.positionToIdx(self.firstLine, self.cursor)
-        if len(self.content) <= idx:
-            idx = len(self.content)-1
+        if len(self.contents) <= idx:
+            idx = len(self.contents)-1
             self.firstLine, self.cursor = self.idxToPosition(idx)
 
         # We draw all the page (shift)
-        if redraw == True:
+        if True == redraw:
             self.userSelection = [] # reset user selection
 
             for lineNumber in range(self.height):
-                if self.firstLine+lineNumber < len(self.content):
-                    line = self.content[self.firstLine+lineNumber]
+                if self.firstLine+lineNumber < len(self.contents):
+                    line = self.contents[self.firstLine+lineNumber]
                     # Line where cursor is, bold
                     if lineNumber == self.cursor:
                         self.printLine(lineNumber, line, True)
                     else:
                         self.printLine(lineNumber, line)
+
                 # Erase previous text for empty lines (bottom of scroll)
                 else:
-                    self.win.move(lineNumber, 0)
-                    self.win.clrtoeol()
+                    self.printLine(lineNumber, '')
 
         elif self.oldCursor != self.cursor:
-            self.printLine(self.oldCursor, self.content[self.firstLine+self.oldCursor])
-            self.printLine(self.cursor, self.content[self.firstLine+self.cursor], True)
-        self.win.refresh()
+            self.printLine(self.oldCursor, self.contents[self.firstLine+self.oldCursor])
+            self.printLine(self.cursor, self.contents[self.firstLine+self.cursor], True)
+
 
     def getKeyClass(self):
         return self.keyClass
 
 class VideoArea(ItemArea):
     def __init__(self, screen, location, items, name, titleArea, printInfos):
-        super().__init__(screen, items, location, name, titleArea, printInfos)
         self.location = location
         self.state = 'unread'
         self.keyClass = 'videos_'+location
         self.channelFilter = False
+
+        super().__init__(screen, items, location, name, titleArea, printInfos)
 
     def getTitleName(self):
         return '%s (%s)' % (self.displayName, self.state)
@@ -591,7 +649,7 @@ class VideoArea(ItemArea):
             self.channelFilter = channel
 
         # Update screen
-        self.resetContent()
+        self.resetContents()
 
     def switchState(self):
         states = ['all', 'unread', 'read']
@@ -599,44 +657,35 @@ class VideoArea(ItemArea):
         self.state = states[(idx+1)%len(states)]
         self.printInfos('Show %s videos' % self.state)
         self.titleArea.print(self.getTitleName())
-        self.resetContent()
+        self.resetContents()
 
     # if newItems update selection (do not replace)
-    def getSelection(self, newItems=None):
-        if None == newItems:
-            replace = True
-            newItems = self.items
-        else:
-            replace = False
-            oldSelection = self.selection
-
-        self.selection = []
-        items = []
-
-        for index, item in enumerate(newItems):
+    def filter(self, newItems):
+        matchingItems = []
+        otherItems = []
+        for item in newItems:
+            match = True
             if self.channelFilter and self.channelFilter != item['channel']:
-                continue
-            if self.location != item['location']:
-                continue
-            if 'all' != self.state and self.state != item['state']:
-                continue
+                match = False
+            elif self.location != item['location']:
+                match = False
+            elif 'all' != self.state and self.state != item['state']:
+                match = False
 
-            self.selection.append(index)
-            items.append(item)
+            if match:
+                matchingItems.append(item)
+            else:
+                otherItems.append(item)
 
-        if not replace:
-            shift = len(newItems)
-            oldSelection = [ s+shift for s in oldSelection ]
-            self.userSelection = [ s+shift for s in self.userSelection ]
-            self.selection += oldSelection
-            self.firstLine += len(items)
+        return (matchingItems, otherItems)
 
-        return items
+    def itemToString(self, video, multiLines=False, width=None):
+        if None == width:
+            width = self.width
 
-    def itemToString(self, item, width=0, multiLines=False):
-        formattedItem = dict(item)
-        formattedItem['date'] = tsToDate(item['date'])
-        formattedItem['duration'] = durationToStr(item['duration'])
+        formattedItem = dict(video)
+        formattedItem['date'] = tsToDate(video['date'])
+        formattedItem['duration'] = durationToStr(video['duration'])
         separator = u" \u2022 "
 
         if not multiLines:
@@ -662,23 +711,18 @@ class VideoArea(ItemArea):
 
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, displayName, titleArea, printInfos):
+        self.keyClass = 'channels'
         super().__init__(screen, items, name, displayName, titleArea,
                 printInfos)
-        self.keyClass = 'channels'
 
     def getTitleName(self):
         return self.displayName
 
-    def getSelection(self):
+    def filter(self, channels):
         # TODO add filter
-        self.selection = []
-        items = []
-        for index, channel in enumerate(self.items):
-            self.selection.append(index)
-            items.append(channel)
-        return items
+        return channels, []
 
-    def itemToString(self, channel, width):
+    def itemToString(self, channel, multiLines=False, width=None):
         date = tsToDate(channel['updated'])
         newElements = 2 # TODO
         totalElements = 10 # TODO

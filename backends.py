@@ -77,7 +77,7 @@ class DownloadManager():
             self.printInfos('Add to download: %s' % video['title'])
             video['location'] = 'download'
             self.itemList.db.updateVideo(video)
-            self.itemList.updateVideoAreas()
+            self.itemList.updateVideoAreas(modifiedVideos=[video])
         self.queue.put((video, channel))
 
     def waitDone(self):
@@ -116,6 +116,6 @@ class DownloadManager():
             video['duration'] = getDuration(video)
 
         self.itemList.db.updateVideo(video)
-        self.itemList.updateVideoAreas()
+        self.itemList.updateVideoAreas(modifiedVideos=[video])
 
         return 0

@@ -12,59 +12,73 @@ class ItemList():
         self.dbName = dbName
         self.wait = wait
         self.db = DataBase(dbName, printInfos)
-        self.videos = self.db.selectVideos()
-        self.channels = self.db.selectChannels()
         self.printInfos = printInfos
         self.videoAreas = []
         self.channelAreas = []
+        self.videos = []
+        self.channels = []
+
+        self.addChannels()
+        self.addVideos()
+
         self.player = player.Player(self, self.printInfos)
         self.downloadManager = \
                 backends.DownloadManager(self, self.wait, self.printInfos)
 
         # Mark removed files as read
-        updated = False
         for video in self.videos:
             if 'local' == video['location'] and not os.path.isfile(video['filename']):
                 self.remove(video=video, unlink=False)
-                updated = True
-
-        if updated:
-            self.updateVideoAreas()
 
 
-    def updateChannels(self, channels=None, replace=True):
+    def addChannels(self, channels=None, replace=True):
         if None == channels:
-            channels = self.db.selectVideos()
+            channels = self.db.selectChannels()
 
         if replace:
             self.channels.clear()
 
         self.channels[0:0] = channels
+        for i, c in enumerate(self.channels):
+            c['index'] = i
         self.updateChannelAreas() # TODO smart if !replace
 
-    def updateVideos(self, videos=None, replace=True):
+    def addVideoArea(self, area):
+        self.videoAreas.append(area)
+
+    def addChannelArea(self, area):
+        self.channelAreas.append(area)
+
+    def addVideos(self, videos=None, replace=False):
         if None == videos:
+            self.videos = []
             videos = self.db.selectVideos()
 
         if replace:
             self.videos.clear()
 
         self.videos[0:0] = videos
+        for i, v in enumerate(self.videos):
+            v['index'] = i
+
         if replace:
             self.updateVideoAreas()
         else:
-            self.updateVideoAreas(videos)
+            self.updateVideoAreas(newVideos=videos)
 
-    def updateVideoAreas(self, videos=None):
+    def updateVideoAreas(self, newVideos=None, modifiedVideos=None):
         for area in self.videoAreas:
-            if None == videos:
-                area.resetContent()
+            if None == newVideos and None == modifiedVideos:
+                area.resetContents()
             else:
-                area.updateContent(videos)
+                if None != newVideos:
+                    area.addContents(newVideos)
+                if None != modifiedVideos:
+                    area.updateContents(modifiedVideos)
 
     def updateChannelAreas(self):
         for area in self.channelAreas:
-                area.resetContent()
+                area.resetContents()
 
     def add(self, video):
         self.videos.append(video)
@@ -74,21 +88,22 @@ class ItemList():
         if int == type(indices):
             indices = [indices]
 
+        videos = []
         for idx in indices:
-            item = self.videos[idx]
-            link = item['link']
+            video = self.videos[idx]
+            link = video['link']
 
-            channel = self.db.getChannel(item['url'])
-            self.downloadManager.add(item, channel)
-        self.updateVideoAreas()
+            channel = self.db.getChannel(video['url'])
+            self.downloadManager.add(video, channel)
+            videos.append(video)
 
     def play(self, idx):
-        item = self.videos[idx]
-        self.player.play(item)
+        video = self.videos[idx]
+        self.player.play(video)
 
     def playadd(self, idx):
-        item = self.videos[idx]
-        self.player.add(item)
+        video = self.videos[idx]
+        self.player.add(video)
 
     def stop(self):
         self.player.stop()
@@ -97,14 +112,17 @@ class ItemList():
         if int == type(indices):
             indices = [indices]
 
+        videos = []
         for idx in indices:
-            item = self.videos[idx]
-            if 'read' == item['state']:
-                item['state'] = 'unread'
+            video = self.videos[idx]
+            if 'read' == video['state']:
+                video['state'] = 'unread'
             else:
-                item['state'] = 'read'
-            self.db.updateVideo(item)
-        self.updateVideoAreas()
+                video['state'] = 'read'
+            self.db.updateVideo(video)
+            videos.append(video)
+
+        self.updateVideoAreas(modifiedVideos=videos)
 
     def remove(self, idx=None, video=None, unlink=True):
         if idx:
@@ -132,7 +150,9 @@ class ItemList():
         video['location'] = 'remote'
         self.db.updateVideo(video)
 
-    def addChannel(self, url, auto='', genre=''):
+        self.updateVideoAreas(modifiedVideos=[video])
+
+    def newChannel(self, url, auto='', genre=''):
         self.printInfos('Add '+url)
         # Check not already present in db
         channel = self.db.getChannel(url)
@@ -158,8 +178,8 @@ class ItemList():
         # Update video list
         videos = self.db.addVideos(data)
 
-        self.updateChannels([data], replace=False)
-        self.updateVideos(videos, replace=False)
+        self.addChannels([data], replace=False)
+        self.addVideos(videos, replace=False)
 
         self.printInfos(data['title']+' added')
 
@@ -222,4 +242,4 @@ class ItemList():
             self.downloadManager.waitDone()
 
         allNewVideos.sort(key=operator.itemgetter('date'), reverse=True)
-        self.updateVideos(allNewVideos, replace=False)
+        self.addVideos(allNewVideos)

@@ -30,4 +30,4 @@ else:
         auto = ''
         if args.auto:
             auto = args.auto
-        itemList.addChannel(args.add, auto=auto)
+        itemList.newChannel(args.add, auto=auto)
