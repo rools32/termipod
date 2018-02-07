@@ -43,10 +43,10 @@ def durationToStr(duration):
 # Truncate the line or add spaces if needed
 # When !truncate list is returned for each line
 def formatString(string, width, truncate=True):
-    space = width-len(string)
 
     # If line is too long
     if truncate:
+        space = width-len(string)
         if 0 > space:
             return string[:space-1]+'…'
         else:
@@ -54,12 +54,24 @@ def formatString(string, width, truncate=True):
 
     else:
         strings = []
-        while 0 > space:
-            strings.append(string[:space])
-            string = string[space:]
-            space = width-len(string)
+        stringList = string.split(' ')
+        while len(stringList):
+            line = ''
+            remain = width
+            # We fill in the line
+            while len(stringList) and len(stringList[0]) <= remain:
+                s = stringList.pop(0)
+                line += s+' '
+                remain -= len(s)+1
 
-        if 0 <= space:
-            strings.append(string+' '*space)
+            # Check we got someting to put
+            if not len(line): # line was too long to be nicely cut
+                line = stringList[0][:width]
+                stringList[0] = stringList[0][width:]
+                strings.append(line)
+            else:
+                line = line[:-1] # remove last ' '
+                remain += 1
+                strings.append(line+' '*remain)
 
         return strings
