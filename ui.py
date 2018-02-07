@@ -385,6 +385,9 @@ class ItemArea:
         else:
             replace = False
 
+        # We keep only items already in itemList
+        items = [ i for i in items if 'index' in i ]
+
         # Check if item is kept or not
         shownItems, hiddenItems = self.filter(items)
         for item in shownItems:
