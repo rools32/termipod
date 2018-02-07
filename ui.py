@@ -2,6 +2,7 @@ import curses
 import curses.textpad
 import shlex
 from bisect import bisect
+from threading import Lock
 
 from utils import durationToStr, tsToDate, printLog, formatString
 from itemlist import ItemList
@@ -300,6 +301,7 @@ class ItemArea:
         self.printInfos = printInfos
         self.screen = screen
         self.titleArea = titleArea
+        self.mutex = Lock()
         height, width = screen.getmaxyx()
         self.height = height-2
         self.width = width-1
@@ -352,11 +354,15 @@ class ItemArea:
         self.display(redraw=True)
 
     def resetContents(self):
+        self.mutex.acquire()
         self.contents = None
+        self.mutex.release()
         if self.shown:
             self.display(True)
 
     def addContents(self, items=None):
+        self.mutex.acquire()
+
         if None == self.contents:
             self.contents = []
 
@@ -374,22 +380,29 @@ class ItemArea:
         self.selection[0:0] = [ item['index'] for item in items ]
         self.contents[0:0] = self.itemsToString(items)
 
+        self.mutex.release()
+
         if self.shown:
             self.display(True)
 
     def updateContents(self, items):
         if None == self.contents:
-            self.contents = []
             items = self.items
-            replace = True
-        else:
-            replace = False
 
         # We keep only items already in itemList
         items = [ i for i in items if 'index' in i ]
 
         # Check if item is kept or not
         shownItems, hiddenItems = self.filter(items)
+
+        self.mutex.acquire()
+
+        if None == self.contents:
+            self.contents = []
+            replace = True
+        else:
+            replace = False
+
         for item in shownItems:
             try:
                 idx = self.selection.index(item['index'])
@@ -411,6 +424,8 @@ class ItemArea:
                 # Hide it: update contents and selection
                 del self.contents[idx]
                 del self.selection[idx]
+
+        self.mutex.release()
 
         if self.shown:
             self.display(True) # TODO depending on changes
@@ -591,6 +606,8 @@ class ItemArea:
             self.addContents()
             return
 
+        self.mutex.acquire()
+
         if len(self.contents) and redraw:
             if None != self.lastSelectedItem:
                 # Set cursor on the same item than before redisplay
@@ -639,6 +656,8 @@ class ItemArea:
         elif self.oldCursor != self.cursor:
             self.printLine(self.oldCursor, self.contents[self.firstLine+self.oldCursor])
             self.printLine(self.cursor, self.contents[self.firstLine+self.cursor], True)
+
+        self.mutex.release()
 
 
     def getKeyClass(self):

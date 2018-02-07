@@ -32,17 +32,14 @@ class ItemList():
                 self.remove(medium=medium, unlink=False)
 
 
-    def addChannels(self, channels=None, replace=True):
+    def addChannels(self, channels=None):
         if None == channels:
             channels = self.db.selectChannels()
-
-        if replace:
-            self.channels.clear()
 
         self.channels[0:0] = channels
         for i, c in enumerate(self.channels):
             c['index'] = i
-        self.updateChannelAreas() # TODO smart if !replace
+        self.updateChannelAreas() # TODO smart
 
     def addMediumArea(self, area):
         self.mediumAreas.append(area)
@@ -50,22 +47,16 @@ class ItemList():
     def addChannelArea(self, area):
         self.channelAreas.append(area)
 
-    def addMedia(self, media=None, replace=False):
+    def addMedia(self, media=None):
         if None == media:
             self.media = []
             media = self.db.selectMedia()
-
-        if replace:
-            self.media.clear()
 
         self.media[0:0] = media
         for i, v in enumerate(self.media):
             v['index'] = i
 
-        if replace:
-            self.updateMediumAreas()
-        else:
-            self.updateMediumAreas(newMedia=media)
+        self.updateMediumAreas(newMedia=media)
 
     def updateMediumAreas(self, newMedia=None, modifiedMedia=None):
         for area in self.mediumAreas:
@@ -165,6 +156,13 @@ class ItemList():
                     (channel['url'], channel['title']))
             return False
 
+        thread = Thread(target = self.newChannelTask, args = (url, genre, auto))
+        thread.daemon = True
+        thread.start()
+        if self.wait:
+            thread.join()
+
+    def newChannelTask(self, url, genre, auto):
         # Retrieve url feed
         data = backends.getData(url, self.printInfos, True)
 
@@ -182,8 +180,8 @@ class ItemList():
         # Update medium list
         media = self.db.addMedia(data)
 
-        self.addChannels([data], replace=False)
-        self.addMedia(media, replace=False)
+        self.addChannels([data])
+        self.addMedia(media)
 
         self.printInfos(data['title']+' added')
 
