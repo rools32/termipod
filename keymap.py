@@ -66,8 +66,8 @@ descriptions = {
         'medium_playadd': 'Enqueue media',
         'medium_stop': 'Stop playing',
         'medium_remove': 'Remove media',
-        'medium_read': 'Makr as read',
-        'medium_skip': 'Makr as skipped',
+        'medium_read': 'Mark as read',
+        'medium_skip': 'Mark as skipped',
         'channel_filter': 'Filter same channel',
         'state_filter': 'Show next state  panel',
         'infos': 'Show information',
@@ -117,6 +117,8 @@ keymaps = [
 
     ('media_remote', ord('\n'), 'medium_download'),
     ('media_remote', ord('u'), 'medium_update'),
+
+    ('media_local', ord('\n'), 'medium_playadd'),
 
     ('channels', ord('a'), 'channel_auto'),
     ('channels', ord('A'), 'channel_auto_custom'),
