@@ -48,6 +48,8 @@ descriptions = {
         'tab_prev': 'Go previous tab',
         'help': 'Show help',
 
+        'redraw': 'Redraw all screen',
+
         'screen_infos': 'Show screen information',
 
         'command_get': 'Command input',
@@ -84,15 +86,16 @@ descriptions = {
 keymaps = [
     ('', ord('j'), 'line_down'),
     ('', ord('k'), 'line_up'),
-    ('', 6, 'page_down'),
-    ('', 2, 'page_up'),
+    ('', 6, 'page_down'), # ctrl-f
+    ('', 2, 'page_up'), # ctrl-b
     ('', ord('g'), 'top'),
     ('', ord('G'), 'bottom'),
     ('', ord('\t'), 'tab_next'),
-    ('', 90, 'tab_prev'),
+    ('', 90, 'tab_prev'), # shift-tab
     ('', ord('?'), 'help'),
 
-    ('', 7, 'screen_infos'),
+    ('', 18, 'redraw'), # Ctrl-r
+    ('', 7, 'screen_infos'), # Ctrl-g
 
     ('', ord(':'), 'command_get'),
     ('', ord('/'), 'search_get'),

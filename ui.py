@@ -79,6 +79,10 @@ class UI():
             elif 'help' == action:
                 area.showHelp()
 
+            elif 'redraw' == action:
+                tabs.showTab()
+                self.statusArea.print('')
+
             elif 'infos' == action:
                 area.showInfos()
 
@@ -234,18 +238,23 @@ class Tabs:
     def getArea(self, idx):
         return self.areas[idx]
 
-    def showTab(self, target):
-        if str == type(target):
-            idx = self.getAreaIdx(target)
+    # When target is None refresh current tab
+    def showTab(self, target=None):
+        if None != target:
+            if str == type(target):
+                idx = self.getAreaIdx(target)
+            else:
+                idx = target
+
+            # Hide previous tab
+            if -1 != self.currentIdx:
+                self.getCurrentArea().shown = False
+
+            self.currentIdx = idx
+            area = self.getArea(idx)
         else:
-            idx = target
+            area = self.getCurrentArea()
 
-        # Hide previous tab
-        if -1 != self.currentIdx:
-            self.getCurrentArea().shown = False
-
-        self.currentIdx = idx
-        area = self.getArea(idx)
         self.titleArea = TitleArea(self.screen, area.getTitleName())
         area.display(True)
 
