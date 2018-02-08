@@ -876,7 +876,6 @@ class PopupArea:
 
         for line in range(len(lines)):
             self.win.move(line+1, self.innerMargin)
-            self.win.clrtoeol()
             self.win.addstr(line+1, self.innerMargin, str(lines[line]))
         self.win.refresh()
 
