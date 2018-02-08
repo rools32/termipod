@@ -74,6 +74,7 @@ defaultKeymaps = [
         ('', '?', 'help'),
 
         ('', 18, 'redraw'), # Ctrl-r
+        ('', 12, 'refresh'), # Ctrl-l
         ('', 7, 'screen_infos'), # Ctrl-g
 
         ('', ':', 'command_get'),
@@ -121,6 +122,7 @@ descriptions = {
         'help': 'Show help',
 
         'redraw': 'Redraw all screen',
+        'refresh': 'Reinit current area',
 
         'screen_infos': 'Show screen information',
 

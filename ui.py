@@ -85,6 +85,11 @@ class UI():
                 tabs.showTab()
                 self.statusArea.print('')
 
+            elif 'refresh' == action:
+                area.resetContents()
+                tabs.showTab()
+                self.statusArea.print('')
+
             elif 'infos' == action:
                 area.showInfos()
 
