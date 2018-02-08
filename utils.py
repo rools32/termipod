@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta
 import unicodedata
-import config
+
+from config import logPath
 
 def printableStr(string):
     newStr = ''
@@ -24,7 +25,7 @@ def printLog(string):
         printLog.reset = False
     else:
         mode = 'a'
-    filename = config.logFile
+    filename = logPath
     with open(filename, mode) as myfile:
         myfile.write(str(string)+"\n")
 printLog.reset = True

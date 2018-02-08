@@ -9,10 +9,10 @@ from database import DataBase
 from utils import *
 
 class ItemList():
-    def __init__(self, dbName, printInfos=print, wait=False):
-        self.dbName = dbName
+    def __init__(self, config, printInfos=print, wait=False):
+        self.dbName = config.dbPath
         self.wait = wait
-        self.db = DataBase(dbName, printInfos)
+        self.db = DataBase(self.dbName, printInfos)
         self.printInfos = printInfos
         self.mediumAreas = []
         self.channelAreas = []

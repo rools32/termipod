@@ -15,14 +15,13 @@ parser.add_argument('--auto', type=str, help='Auto filter (regex)')
 parser.add_argument('--up', action='store_true', help='Update channels')
 args = parser.parse_args()
 
-dbName = config.dbFile
-os.chdir(config.mediaDir)
+os.chdir(config.mediaPath)
 
 if len(sys.argv) == 1:
-    UI(dbName)
+    UI(config)
 
 else:
-    itemList = ItemList(dbName, wait=True)
+    itemList = ItemList(config, wait=True)
 
     if args.up:
         itemList.updateMediumList()

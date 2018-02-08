@@ -6,10 +6,10 @@ from threading import Lock
 
 from utils import durationToStr, tsToDate, printLog, formatString
 from itemlist import ItemList
-from keymap import getAction, mapToHelp
+from keymap import Keymap
 
 class UI():
-    def __init__(self, dbName):
+    def __init__(self, config):
         screen = curses.initscr()
         height,width = screen.getmaxyx()
         screen.immedok(True)
@@ -23,8 +23,10 @@ class UI():
         curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
         screen.refresh()
 
+        self.keymap = Keymap(config)
+
         self.statusArea = StatusArea(screen)
-        self.itemList = ItemList(dbName, self.printInfos)
+        self.itemList = ItemList(config, self.printInfos)
 
         tabs = Tabs(screen, self.itemList, self.printInfos)
 
@@ -43,7 +45,7 @@ class UI():
             areaKeyClass = area.getKeyClass()
             idx = area.getIdx()
 
-            action = getAction(areaKeyClass, key)
+            action = self.keymap.getAction(areaKeyClass, key)
             printLog(action)
 
             if None == action:
@@ -77,7 +79,7 @@ class UI():
                 tabs.showNextTab(reverse=True)
 
             elif 'help' == action:
-                area.showHelp()
+                area.showHelp(self.keymap)
 
             elif 'redraw' == action:
                 tabs.showTab()
@@ -96,7 +98,7 @@ class UI():
                 if command[0] in ('q', 'quit'):
                     exit()
                 elif command[0] in ('h', 'help'):
-                    area.showHelp()
+                    area.showHelp(self.keymap)
                 elif command[0] in ('add',):
                     if 1 == len(command):
                         addHelp = 'Usage: add url [auto] [genre]'
@@ -531,8 +533,8 @@ class ItemArea:
 
         self.win.refresh()
 
-    def showHelp(self):
-        lines = mapToHelp(self.keyClass)
+    def showHelp(self, keymap):
+        lines = keymap.mapToHelp(self.keyClass)
         PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
                 printInfos=self.printInfos)
         self.display(redraw=True)

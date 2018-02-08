@@ -3,9 +3,22 @@ import appdirs
 import os
 from os.path import expanduser
 
-def createDefaultConfig():
+from keymap import defaultKeymaps
+
+def createDefaultConfig(configPath):
     config['Global'] = { 'mediaDir': expanduser("~")+'/pypod' }
-    with open(configFile, 'w') as f:
+
+    # Write default keymaps
+    config['Keymap'] = {}
+    for (where, key, action) in defaultKeymaps:
+        if int == type(key):
+            config['Keymap'][action] = "%s:%d" % (where, key)
+        else:
+            key = "%r" % key # raw key
+            config['Keymap'][action] = "%s:%s" % (where, key)
+
+
+    with open(configPath, 'w') as f:
         config.write(f)
 
 appname = 'pypod'
@@ -19,16 +32,18 @@ cacheDir = appdirs.user_cache_dir(appname, appauthor)
 if not os.path.exists(cacheDir):
     os.makedirs(cacheDir)
 
-configFile = configDir+'/pypod.ini'
-dbFile = configDir+'/pypod.db'
-logFile = cacheDir+'/pypod.log'
+configPath = configDir+'/pypod.ini'
+dbPath = configDir+'/pypod.db'
+logPath = cacheDir+'/pypod.log'
 
 config = configparser.ConfigParser()
-if not os.path.exists(configFile):
-    createDefaultConfig()
+if not os.path.exists(configPath):
+    createDefaultConfig(configPath)
 else:
-    config.read(configFile)
+    config.read(configPath)
 
-mediaDir = config['Global']['mediaDir']
-if not os.path.exists(mediaDir):
-    os.makedirs(mediaDir)
+mediaPath = config['Global']['mediaDir']
+if not os.path.exists(mediaPath):
+    os.makedirs(mediaPath)
+
+keys = config['Keymap']
