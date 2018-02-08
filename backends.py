@@ -108,6 +108,8 @@ class DownloadManager():
             self.printInfos('Download failed %s' % link)
             return
 
+        self.printInfos('Downloaded (%s)' % medium['title'])
+
         # Change location and filename
         medium['filename'] = filename
         medium['location'] = 'local'
