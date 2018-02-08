@@ -94,6 +94,11 @@ class UI():
             elif 'command_get' == action:
                 string = self.statusArea.runCommand(':')
                 command = shlex.split(string)
+
+                if not len(command):
+                    self.printInfos('No command to run')
+                    continue
+
                 self.printInfos('Run: '+str(command))
                 if command[0] in ('q', 'quit'):
                     exit()
@@ -105,9 +110,14 @@ class UI():
                         self.printInfos(addHelp)
                     else:
                         self.itemList.newChannel(*command[1:])
+                else:
+                    self.printInfos('Command "%s" not found' % command[0])
 
             elif 'search_get' == action:
                 searchString = self.statusArea.runCommand('/')
+                if not len(searchString):
+                    self.printInfos('No search pattern provided')
+                    continue
                 self.printInfos('Search: '+searchString)
                 tabs.highlight(searchString)
             elif 'search_next' == action:
@@ -462,6 +472,8 @@ class ItemArea:
         return self.contents[self.firstLine+self.cursor]
 
     def highlight(self, string):
+        if not len(string):
+            return
         self.highlightOn = True
         self.highlightString = string
         self.display(redraw=True)
