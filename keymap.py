@@ -1,5 +1,16 @@
 import curses
 
+def getKeyName(screen):
+    key = screen.getch()
+    keyName = curses.keyname(key).decode()
+    if ' ' == keyName:
+        keyName = 'KEY_SPACE'
+    elif '^J' == keyName:
+        keyName = '\n'
+    elif '^I' == keyName:
+        keyName = '\t'
+    return keyName
+
 class Keymap():
     def __init__(self, config):
         from config import keys
@@ -12,81 +23,81 @@ class Keymap():
     def addKey(self, areaType, key, action):
         self.keys[(areaType, key)] = action
 
-    def getAction(self, areaType, key):
+    def getAction(self, areaType, keyName):
         subType = areaType.split('_')[0]
         for t in (areaType, subType, ''):
-            if (t, key) in self.keys:
-                return self.keys[(t, key)]
+            if (t, keyName) in self.keys:
+                return self.keys[(t, keyName)]
         return None
 
     def mapToHelp(self, areaType):
-        elements = []
         maxLen = 0
-        for m in self.keymaps:
-            if m[0] in areaType:
-                keyseq = curses.keyname(m[1]).decode("utf-8")
-                if '^J' == keyseq:
-                    keyseq = 'Return'
-                elif ' ' == keyseq:
-                    keyseq = 'Space'
-                elif '^I' == keyseq:
-                    keyseq = 'Tab'
-                elements.append((keyseq, m[2]))
-                maxLen = max(maxLen, len(keyseq))
+        keys = {} # indexed by action
+        for where, key, action in self.keymaps:
+            if where in areaType:
+                keyseq = key.encode('unicode_escape').decode('ASCII')
+
+                if action in keys:
+                    keys[action] += ', '+keyseq
+                else:
+                    keys[action] = keyseq
+                maxLen = max(maxLen, len(keys[action]))
 
         lines = []
-        for e in elements:
-            helpStr = descriptions[e[1]]
-            length = len(e[0])
-            numSpaces = maxLen-length+1
-            lines.append('<%s>%s%s' % (e[0], ' '*numSpaces, helpStr))
+        for action, keyList in keys.items():
+            numSpaces = maxLen-len(keyList)+1
+            lines.append('%s%s%s' % \
+                    (keyList, ' '*numSpaces, descriptions[action]))
 
         return lines
 
     def loadKeymap(self, keys):
         keymaps = []
         rawKeymap = keys
-        for action, value in rawKeymap.items():
-            where = value[:value.index(':')]
-            key = value[value.index(':')+1:]
+        for action, values in rawKeymap.items():
+            for value in values.split(' '):
+                where = value[:value.index('/')]
+                if '*' == where:
+                    where = ''
 
-            try:
-                key = int(key)
-            except ValueError:
-                key = key[1:-1]
+                key = value[value.index('/')+1:]
                 key = bytes(key, "utf-8").decode("unicode_escape")
-                key = ord(key)
-
-            keymaps.append((where, key, action))
+                keymaps.append((where, key, action))
 
         return keymaps
 
 
 defaultKeymaps = [
-        ('', 'j', 'line_down'),
-        ('', 'k', 'line_up'),
-        ('', 6, 'page_down'), # ctrl-f
-        ('', 2, 'page_up'), # ctrl-b
-        ('', 'g', 'top'),
-        ('', 'G', 'bottom'),
-        ('', '\t', 'tab_next'),
-        ('', 90, 'tab_prev'), # shift-tab
-        ('', '?', 'help'),
+        ('*', 'j', 'line_down'),
+        ('*', 'KEY_DOWN', 'line_down'),
+        ('*', 'k', 'line_up'),
+        ('*', 'KEY_UP', 'line_up'),
+        ('*', '^F', 'page_down'),
+        ('*', 'KEY_NPAGE', 'page_down'),
+        ('*', '^B', 'page_up'),
+        ('*', 'KEY_PPAGE', 'page_up'),
+        ('*', 'g', 'top'),
+        ('*', 'KEY_HOME', 'top'),
+        ('*', 'G', 'bottom'),
+        ('*', 'KEY_END', 'bottom'),
+        ('*', '\t', 'tab_next'),
+        ('*', 'KEY_BTAB', 'tab_prev'), # shift-tab
+        ('*', '?', 'help'),
 
-        ('', 18, 'redraw'), # Ctrl-r
-        ('', 12, 'refresh'), # Ctrl-l
-        ('', 7, 'screen_infos'), # Ctrl-g
+        ('*', '^R', 'redraw'),
+        ('*', '^L', 'refresh'),
+        ('*', '^G', 'screen_infos'),
 
-        ('', ':', 'command_get'),
-        ('', '/', 'search_get'),
-        ('', 'n', 'search_next'),
-        ('', 'N', 'search_prev'),
+        ('*', ':', 'command_get'),
+        ('*', '/', 'search_get'),
+        ('*', 'n', 'search_next'),
+        ('*', 'N', 'search_prev'),
 
-        ('', 'q', 'quit'),
+        ('*', 'q', 'quit'),
 
-        ('', ' ', 'select_item'),
-        ('', '$', 'select_until'),
-        ('', '^', 'select_clear'),
+        ('*', 'KEY_SPACE', 'select_item'),
+        ('*', '$', 'select_until'),
+        ('*', '^', 'select_clear'),
 
         ('media', '*', 'search_channel'),
         ('media', 'l', 'medium_play'),

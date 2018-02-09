@@ -11,12 +11,15 @@ def createDefaultConfig(configPath):
     # Write default keymaps
     config['Keymap'] = {}
     for (where, key, action) in defaultKeymaps:
-        if int == type(key):
-            config['Keymap'][action] = "%s:%d" % (where, key)
+        if action in config['Keymap']:
+            value = config['Keymap'][action]+' '
         else:
-            key = "%r" % key # raw key
-            config['Keymap'][action] = "%s:%s" % (where, key)
+            value = ''
 
+        key = "%r" % key # raw key
+        value += "%s/%s" % (where, key[1:-1])
+
+        config['Keymap'][action] = value
 
     with open(configPath, 'w') as f:
         config.write(f)

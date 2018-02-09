@@ -6,11 +6,12 @@ from threading import Lock
 
 from utils import durationToStr, tsToDate, printLog, formatString
 from itemlist import ItemList
-from keymap import Keymap
+from keymap import Keymap, getKeyName
 
 class UI():
     def __init__(self, config):
         screen = curses.initscr()
+        screen.keypad(1) # to handle special keys as one key
         height,width = screen.getmaxyx()
         screen.immedok(True)
         curses.start_color()
@@ -39,18 +40,18 @@ class UI():
 
         while True:
             # Wait for key
-            key = screen.getch()
+            keyName = getKeyName(screen)
             area = tabs.getCurrentArea()
 
             areaKeyClass = area.getKeyClass()
             idx = area.getIdx()
 
-            action = self.keymap.getAction(areaKeyClass, key)
+            action = self.keymap.getAction(areaKeyClass, keyName)
             printLog(action)
 
             if None == action:
-                self.printInfos('Key %s not mapped for keyClass %s' %
-                        (str(key), areaKeyClass))
+                self.printInfos('Key %r not mapped for %s' %
+                        (keyName, areaKeyClass))
 
             ####################################################################
             # All tab commands
@@ -335,7 +336,6 @@ class ItemArea:
         self.displayName = displayName
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
-        self.win.keypad(1) # to handle special keys as one key
         self.highlightOn = False
         self.highlightString = None
         self.oldCursor = 0
