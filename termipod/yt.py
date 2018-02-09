@@ -1,9 +1,28 @@
-import feedparser as fp
-import youtube_dl
+# -*- coding: utf-8 -*-
+#
+# termipod
+# Copyright (c) 2018 Cyril Bordage
+#
+# termipod is free software; you can redistribute it and/or modify
+# it under the terms of the GNU General Public License as published by
+# the Free Software Foundation; either version 3 of the License, or
+# (at your option) any later version.
+#
+# termipod is distributed in the hope that it will be useful,
+# but WITHOUT ANY WARRANTY; without even the implied warranty of
+# MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+# GNU General Public License for more details.
+#
+# You should have received a copy of the GNU General Public License
+# along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import re
 from datetime import datetime
 from time import mktime, time
-from utils import printLog, printableStr
+
+import feedparser as fp
+import youtube_dl as ytdl
+
+from termipod.utils import printLog, printableStr
 
 class DownloadLogger(object):
     def __init__(self, printInfos, url):
@@ -52,7 +71,7 @@ class DataLogger(object):
 def download(url, filename, printInfos=print):
     ydl_opts = {'logger': DownloadLogger(printInfos, url),
             'outtmpl': filename, 'format': 'mp4'}
-    with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+    with ytdl.YoutubeDL(ydl_opts) as ydl:
         try:
             return ydl.download([url])
         except:
@@ -62,7 +81,7 @@ def getData(url, printInfos=print, new=False):
     # If first add, we use ytdl to get old media
     if new:
         ydl_opts = {'logger': DataLogger(printInfos, url), 'ignoreerrors': True}
-        with youtube_dl.YoutubeDL(ydl_opts) as ydl:
+        with ytdl.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info( url, download=False)
         if None == result or None == result['entries']:
             printInfos("Cannot get data from %s" % url)
