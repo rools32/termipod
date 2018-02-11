@@ -17,61 +17,63 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import curses
 
-def getKeyName(screen):
+
+def get_key_name(screen):
     key = screen.getch()
-    keyName = curses.keyname(key).decode()
-    if ' ' == keyName:
-        keyName = 'KEY_SPACE'
-    elif '^J' == keyName:
-        keyName = '\n'
-    elif '^I' == keyName:
-        keyName = '\t'
-    return keyName
+    key_name = curses.keyname(key).decode()
+    if ' ' == key_name:
+        key_name = 'KEY_SPACE'
+    elif '^J' == key_name:
+        key_name = '\n'
+    elif '^I' == key_name:
+        key_name = '\t'
+    return key_name
+
 
 class Keymap():
     def __init__(self, config):
         from termipod.config import keys
-        self.keymaps = self.loadKeymap(keys)
+        self.keymaps = self.load_keymap(keys)
 
         self.keys = {}
         for m in self.keymaps:
-            self.addKey(*m)
+            self.add_key(*m)
 
-    def addKey(self, areaType, key, action):
-        self.keys[(areaType, key)] = action
+    def add_key(self, area_type, key, action):
+        self.keys[(area_type, key)] = action
 
-    def getAction(self, areaType, keyName):
-        subType = areaType.split('_')[0]
-        for t in (areaType, subType, ''):
-            if (t, keyName) in self.keys:
-                return self.keys[(t, keyName)]
+    def get_action(self, area_type, key_name):
+        sub_type = area_type.split('_')[0]
+        for t in (area_type, sub_type, ''):
+            if (t, key_name) in self.keys:
+                return self.keys[(t, key_name)]
         return None
 
-    def mapToHelp(self, areaType):
-        maxLen = 0
-        keys = {} # indexed by action
+    def map_to_help(self, area_type):
+        max_len = 0
+        keys = {}  # indexed by action
         for where, key, action in self.keymaps:
-            if where in areaType:
+            if where in area_type:
                 keyseq = key.encode('unicode_escape').decode('ASCII')
 
                 if action in keys:
                     keys[action] += ', '+keyseq
                 else:
                     keys[action] = keyseq
-                maxLen = max(maxLen, len(keys[action]))
+                max_len = max(max_len, len(keys[action]))
 
         lines = []
-        for action, keyList in keys.items():
-            numSpaces = maxLen-len(keyList)+1
-            lines.append('%s%s%s' % \
-                    (keyList, ' '*numSpaces, descriptions[action]))
+        for action, key_list in keys.items():
+            num_spaces = max_len-len(key_list)+1
+            lines.append('%s%s%s' %
+                         (key_list, ' '*num_spaces, descriptions[action]))
 
         return lines
 
-    def loadKeymap(self, keys):
+    def load_keymap(self, keys):
         keymaps = []
-        rawKeymap = keys
-        for action, values in rawKeymap.items():
+        raw_keymap = keys
+        for action, values in raw_keymap.items():
             for value in values.split(' '):
                 where = value[:value.index('/')]
                 if '*' == where:
@@ -84,7 +86,7 @@ class Keymap():
         return keymaps
 
 
-defaultKeymaps = [
+default_keymaps = [
         ('*', 'j', 'line_down'),
         ('*', 'KEY_DOWN', 'line_down'),
         ('*', 'k', 'line_up'),
@@ -98,7 +100,7 @@ defaultKeymaps = [
         ('*', 'G', 'bottom'),
         ('*', 'KEY_END', 'bottom'),
         ('*', '\t', 'tab_next'),
-        ('*', 'KEY_BTAB', 'tab_prev'), # shift-tab
+        ('*', 'KEY_BTAB', 'tab_prev'),  # shift-tab
         ('*', '?', 'help'),
 
         ('*', '^R', 'redraw'),
@@ -125,8 +127,8 @@ defaultKeymaps = [
         ('media', 'R', 'medium_skip'),
         ('media', 'c', 'channel_filter'),
         ('media', 's', 'state_filter'),
-        ('media', 'i', 'infos'), # TODO for channels too (s/'media'/'')
-        ('media', 'I', 'description'), # TODO for channels too (s/'media'/'')
+        ('media', 'i', 'infos'),  # TODO for channels too (s/'media'/'')
+        ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
 
         ('media_remote', '\n', 'medium_download'),
         ('media_remote', 'u', 'medium_update'),

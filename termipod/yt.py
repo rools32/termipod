@@ -22,69 +22,74 @@ from time import mktime, time
 import feedparser as fp
 import youtube_dl as ytdl
 
-from termipod.utils import printLog, printableStr
+from termipod.utils import print_log, printable_str
+
 
 class DownloadLogger(object):
-    def __init__(self, printInfos, url):
-        self.printInfos = printInfos
+    def __init__(self, print_infos, url):
+        self.print_infos = print_infos
         self.url = url
         self.step = 0
 
     def debug(self, msg):
-        regex = '.*\[download\] *([0-9.]*)% of *[0-9.]*.iB '+ \
-                'at *[0-9.]*.iB/s ETA ([0-9:]*)'
+        regex = '.*\[download\] *([0-9.]*)% of *[0-9.]*.i_b ' \
+                'at *[0-9.]*.i_b/s ETA ([0-9:]*)'
         match = re.match(regex, msg)
-        if None != match:
+        if match is not None:
             percentage = int(float(match.groups()[0]))
             eta = match.groups()[1]
             if percentage >= self.step:
-                self.printInfos('Downloading %s (%d%% ETA %s)...' % \
-                        (self.url, percentage, eta))
+                self.print_infos('Downloading %s (%d%% ETA %s)...' %
+                                 (self.url, percentage, eta))
                 self.step = int(percentage/10+1)*10
 
     def warning(self, msg):
-        self.printInfos('[YTDL warning] %s' % msg)
+        self.print_infos('[YTDL warning] %s' % msg)
 
     def error(self, msg):
-        self.printInfos('[YTDL error] %s' % msg)
+        self.print_infos('[YTDL error] %s' % msg)
+
 
 class DataLogger(object):
-    def __init__(self, printInfos, url):
-        self.printInfos = printInfos
+    def __init__(self, print_infos, url):
+        self.print_infos = print_infos
         self.url = url
 
     def debug(self, msg):
-        regex="\[download\] Downloading video (\d*) of (\d*)"
+        regex = "\[download\] Downloading video (\d*) of (\d*)"
         match = re.match(regex, msg)
-        if None != match:
+        if match is not None:
             current = float(match.groups()[0])
             total = float(match.groups()[1])
-            self.printInfos('Adding %s (%d%%)' % \
-                    (self.url, int(current*100/total)))
+            self.print_infos('Adding %s (%d%%)' %
+                             (self.url, int(current*100/total)))
 
     def warning(self, msg):
-        self.printInfos('[YTDL warning] %s' % msg)
+        self.print_infos('[YTDL warning] %s' % msg)
 
     def error(self, msg):
-        self.printInfos('[YTDL error] %s' % msg)
+        self.print_infos('[YTDL error] %s' % msg)
 
-def download(url, filename, printInfos=print):
-    ydl_opts = {'logger': DownloadLogger(printInfos, url),
-            'outtmpl': filename, 'format': 'mp4'}
+
+def download(url, filename, print_infos=print):
+    ydl_opts = {'logger': DownloadLogger(print_infos, url),
+                'outtmpl': filename, 'format': 'mp4'}
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         try:
             return ydl.download([url])
-        except:
+        except ytdl.DownloadError:
             return 1
 
-def getData(url, printInfos=print, new=False):
+
+def get_data(url, print_infos=print, new=False):
     # If first add, we use ytdl to get old media
     if new:
-        ydl_opts = {'logger': DataLogger(printInfos, url), 'ignoreerrors': True}
+        ydl_opts = {'logger': DataLogger(print_infos, url),
+                    'ignoreerrors': True}
         with ytdl.YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info( url, download=False)
-        if None == result or None == result['entries']:
-            printInfos("Cannot get data from %s" % url)
+            result = ydl.extract_info(url, download=False)
+        if result is None or result['entries'] is None:
+            print_infos("Cannot get data from %s" % url)
             return None
 
         entries = result['entries']
@@ -92,11 +97,11 @@ def getData(url, printInfos=print, new=False):
         # Find channel name
         channel_title = None
         for entry in entries:
-            if None != entry:
-                channel_title = printableStr(entry['uploader'])
+            if entry is not None:
+                channel_title = printable_str(entry['uploader'])
                 break
 
-        if None == channel_title:
+        if channel_title is None:
             return None
 
         data = {}
@@ -107,12 +112,12 @@ def getData(url, printInfos=print, new=False):
 
         data['items'] = []
         for entry in entries:
-            if None == entry :
+            if entry is None:
                 continue
             medium = {}
             medium['channel'] = data['title']
             medium['url'] = url
-            medium['title'] = printableStr(entry['title'])
+            medium['title'] = printable_str(entry['title'])
             medium['date'] = int(mktime(datetime.strptime(
                 entry['upload_date'], "%Y%m%d").timetuple()))
             medium['description'] = entry['description']
@@ -123,17 +128,17 @@ def getData(url, printInfos=print, new=False):
         return data
 
     else:
-        feedUrl = url.replace('channel/', 'feeds/videos.xml?channel_id=')
-        rss = fp.parse(feedUrl)
+        feed_url = url.replace('channel/', 'feeds/videos.xml?channel_id=')
+        rss = fp.parse(feed_url)
 
         feed = rss.feed
-        if not len(feed):
-            printInfos('Cannot load '+feedUrl)
+        if not feed:
+            print_infos('Cannot load '+feed_url)
             return None
 
         data = {}
         data['url'] = url
-        data['title'] = printableStr(feed['title'])
+        data['title'] = printable_str(feed['title'])
         data['type'] = 'youtube'
 
         updated = 0
@@ -143,7 +148,7 @@ def getData(url, printInfos=print, new=False):
             medium = {}
             medium['channel'] = data['title']
             medium['url'] = url
-            medium['title'] = printableStr(entry['title'])
+            medium['title'] = printable_str(entry['title'])
             medium['date'] = int(mktime(entry['published_parsed']))
             medium['description'] = entry['description']
             medium['link'] = entry['link']
@@ -155,4 +160,3 @@ def getData(url, printInfos=print, new=False):
         data['updated'] = updated
 
         return data
-

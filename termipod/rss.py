@@ -20,20 +20,20 @@ import urllib.request
 
 import feedparser as fp
 
-from termipod.utils import printLog, printableStr
+from termipod.utils import print_log, printable_str
 
 
-def getData(url, printInfos=print):
+def get_data(url, print_infos=print):
     rss = fp.parse(url)
 
     feed = rss.feed
-    if not len(feed):
-        printInfos('Cannot load '+url)
+    if not feed:
+        print_infos('Cannot load '+url)
         return None
 
     data = {}
     data['url'] = url
-    data['title'] = printableStr(feed['title'])
+    data['title'] = printable_str(feed['title'])
     data['type'] = 'rss'
 
     data['items'] = []
@@ -43,22 +43,23 @@ def getData(url, printInfos=print):
         medium = {}
         medium['channel'] = data['title']
         medium['url'] = url
-        medium['title'] = printableStr(entry['title'])
+        medium['title'] = printable_str(entry['title'])
         medium['date'] = int(mktime(entry['published_parsed']))
         medium['description'] = entry['summary']
         maxtime = max(maxtime, medium['date'])
 
         medium['link'] = None
-        medium['linkType'] = None # TODO add in database
+        medium['link_type'] = None  # TODO add in database
         for link in entry['links']:
             if 'medium' in link['type'] or 'audio' in link['type']:
                 medium['link'] = link['href']
-                medium['linkType'] = link['type']
+                medium['link_type'] = link['type']
 
         if 'itunes_duration' in entry:
             sduration = entry['itunes_duration']
-            medium['duration'] = sum([ int(x)*60**i for (i, x) in
-                enumerate(sduration.split(':')[::-1]) ])
+            medium['duration'] = \
+                sum([int(x)*60**i for (i, x) in
+                    enumerate(sduration.split(':')[::-1])])
         data['items'].append(medium)
 
     if 'updated_parsed' in feed:
@@ -68,11 +69,12 @@ def getData(url, printInfos=print):
 
     return data
 
-def download(url, filename, printInfos=print):
+
+def download(url, filename, print_infos=print):
     try:
         urllib.request.urlretrieve(url, filename)
     except urllib.error.URLError:
-        printInfos('Cannot access to %s' % url)
+        print_infos('Cannot access to %s' % url)
         return 1
     else:
         return 0

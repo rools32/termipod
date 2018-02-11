@@ -21,19 +21,21 @@ from multiprocessing import Lock
 
 from termipod.utils import *
 
+
 class DataBase:
-    def __init__(self, name, printInfos=print):
+    def __init__(self, name, print_infos=print):
         self.mutex = Lock()
-        self.printInfos = printInfos
+        self.print_infos = print_infos
         self.version = 1
 
         self.conn = sqlite3.connect(name, check_same_thread=False)
         self.cursor = self.conn.cursor()
 
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table'")
+        self.cursor.execute(
+                "SELECT name FROM sqlite_master WHERE type='table'")
         tables = list(map(lambda x: x[0], self.cursor.fetchall()))
 
-        if not len(tables):
+        if not tables:
             self.cursor.executescript("""
                 CREATE TABLE channels (
                     url TEXT PRIMARY KEY,
@@ -59,135 +61,140 @@ class DataBase:
                     PRIMARY KEY (channel_url, title, date)
                 );
             """)
-            self.setUserVersion(self.version)
+            self.set_user_version(self.version)
 
         else:
-            dbVersion = self.getUserVersion()
-            if self.version != dbVersion:
-                self.printInfos(('Database is version "%d" but "%d" '
-                    'needed: please update') % (dbVersion, self.version))
+            db_version = self.get_user_version()
+            if self.version != db_version:
+                self.print_infos(('Database is version "%d" but "%d" needed: '
+                                 'please update') % (db_version, self.version))
                 exit(1)
 
         self.conn.commit()
 
-    def getUserVersion(self):
+    def get_user_version(self):
         self.cursor.execute('PRAGMA user_version')
         return self.cursor.fetchone()[0]
 
-    def setUserVersion(self, version):
+    def set_user_version(self, version):
         self.cursor.execute('PRAGMA user_version={:d}'.format(version))
 
-
-    def selectMedia(self):
+    def select_media(self):
         self.cursor.execute("""SELECT * FROM media
                 ORDER BY date DESC""")
         rows = self.cursor.fetchall()
-        return list(map(self.listToMedium, rows))
+        return list(map(self.list_to_medium, rows))
 
-    def listToMedium(self, mediumList):
-        url = mediumList[0]
-        channel = self.getChannel(url)['title']
+    def list_to_medium(self, medium_list):
+        url = medium_list[0]
+        channel = self.get_channel(url)['title']
         data = {}
         data['channel'] = channel
         data['url'] = url
-        data['title'] = str(mediumList[1]) # str if title is only a number
-        data['date'] = mediumList[2]
-        data['duration'] = mediumList[3]
-        data['link'] = mediumList[4]
-        data['location'] = mediumList[5]
-        data['state'] = mediumList[6]
-        data['filename'] = mediumList[7]
-        data['tags'] = mediumList[8]
-        data['description'] = mediumList[9]
+        data['title'] = str(medium_list[1])  # str if title is only a number
+        data['date'] = medium_list[2]
+        data['duration'] = medium_list[3]
+        data['link'] = medium_list[4]
+        data['location'] = medium_list[5]
+        data['state'] = medium_list[6]
+        data['filename'] = medium_list[7]
+        data['tags'] = medium_list[8]
+        data['description'] = medium_list[9]
         return data
 
-    def mediumToList(self, medium):
-        return (medium['url'], medium['title'], medium['date'], medium['duration'],
-                medium['link'], medium['location'], medium['state'],
-                medium['filename'], medium['tags'], medium['description'])
+    def medium_to_list(self, medium):
+        return (medium['url'], medium['title'], medium['date'],
+                medium['duration'], medium['link'], medium['location'],
+                medium['state'], medium['filename'], medium['tags'],
+                medium['description'])
 
-    def getChannel(self, url):
+    def get_channel(self, url):
         """ Get Channel by url (primary key) """
         self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
         rows = self.cursor.fetchall()
         if 1 != len(rows):
             return None
-        return self.listToChannel(rows[0])
+        return self.list_to_channel(rows[0])
 
-    def selectChannels(self):
+    def select_channels(self):
         # TODO add filters: genre, auto
         self.cursor.execute("""SELECT * FROM channels
                 ORDER BY last_update DESC""")
         rows = self.cursor.fetchall()
-        return list(map(self.listToChannel, rows))
+        return list(map(self.list_to_channel, rows))
 
-    def listToChannel(self, channelList):
+    def list_to_channel(self, channel_list):
         data = {}
-        data['url'] = channelList[0]
-        data['title'] = channelList[1]
-        data['type'] = channelList[2]
-        data['genre'] = channelList[3]
-        data['auto'] = channelList[4]
-        data['updated'] = channelList[5]
+        data['url'] = channel_list[0]
+        data['title'] = channel_list[1]
+        data['type'] = channel_list[2]
+        data['genre'] = channel_list[3]
+        data['auto'] = channel_list[4]
+        data['updated'] = channel_list[5]
         return data
 
-    def channelToList(self, channel):
+    def channel_to_list(self, channel):
         return (channel['url'], channel['title'], channel['type'],
                 channel['genre'], channel['auto'], channel['updated'])
 
-    def addChannel(self, data):
-        channel = self.channelToList(data)
+    def add_channel(self, data):
+        channel = self.channel_to_list(data)
         params = ','.join('?'*len(channel))
         with self.mutex:
-            self.cursor.execute('INSERT INTO channels VALUES (%s)' % params,
-                     channel)
+            self.cursor.execute('INSERT INTO channels VALUES (%s)' %
+                                params, channel)
             self.conn.commit()
 
-    def addMedia(self, data):
+    def add_media(self, data):
         updated = False
         url = data['url']
 
-        channel = self.getChannel(url)
-        if None == channel:
+        channel = self.get_channel(url)
+        if channel is None:
             return None
 
         # Find out if feed has updates
-        updatedDate = channel['updated']
-        feedDate = data['updated']
-        newMedia = []
-        newEntries = []
-        if (feedDate > updatedDate): # new items
+        updated_date = channel['updated']
+        feed_date = data['updated']
+        new_media = []
+        new_entries = []
+        if (feed_date > updated_date):  # new items
             # Filter feed to keep only new items
             for medium in data['items']:
-                if medium['date'] > updatedDate:
-                    if not 'duration' in medium: medium['duration'] = 0
-                    if not 'location' in medium: medium['location'] = 'remote'
-                    if not 'state' in medium: medium['state'] = 'unread'
-                    if not 'filename' in medium: medium['filename'] = ''
-                    if not 'tags' in medium: medium['tags'] = ''
-                    newEntries.append(self.mediumToList(medium))
-                    newMedia.append(medium)
+                if medium['date'] > updated_date:
+                    if 'duration' not in medium:
+                        medium['duration'] = 0
+                    if 'location' not in medium:
+                        medium['location'] = 'remote'
+                    if 'state' not in medium:
+                        medium['state'] = 'unread'
+                    if 'filename' not in medium:
+                        medium['filename'] = ''
+                    if 'tags' not in medium:
+                        medium['tags'] = ''
+                    new_entries.append(self.medium_to_list(medium))
+                    new_media.append(medium)
 
             # Add new items to database
-            if len(newEntries):
+            if new_entries:
                 try:
                     with self.mutex:
-                        params = ','.join('?'*len(newEntries[0]))
+                        params = ','.join('?'*len(new_entries[0]))
                         self.cursor.executemany(
                             'INSERT INTO media VALUES (%s)' % params,
-                            newEntries)
+                            new_entries)
                         self.conn.commit()
                 except sqlite3.IntegrityError:
-                    self.printInfos('Cannot add %s' % str(newMedia))
+                    self.print_infos('Cannot add %s' % str(new_media))
 
-        if len(newMedia):
+        if new_media:
             channel['url'] = url
-            channel['updated'] = feedDate
-            self.updateChannel(channel)
+            channel['updated'] = feed_date
+            self.update_channel(channel)
 
-        return newMedia
+        return new_media
 
-    def updateChannel(self, channel):
+    def update_channel(self, channel):
         sql = """UPDATE channels
                     SET title = ?,
                         type = ?,
@@ -207,7 +214,7 @@ class DataBase:
             self.cursor.execute(sql, args)
             self.conn.commit()
 
-    def updateMedium(self, medium):
+    def update_medium(self, medium):
         sql = """UPDATE media
                     SET duration = ?,
                         url = ?,
@@ -218,11 +225,16 @@ class DataBase:
                     WHERE channel_url = ? and
                           title = ? and
                           date = ?"""
-        if not 'duration' in medium: medium['duration'] = 0
-        if not 'location' in medium: medium['location'] = 'remote'
-        if not 'state' in medium: medium['state'] = 'unread'
-        if not 'filename' in medium: medium['filename'] = ''
-        if not 'tags' in medium: medium['tags'] = ''
+        if 'duration' not in medium:
+            medium['duration'] = 0
+        if 'location' not in medium:
+            medium['location'] = 'remote'
+        if 'state' not in medium:
+            medium['state'] = 'unread'
+        if 'filename' not in medium:
+            medium['filename'] = ''
+        if 'tags' not in medium:
+            medium['tags'] = ''
         args = (
                 medium['duration'], medium['link'], medium['location'],
                 medium['state'], medium['filename'], medium['tags'],

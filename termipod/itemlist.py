@@ -17,84 +17,87 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import re
 import operator
-import os, os.path
+import os
 from threading import Thread
+
+import os.path
 
 import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase
 from termipod.utils import *
 
+
 class ItemList():
-    def __init__(self, config, printInfos=print, wait=False):
-        self.dbName = config.dbPath
+    def __init__(self, config, print_infos=print, wait=False):
+        self.db_name = config.db_path
         self.wait = wait
-        self.db = DataBase(self.dbName, printInfos)
-        self.printInfos = printInfos
-        self.mediumAreas = []
-        self.channelAreas = []
+        self.db = DataBase(self.db_name, print_infos)
+        self.print_infos = print_infos
+        self.medium_areas = []
+        self.channel_areas = []
         self.media = []
         self.channels = []
 
-        self.addChannels()
-        self.addMedia()
+        self.add_channels()
+        self.add_media()
 
-        self.player = player.Player(self, self.printInfos)
-        self.downloadManager = \
-                backends.DownloadManager(self, self.wait, self.printInfos)
+        self.player = player.Player(self, self.print_infos)
+        self.download_manager = \
+            backends.DownloadManager(self, self.wait, self.print_infos)
 
         # Mark removed files as read
         for medium in self.media:
-            if 'local' == medium['location'] and not os.path.isfile(medium['filename']):
+            if 'local' == medium['location'] and \
+                    not os.path.isfile(medium['filename']):
                 self.remove(medium=medium, unlink=False)
 
-
-    def addChannels(self, channels=None):
-        if None == channels:
-            channels = self.db.selectChannels()
+    def add_channels(self, channels=None):
+        if channels is None:
+            channels = self.db.select_channels()
 
         self.channels[0:0] = channels
         for i, c in enumerate(self.channels):
             c['index'] = i
-        self.updateChannelAreas() # TODO smart
+        self.update_channel_areas()  # TODO smart
 
-    def addMediumArea(self, area):
-        self.mediumAreas.append(area)
+    def add_medium_area(self, area):
+        self.medium_areas.append(area)
 
-    def addChannelArea(self, area):
-        self.channelAreas.append(area)
+    def add_channel_area(self, area):
+        self.channel_areas.append(area)
 
-    def addMedia(self, media=None):
-        if None == media:
+    def add_media(self, media=None):
+        if media is None:
             self.media = []
-            media = self.db.selectMedia()
+            media = self.db.select_media()
 
         self.media[0:0] = media
         for i, v in enumerate(self.media):
             v['index'] = i
 
-        self.updateMediumAreas(newMedia=media)
+        self.update_medium_areas(new_media=media)
 
-    def updateMediumAreas(self, newMedia=None, modifiedMedia=None):
-        for area in self.mediumAreas:
-            if None == newMedia and None == modifiedMedia:
-                area.resetContents()
+    def update_medium_areas(self, new_media=None, modified_media=None):
+        for area in self.medium_areas:
+            if new_media is None and modified_media is None:
+                area.reset_contents()
             else:
-                if None != newMedia:
-                    area.addContents(newMedia)
-                if None != modifiedMedia:
-                    area.updateContents(modifiedMedia)
+                if new_media is not None:
+                    area.add_contents(new_media)
+                if modified_media is not None:
+                    area.update_contents(modified_media)
 
-    def updateChannelAreas(self):
-        for area in self.channelAreas:
-                area.resetContents()
+    def update_channel_areas(self):
+        for area in self.channel_areas:
+                area.reset_contents()
 
     def add(self, medium):
         self.media.append(medium)
-        self.updateStrings()
+        self.update_strings()
 
     def download(self, indices):
-        if int == type(indices):
+        if isinstance(indices, int):
             indices = [indices]
 
         media = []
@@ -102,8 +105,8 @@ class ItemList():
             medium = self.media[idx]
             link = medium['link']
 
-            channel = self.db.getChannel(medium['url'])
-            self.downloadManager.add(medium, channel)
+            channel = self.db.get_channel(medium['url'])
+            self.download_manager.add(medium, channel)
             media.append(medium)
 
     def play(self, idx):
@@ -117,8 +120,8 @@ class ItemList():
     def stop(self):
         self.player.stop()
 
-    def switchRead(self, indices, skip=False):
-        if int == type(indices):
+    def switch_read(self, indices, skip=False):
+        if isinstance(indices, int):
             indices = [indices]
 
         media = []
@@ -131,10 +134,10 @@ class ItemList():
                     medium['state'] = 'skipped'
                 else:
                     medium['state'] = 'read'
-            self.db.updateMedium(medium)
+            self.db.update_medium(medium)
             media.append(medium)
 
-        self.updateMediumAreas(modifiedMedia=media)
+        self.update_medium_areas(modified_media=media)
 
     def remove(self, idx=None, medium=None, unlink=True):
         if idx:
@@ -145,128 +148,127 @@ class ItemList():
 
         if unlink:
             if '' == medium['filename']:
-                self.printInfos('Filename is empty')
+                self.print_infos('Filename is empty')
 
             elif os.path.isfile(medium['filename']):
                 try:
                     os.unlink(medium['filename'])
-                except:
-                    self.printInfos('Cannot remove "%s"' % medium['filename'])
+                except FileNotFoundError:
+                    self.print_infos('Cannot remove "%s"' % medium['filename'])
                 else:
-                    self.printInfos('File "%s" removed' % medium['filename'])
+                    self.print_infos('File "%s" removed' % medium['filename'])
             else:
-                self.printInfos('File "%s" is absent' % medium['filename'])
+                self.print_infos('File "%s" is absent' % medium['filename'])
 
-        self.printInfos('Mark "%s" as local and read' % medium['title'])
+        self.print_infos('Mark "%s" as local and read' % medium['title'])
         medium['state'] = 'read'
         medium['location'] = 'remote'
-        self.db.updateMedium(medium)
+        self.db.update_medium(medium)
 
-        self.updateMediumAreas(modifiedMedia=[medium])
+        self.update_medium_areas(modified_media=[medium])
 
-    def newChannel(self, url, auto='', genre=''):
-        self.printInfos('Add '+url)
+    def new_channel(self, url, auto='', genre=''):
+        self.print_infos('Add '+url)
         # Check not already present in db
-        channel = self.db.getChannel(url)
-        if None != channel:
-            self.printInfos('"%s" already present (%s)' % \
-                    (channel['url'], channel['title']))
+        channel = self.db.get_channel(url)
+        if channel is not None:
+            self.print_infos('"%s" already present (%s)' %
+                             (channel['url'], channel['title']))
             return False
 
-        thread = Thread(target = self.newChannelTask, args = (url, genre, auto))
+        thread = Thread(target=self.new_channel_task, args=(url, genre, auto))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def newChannelTask(self, url, genre, auto):
+    def new_channel_task(self, url, genre, auto):
         # Retrieve url feed
-        data = backends.getData(url, self.printInfos, True)
+        data = backends.get_data(url, self.print_infos, True)
 
-        if None == data:
+        if data is None:
             return False
 
         # Add channel to db
         data['genre'] = genre
         data['auto'] = auto
         updated = data['updated']
-        data['updated'] = 0 # set to 0 in db for addMedia
-        self.db.addChannel(data)
+        data['updated'] = 0  # set to 0 in db for add_media
+        self.db.add_channel(data)
         data['updated'] = updated
 
         # Update medium list
-        media = self.db.addMedia(data)
+        media = self.db.add_media(data)
 
-        self.addChannels([data])
-        self.addMedia(media)
+        self.add_channels([data])
+        self.add_media(media)
 
-        self.printInfos(data['title']+' added')
+        self.print_infos(data['title']+' added')
 
-    def channelAuto(self, idx, auto=None):
+    def channel_auto(self, idx, auto=None):
         """ Switch auto value or set it to a value if argument auto is
         provided """
         channel = self.channels[idx]
         title = channel['title']
 
-        if None == auto:
+        if auto is None:
             if '' == channel['auto']:
-                newValue = '.*'
+                new_value = '.*'
             else:
-                newValue = ''
+                new_value = ''
         else:
-            newValue = auto
-        channel['auto'] = newValue
-        self.printInfos('Auto for channel %s is set to: "%s"' \
-                % (title, newValue))
+            new_value = auto
+        channel['auto'] = new_value
+        self.print_infos('Auto for channel %s is set to: "%s"' %
+                         (title, new_value))
 
-        self.updateChannelAreas()
-        self.db.updateChannel(channel)
+        self.update_channel_areas()
+        self.db.update_channel(channel)
 
-    def updateMediumList(self, urls=None):
-        self.printInfos('Update...')
-        if None == urls:
-            urls = list(map(lambda x: x['url'], self.db.selectChannels()))
+    def update_medium_list(self, urls=None):
+        self.print_infos('Update...')
+        if urls is None:
+            urls = list(map(lambda x: x['url'], self.db.select_channels()))
 
-        thread = Thread(target = self.updateTask, args = (urls, ))
+        thread = Thread(target=self.update_task, args=(urls, ))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def updateTask(self, urls):
-        allNewMedia = []
+    def update_task(self, urls):
+        all_new_media = []
 
-        needToWait = False
+        need_to_wait = False
         for i, url in enumerate(urls):
-            channel = self.db.getChannel(url)
-            self.printInfos('Update channel %s (%d/%d)...' \
-                    % (channel['title'], i+1, len(urls)))
+            channel = self.db.get_channel(url)
+            self.print_infos('Update channel %s (%d/%d)...' %
+                             (channel['title'], i+1, len(urls)))
 
-            data = backends.getData(url, self.printInfos)
+            data = backends.get_data(url, self.print_infos)
 
-            if None == data:
+            if data is None:
                 continue
 
-            newMedia = self.db.addMedia(data)
-            if not len(newMedia):
+            new_media = self.db.add_media(data)
+            if not new_media:
                 continue
 
-            allNewMedia = newMedia+allNewMedia
+            all_new_media = new_media+all_new_media
 
             # Automatic download
             if not '' == channel['auto']:
                 regex = re.compile(channel['auto'])
-                subMedia = [ medium for medium in newMedia \
-                        if regex.match(medium['title']) ]
-                for s in subMedia:
-                    self.downloadManager.add(s, channel)
-                    needToWait = True
-        self.printInfos('Update channels done!')
+                sub_media = [medium for medium in new_media
+                             if regex.match(medium['title'])]
+                for s in sub_media:
+                    self.download_manager.add(s, channel)
+                    need_to_wait = True
+        self.print_infos('Update channels done!')
 
-        allNewMedia.sort(key=operator.itemgetter('date'), reverse=True)
-        self.addMedia(allNewMedia)
+        all_new_media.sort(key=operator.itemgetter('date'), reverse=True)
+        self.add_media(all_new_media)
 
-        if self.wait and needToWait:
-            self.printInfos('Wait for downloads to complete...')
-            self.downloadManager.waitDone()
-
+        if self.wait and need_to_wait:
+            self.print_infos('Wait for downloads to complete...')
+            self.download_manager.wait_done()

@@ -22,50 +22,52 @@ from os.path import expanduser
 
 import appdirs
 
-from termipod.keymap import defaultKeymaps
+from termipod.keymap import default_keymaps
 
 appname = 'termipod'
 appauthor = 'termipod'
 
-def createDefaultConfig(configPath):
-    config['Global'] = { 'mediaDir': expanduser("~")+'/'+appname }
+
+def create_default_config(config_path):
+    config['Global'] = {'media_dir': expanduser("~")+'/'+appname}
 
     # Write default keymaps
     config['Keymap'] = {}
-    for (where, key, action) in defaultKeymaps:
+    for (where, key, action) in default_keymaps:
         if action in config['Keymap']:
             value = config['Keymap'][action]+' '
         else:
             value = ''
 
-        key = "%r" % key # raw key
+        key = "%r" % key  # raw key
         value += "%s/%s" % (where, key[1:-1])
 
         config['Keymap'][action] = value
 
-    with open(configPath, 'w') as f:
+    with open(config_path, 'w') as f:
         config.write(f)
 
-configDir = appdirs.user_config_dir(appname, appauthor)
-if not os.path.exists(configDir):
-    os.makedirs(configDir)
 
-cacheDir = appdirs.user_cache_dir(appname, appauthor)
-if not os.path.exists(cacheDir):
-    os.makedirs(cacheDir)
+config_dir = appdirs.user_config_dir(appname, appauthor)
+if not os.path.exists(config_dir):
+    os.makedirs(config_dir)
 
-configPath = '%s/%s.ini' % (configDir, appname)
-dbPath = '%s/%s.db' % (configDir, appname)
-logPath = '%s/%s.log' % (cacheDir, appname)
+cache_dir = appdirs.user_cache_dir(appname, appauthor)
+if not os.path.exists(cache_dir):
+    os.makedirs(cache_dir)
+
+config_path = '%s/%s.ini' % (config_dir, appname)
+db_path = '%s/%s.db' % (config_dir, appname)
+log_path = '%s/%s.log' % (cache_dir, appname)
 
 config = configparser.ConfigParser()
-if not os.path.exists(configPath):
-    createDefaultConfig(configPath)
+if not os.path.exists(config_path):
+    create_default_config(config_path)
 else:
-    config.read(configPath)
+    config.read(config_path)
 
-mediaPath = config['Global']['mediaDir']
-if not os.path.exists(mediaPath):
-    os.makedirs(mediaPath)
+media_path = config['Global']['media_dir']
+if not os.path.exists(media_path):
+    os.makedirs(media_path)
 
 keys = config['Keymap']

@@ -18,10 +18,11 @@
 from datetime import datetime, timedelta
 import unicodedata
 
-from termipod.config import logPath
+from termipod.config import log_path
 
-def printableStr(string):
-    newStr = ''
+
+def printable_str(string):
+    new_str = ''
 
     for c in string:
         # For zero-width characters
@@ -30,37 +31,44 @@ def printableStr(string):
 
         w = unicodedata.east_asian_width(c)
         if w in ('N', 'Na', 'H', 'A'):
-            newStr += c
+            new_str += c
         else:
-            newStr += '🖥'
+            new_str += '🖥'
 
-    return newStr
+    return new_str
 
-def printLog(string):
-    if printLog.reset:
+
+def print_log(string):
+    if print_log.reset:
         mode = 'w'
-        printLog.reset = False
+        print_log.reset = False
     else:
         mode = 'a'
-    filename = logPath
+    filename = log_path
     with open(filename, mode) as myfile:
         myfile.write(str(string)+"\n")
-printLog.reset = True
+print_log.reset = True
 
-def tsToDate(ts):
+
+def ts_to_date(ts):
     return datetime.fromtimestamp(int(ts)).strftime('%Y-%m-%d')
 
-def strToFilename(string):
+
+def str_to_filename(string):
     return unicodedata.normalize('NFKD', string).encode('ascii', 'ignore')\
             .decode('ascii').replace(' ', '-').replace('/', '-')
 
-def durationToStr(duration):
-    if duration < 0: duration = 0
+
+def duration_to_str(duration):
+    if duration < 0:
+        duration = 0
     return str(timedelta(seconds=duration))
 
-# Truncate the line or add spaces if needed
-# When !truncate list is returned for each line
-def formatString(string, width, truncate=True):
+
+def format_string(string, width, truncate=True):
+    ''' Truncate the line or add spaces if needed
+    When !truncate, list is returned for each line
+    '''
 
     # If line is too long
     if truncate:
@@ -72,23 +80,23 @@ def formatString(string, width, truncate=True):
 
     else:
         strings = []
-        stringList = string.split(' ')
-        while len(stringList):
+        string_list = string.split(' ')
+        while string_list:
             line = ''
             remain = width
             # We fill in the line
-            while len(stringList) and len(stringList[0]) <= remain:
-                s = stringList.pop(0)
+            while string_list and len(string_list[0]) <= remain:
+                s = string_list.pop(0)
                 line += s+' '
                 remain -= len(s)+1
 
             # Check we got someting to put
-            if not len(line): # line was too long to be nicely cut
-                line = stringList[0][:width]
-                stringList[0] = stringList[0][width:]
+            if not line:  # line was too long to be nicely cut
+                line = string_list[0][:width]
+                string_list[0] = string_list[0][width:]
                 strings.append(line)
             else:
-                line = line[:-1] # remove last ' '
+                line = line[:-1]  # remove last ' '
                 remain += 1
                 strings.append(line+' '*remain)
 

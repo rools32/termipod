@@ -25,41 +25,43 @@ from termipod.itemlist import ItemList
 from termipod.ui import UI
 import termipod.config as config
 
-def main():
-    parser = argparse.ArgumentParser(\
-            formatter_class=argparse.RawDescriptionHelpFormatter,
-            description='Manage your podcasts in your terminal.'
-            'It handle RSS feeds and also Youtube channels.\n'
-            'When no argument is provided UI is shown.')
-    parser.add_argument('--add', type=str, help= \
-            'Add Youtube channel or RSS feed')
-    parser.add_argument('--auto', type=str, help= \
-            "Pattern for media to be downloaded automatically ('.*' for all)",
-            required='--add' in sys.argv)
-    parser.add_argument('--up', action='store_true', help= \
-            '''Update channels and download new videos
-            for channel set as auto''')
-    args = parser.parse_args()
 
+def main():
+    parser = argparse.ArgumentParser(
+        formatter_class=argparse.RawDescriptionHelpFormatter,
+        description='Manage your podcasts in your terminal.'
+                    'It handle RSS feeds and also Youtube channels.\n'
+                    'When no argument is provided UI is shown.')
+    parser.add_argument('--add', type=str,
+                        help='Add Youtube channel or RSS feed')
+    parser.add_argument(
+        '--auto', type=str,
+        help="Pattern for media to be downloaded automatically ('.*' for all)",
+        required='--add' in sys.argv)
+    parser.add_argument(
+        '--up', action='store_true',
+        help='Update channels and download new videos for channel set as auto')
+    args = parser.parse_args()
 
     if args.auto and not args.add:
         parser.error('with --auto, --add is required')
 
-    os.chdir(config.mediaPath)
+    os.chdir(config.media_path)
 
     if len(sys.argv) == 1:
         UI(config)
 
     else:
-        itemList = ItemList(config, wait=True)
+        item_list = ItemList(config, wait=True)
 
         if args.add:
             auto = ''
             if args.auto:
                 auto = args.auto
-            itemList.newChannel(args.add, auto=auto)
+            item_list.new_channel(args.add, auto=auto)
         if args.up:
-            itemList.updateMediumList()
+            item_list.update_medium_list()
+
 
 if __name__ == "__main__":
     main()
