@@ -115,9 +115,9 @@ def getData(url, printInfos=print, new=False):
         data = {}
         data['url'] = url
         data['title'] = printableStr(feed['title'])
-        data['updated'] = mktime(feed['published_parsed'])
         data['type'] = 'youtube'
 
+        updated = 0
         data['items'] = []
         entries = rss.entries
         for entry in entries:
@@ -128,7 +128,12 @@ def getData(url, printInfos=print, new=False):
             medium['date'] = int(mktime(entry['published_parsed']))
             medium['description'] = entry['description']
             medium['link'] = entry['link']
+            updated = max(updated, medium['date'])
             data['items'].append(medium)
+
+        # Published parsed is the date of creation of the channel, so we take
+        # the one from entries
+        data['updated'] = updated
 
         return data
 
