@@ -54,7 +54,7 @@ class DataBase:
                     duration INTEGER,
                     url TEXT,
                     location TEXT,
-                    state INTEGER,
+                    state TEXT,
                     filename TEXT,
                     tags TEXT,
                     description TEXT,
