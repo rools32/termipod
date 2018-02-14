@@ -266,7 +266,8 @@ class Tabs:
 
     def add_channels(self, name, display_name):
         area = ChannelArea(self.screen, self.item_list.channels, name,
-                           display_name, self.title_area, self.print_infos)
+                           display_name, self.title_area, self.print_infos,
+                           self.item_list.db)
         self.areas.append(area)
         self.item_list.add_channel_area(area)
 
@@ -810,8 +811,9 @@ class MediumArea(ItemArea):
 
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos):
+                 print_infos, data_base):
         self.key_class = 'channels'
+        self.data_base = data_base
         super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
 
@@ -824,8 +826,10 @@ class ChannelArea(ItemArea):
 
     def item_to_string(self, channel, multi_lines=False, width=None):
         date = ts_to_date(channel['updated'])
-        new_elements = 2  # TODO
-        total_elements = 10  # TODO
+
+        url = channel['url']
+        unread_elements = self.data_base.channel_get_unread_media(url)
+        total_elements = self.data_base.channel_get_all_media(url)
         separator = u" \u2022 "
 
         # TODO format and align
@@ -833,7 +837,7 @@ class ChannelArea(ItemArea):
         string += separator
         string += channel['type']
         string += separator
-        string += '%d/%d' % (new_elements, total_elements)
+        string += '%d/%d' % (len(unread_elements), len(total_elements))
         string += separator
         string += channel['genre']
         string += separator

@@ -243,3 +243,15 @@ class DataBase:
         with self.mutex:
             self.cursor.execute(sql, args)
             self.conn.commit()
+
+    def channel_get_unread_media(self, url):
+        self.cursor.execute(
+            "SELECT * FROM media WHERE channel_url=? AND state='unread'",
+            (url, ))
+        rows = self.cursor.fetchall()
+        return list(map(self.list_to_medium, rows))
+
+    def channel_get_all_media(self, url):
+        self.cursor.execute("SELECT * FROM media WHERE channel_url=?", (url,))
+        rows = self.cursor.fetchall()
+        return list(map(self.list_to_medium, rows))
