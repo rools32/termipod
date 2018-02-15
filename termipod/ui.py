@@ -231,9 +231,14 @@ class UI():
                 self.item_list.channel_auto(idx, auto)
 
             elif 'channel_show_media' == action:
-                channel = self.item_list.channels[idx]
+                if not area.user_selection:
+                    channels = [self.item_list.channels[idx]]
+                else:
+                    channels = [self.item_list.channels[i]
+                                for i in area.user_selection]
+
                 tabs.show_tab('remote')
-                tabs.channel_filter_switch(channel['title'])
+                tabs.channel_filter_switch(channels)
 
             elif 'channel_genre' == action:
                 genre = self.status_area.run_command('genre: ')
@@ -319,9 +324,9 @@ class Tabs:
         area = self.get_current_area()
         area.highlight(search_string)
 
-    def channel_filter_switch(self, channel=None):
+    def channel_filter_switch(self, channels=[]):
         area = self.get_current_area()
-        area.channel_filter_switch(channel)
+        area.channel_filter_switch(channels)
 
     def state_switch(self):
         area = self.get_current_area()
@@ -730,7 +735,7 @@ class MediumArea(ItemArea):
         self.location = location
         self.state = 'unread'
         self.key_class = 'media_'+location
-        self.channel_filter = False
+        self.channel_filter = []
 
         super().__init__(screen, items, location, name, title_area,
                          print_infos)
@@ -745,13 +750,22 @@ class MediumArea(ItemArea):
         line = self.get_current_line()
         return self.extract_channel_name(line)
 
-    def channel_filter_switch(self, channel=None):
-        if channel is None and self.channel_filter:
-            self.channel_filter = False
+    def channel_filter_switch(self, channels=[]):
+        if not channels and self.channel_filter:
+            self.channel_filter = []
         else:
-            if channel is None:
-                channel = self.get_current_channel()
-            self.channel_filter = channel
+            if not channels:
+                if not self.user_selection:
+                    medium = self.get_current_item()
+                    channel_titles = [medium['channel']]
+
+                else:
+                    media = [self.items[i] for i in self.user_selection]
+                    channel_titles = [m['channel'] for m in media]
+                self.channel_filter = list(set(channel_titles))
+
+            else:
+                self.channel_filter = list(set([c['title'] for c in channels]))
 
         # Update screen
         self.reset_contents()
@@ -770,7 +784,8 @@ class MediumArea(ItemArea):
         other_items = []
         for item in new_items:
             match = True
-            if self.channel_filter and self.channel_filter != item['channel']:
+            if self.channel_filter and \
+                    item['channel'] not in self.channel_filter:
                 match = False
             elif self.location != item['location']:
                 match = False
