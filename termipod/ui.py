@@ -232,7 +232,6 @@ class UI():
 
             elif 'channel_show_media' == action:
                 channel = self.item_list.channels[idx]
-                self.item_list.channel_auto(idx)
                 tabs.show_tab('remote')
                 tabs.channel_filter_switch(channel['title'])
 
