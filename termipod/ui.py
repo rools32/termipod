@@ -703,8 +703,6 @@ class ItemArea:
 
         # We draw all the page (shift)
         if redraw:
-            self.user_selection = []  # reset user selection
-
             for line_number in range(self.height):
                 if self.first_line+line_number < len(self.contents):
                     line = self.contents[self.first_line+line_number]
