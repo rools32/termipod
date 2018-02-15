@@ -192,13 +192,10 @@ class ItemList():
         # Add channel to db
         data['genre'] = genre
         data['auto'] = auto
-        updated = data['updated']
-        data['updated'] = 0  # set to 0 in db for add_media
         self.db.add_channel(data)
-        data['updated'] = updated
 
         # Update medium list
-        media = self.db.add_media(data)
+        media = self.db.add_media(data, update=True)
 
         self.add_channels([data])
         self.add_media(media)
@@ -226,7 +223,6 @@ class ItemList():
         self.db.update_channel(channel)
 
     def channel_set_genre(self, indices, genre):
-        print_log(indices)
         for idx in indices:
             channel = self.channels[idx]
             title = channel['title']

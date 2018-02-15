@@ -27,6 +27,8 @@ class DataBase:
         self.mutex = Lock()
         self.print_infos = print_infos
         self.version = 1
+        # channels by url, useful to get the same object in media
+        self.channels = {}
 
         self.conn = sqlite3.connect(name, check_same_thread=False)
         self.cursor = self.conn.cursor()
@@ -87,7 +89,7 @@ class DataBase:
 
     def list_to_medium(self, medium_list):
         url = medium_list[0]
-        channel = self.get_channel(url)['title']
+        channel = self.get_channel(url)
         data = {}
         data['channel'] = channel
         data['url'] = url
@@ -109,19 +111,25 @@ class DataBase:
                 medium['description'])
 
     def get_channel(self, url):
-        """ Get Channel by url (primary key) """
-        self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
-        rows = self.cursor.fetchall()
-        if 1 != len(rows):
-            return None
-        return self.list_to_channel(rows[0])
+        try:
+            return self.channels[url]
+        except KeyError:
+            """ Get Channel by url (primary key) """
+            self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
+            rows = self.cursor.fetchall()
+            if 1 != len(rows):
+                return None
+            return self.list_to_channel(rows[0])
 
     def select_channels(self):
-        # TODO add filters: genre, auto
-        self.cursor.execute("""SELECT * FROM channels
-                ORDER BY last_update DESC""")
-        rows = self.cursor.fetchall()
-        return list(map(self.list_to_channel, rows))
+        # if already called
+        if self.channels:
+            return list(self.channels.values())
+        else:
+            self.cursor.execute("""SELECT * FROM channels
+                    ORDER BY last_update DESC""")
+            rows = self.cursor.fetchall()
+            return list(map(self.list_to_channel, rows))
 
     def list_to_channel(self, channel_list):
         data = {}
@@ -131,9 +139,22 @@ class DataBase:
         data['genre'] = channel_list[3]
         data['auto'] = channel_list[4]
         data['updated'] = channel_list[5]
+
+        # Save it in self.channels
+        if not data['url'] in self.channels:
+            self.channels[data['url']] = data
+        else:
+            self.channels[data['url']].update(data)
+
         return data
 
     def channel_to_list(self, channel):
+        # Save it in self.channels
+        if not channel['url'] in self.channels:
+            self.channels[channel['url']] = channel
+        else:
+            self.channels[channel['url']].update(channel)
+
         return (channel['url'], channel['title'], channel['type'],
                 channel['genre'], channel['auto'], channel['updated'])
 
@@ -145,7 +166,7 @@ class DataBase:
                                 params, channel)
             self.conn.commit()
 
-    def add_media(self, data):
+    def add_media(self, data, update=False):
         updated = False
         url = data['url']
 
@@ -154,13 +175,17 @@ class DataBase:
             return None
 
         # Find out if feed has updates
-        updated_date = channel['updated']
+        if update:
+            updated_date = 0
+        else:
+            updated_date = channel['updated']
         feed_date = data['updated']
         new_media = []
         new_entries = []
         if (feed_date > updated_date):  # new items
             # Filter feed to keep only new items
             for medium in data['items']:
+                medium['channel'] = self.channels[url]  # link to channel
                 if medium['date'] > updated_date:
                     if 'duration' not in medium:
                         medium['duration'] = 0

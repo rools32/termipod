@@ -755,11 +755,11 @@ class MediumArea(ItemArea):
             if not channels:
                 if not self.user_selection:
                     medium = self.get_current_item()
-                    channel_titles = [medium['channel']]
+                    channel_titles = [medium['channel']['title']]
 
                 else:
                     media = [self.items[i] for i in self.user_selection]
-                    channel_titles = [m['channel'] for m in media]
+                    channel_titles = [m['channel']['title'] for m in media]
                 self.channel_filter = list(set(channel_titles))
 
             else:
@@ -783,7 +783,7 @@ class MediumArea(ItemArea):
         for item in new_items:
             match = True
             if self.channel_filter and \
-                    item['channel'] not in self.channel_filter:
+                    item['channel']['title'] not in self.channel_filter:
                 match = False
             elif self.location != item['location']:
                 match = False
@@ -804,6 +804,7 @@ class MediumArea(ItemArea):
         formatted_item = dict(medium)
         formatted_item['date'] = ts_to_date(medium['date'])
         formatted_item['duration'] = duration_to_str(medium['duration'])
+        formatted_item['channel'] = formatted_item['channel']['title']
         separator = u" \u2022 "
 
         if not multi_lines:
