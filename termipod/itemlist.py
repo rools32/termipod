@@ -225,6 +225,21 @@ class ItemList():
         self.update_channel_areas()
         self.db.update_channel(channel)
 
+    def channel_set_genre(self, indices, genre):
+        print_log(indices)
+        for idx in indices:
+            channel = self.channels[idx]
+            title = channel['title']
+
+            old_genres = channel['genre'].split(',')
+            if genre not in old_genres:
+                genres = set(old_genres+[genre])
+                channel['genre'] = ','.join(genres)
+                self.print_infos('Add %s for channel %s' % (genre, title))
+            self.db.update_channel(channel)
+
+        self.update_channel_areas()
+
     def update_medium_list(self, urls=None):
         self.print_infos('Update...')
         if urls is None:

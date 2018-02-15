@@ -138,6 +138,7 @@ default_keymaps = [
         ('channels', 'a', 'channel_auto'),
         ('channels', 'A', 'channel_auto_custom'),
         ('channels', '\n', 'channel_show_media'),
+        ('channels', 't', 'channel_genre'),
     ]
 
 descriptions = {
@@ -185,4 +186,5 @@ descriptions = {
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',
         'channel_show_media': 'Show media of channel',
+        'channel_genre': 'Add genre to channel',
 }

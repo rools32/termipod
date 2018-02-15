@@ -236,6 +236,14 @@ class UI():
                 tabs.show_tab('remote')
                 tabs.channel_filter_switch(channel['title'])
 
+            elif 'channel_genre' == action:
+                genre = self.status_area.run_command('genre: ')
+                if not area.user_selection:
+                    self.item_list.channel_set_genre([idx], genre)
+                else:
+                    self.item_list.channel_set_genre(area.user_selection,
+                                                     genre)
+
             else:
                 self.print_infos('Unknown action "%s"' % action)
 
