@@ -99,10 +99,10 @@ class Player():
         if unlink:
             self.print_infos('Remove %s' % medium['filename'])
             os.unlink(medium['filename'])
-            medium['filename'] = ''
+            medium['location'] = 'remote'
 
         db.update_medium(medium)
-        self.item_list.update_medium_areas()
+        self.item_list.update_medium_areas(modified_media=[medium])
 
     def play(self, medium, now=True):
         if now:
