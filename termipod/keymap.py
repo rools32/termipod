@@ -125,8 +125,9 @@ default_keymaps = [
         ('media', 'd', 'medium_remove'),
         ('media', 'r', 'medium_read'),
         ('media', 'R', 'medium_skip'),
+        ('media', 's', 'medium_sort'),
         ('media', 'c', 'channel_filter'),
-        ('media', 's', 'state_filter'),
+        ('media', 'f', 'state_filter'),
         ('media', 'i', 'infos'),  # TODO for channels too (s/'media'/'')
         ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
 
@@ -175,6 +176,7 @@ descriptions = {
         'medium_remove': 'Remove media',
         'medium_read': 'Mark as read',
         'medium_skip': 'Mark as skipped',
+        'medium_sort': 'Change media sorting (date+name, duration)',
         'channel_filter': 'Filter same channel',
         'state_filter': 'Show next state  panel',
         'infos': 'Show information',

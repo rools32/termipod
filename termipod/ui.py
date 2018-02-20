@@ -185,6 +185,9 @@ class UI():
             elif 'channel_filter' == action:
                 tabs.channel_filter_switch()
 
+            elif 'medium_sort' == action:
+                tabs.sort_switch()
+
             elif 'state_filter' == action:
                 tabs.state_switch()
 
@@ -328,6 +331,10 @@ class Tabs:
         area = self.get_current_area()
         area.channel_filter_switch(channels)
 
+    def sort_switch(self):
+        area = self.get_current_area()
+        area.switch_sort()
+
     def state_switch(self):
         area = self.get_current_area()
         area.switch_state()
@@ -382,6 +389,7 @@ class ItemArea:
         self.items = items
         self.selection = []
         self.user_selection = []
+        self.sort = None
 
         self.add_contents()
 
@@ -490,6 +498,26 @@ class ItemArea:
 
         if self.shown:
             self.display(True)  # TODO depending on changes
+
+    def sort_selection(self, col):
+        idtt = range(len(self.selection))
+        if col is None:
+            permutation = sorted(idtt, key=lambda i: self.contents[i])
+        else:
+            permutation = sorted(
+                idtt, key=lambda i: self.items[self.selection[i]][col])
+
+        self.selection = [self.selection[p] for p in permutation]
+        self.contents = [self.contents[p] for p in permutation]
+
+    def switch_sort(self):
+        if self.sort is None:
+            self.sort = 'duration'
+        else:
+            self.sort = None
+
+        self.sort_selection(self.sort)
+        self.display(True)
 
     def items_to_string(self, items):
         return list(map(lambda x: self.item_to_string(x), items))
