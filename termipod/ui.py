@@ -941,7 +941,7 @@ class PopupArea:
 
         start = max(1, base-int(len(lines)/2))
         if start+self.height-1 > screen_height:
-            start = screen_height-1-self.height
+            start = max(1, screen_height+1-self.height)
 
         self.win = curses.newwin(self.height, self.width, start,
                                  self.outer_margin)
