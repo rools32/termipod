@@ -502,7 +502,8 @@ class ItemArea:
     def sort_selection(self, col):
         idtt = range(len(self.selection))
         if col is None:
-            permutation = sorted(idtt, key=lambda i: self.contents[i])
+            permutation = sorted(idtt, key=lambda i: self.contents[i],
+                                 reverse=True)
         else:
             permutation = sorted(
                 idtt, key=lambda i: self.items[self.selection[i]][col])
