@@ -680,6 +680,7 @@ class ItemArea:
         self.cursor = cursor
         self.first_line = first_line
 
+        self.last_selected_idx = idx
         self.last_selected_item = self.items[self.selection[idx]]
         self.display(redraw)
 
@@ -702,23 +703,18 @@ class ItemArea:
         if self.contents and redraw:
             if self.last_selected_item is not None:
                 # Set cursor on the same item than before redisplay
-                for global_idx in \
-                        range(self.last_selected_item['index'],
-                              self.selection[-1]+1):
-                    try:
-                        idx = self.selection.index(global_idx)
-                    except ValueError:
-                        self.first_line, self.cursor = (0, 0)
-                        self.last_selected_item = self.items[self.selection[0]]
-                        redraw = True
-                    else:
-                        self.first_line, self.cursor = \
-                            self.idx_to_position(idx)
-                        self.last_selected_item = \
-                            self.items[self.selection[idx]]
-                        redraw = True
-                        break
+                try:
+                    global_idx = self.last_selected_item['index']
+                    idx = self.selection.index(global_idx)
+
+                # Previous item is not shown anymore
+                except ValueError:
+                    idx = min(len(self.selection)-1, self.last_selected_idx)
+                    self.last_selected_idx = idx
+                self.first_line, self.cursor = self.idx_to_position(idx)
+                self.last_selected_item = self.items[self.selection[idx]]
                 redraw = True
+
             else:
                 self.first_line, self.cursor = (0, 0)
                 self.last_selected_item = self.items[self.selection[0]]
