@@ -1,0 +1,5 @@
+feedparser
+appdirs
+youtube_dl
+python-mpv
+

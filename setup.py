@@ -10,7 +10,7 @@ setup(name='termipod',
       author='Cyril Bordage',
       long_description=open('README.md').read(),
       packages=find_packages(),
-      install_requires=['feedparser', 'appdirs', 'youtube_dl', 'python-mpv'],
+      install_requires=open('requirements.txt').read().split('\n'),
       url='https://github.com/rools32/termipod',
       classifiers=[
           'Development Status :: 5 - Production/Stable',
