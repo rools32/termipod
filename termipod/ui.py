@@ -406,6 +406,7 @@ class ItemArea:
         self.highlight_string = None
         self.old_cursor = 0
         self.cursor = 0
+        self.last_selected_idx = 0
         self.first_line = 0
         self.last_selected_item = None
         self.contents = None
@@ -709,6 +710,7 @@ class ItemArea:
         self.old_cursor = 0
         self.cursor = 0
         self.first_line = 0
+        self.last_selected_idx = 0
         self.display(True)
 
     def display(self, redraw=False):
