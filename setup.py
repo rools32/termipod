@@ -18,6 +18,7 @@ setup(name='termipod',
           'Intended Audience :: End Users/Desktop',
           'Programming Language :: Python :: 3',
           'Topic :: Multimedia :: Sound/Audio',
+          'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
           ],
       entry_points={
           'console_scripts': [
