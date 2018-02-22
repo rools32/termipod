@@ -196,21 +196,18 @@ class UI():
                     skip = True
                 else:
                     skip = False
-                if not area.user_selection:
-                    self.item_list.switch_read([idx], skip)
-                else:
-                    self.item_list.switch_read(area.user_selection, skip)
-                    area.user_selection = []
+
+                sel = self.get_user_selection(idx, area)
+                self.item_list.switch_read(sel, skip)
+                area.user_selection = []
 
             ###################################################################
             # Remote medium commands
             ###################################################################
             elif 'medium_download' == action:
-                if not area.user_selection:
-                    self.item_list.download([idx])
-                else:
-                    self.item_list.download(area.user_selection)
-                    area.user_selection = []
+                sel = self.get_user_selection(idx, area)
+                self.item_list.download(sel)
+                area.user_selection = []
 
             elif 'medium_update' == action:
                 updated = self.item_list.update_medium_list()
@@ -234,25 +231,26 @@ class UI():
                 self.item_list.channel_auto(idx, auto)
 
             elif 'channel_show_media' == action:
-                if not area.user_selection:
-                    channels = [self.item_list.channels[idx]]
-                else:
-                    channels = [self.item_list.channels[i]
-                                for i in area.user_selection]
-
-                tabs.show_tab('remote')
-                tabs.channel_filter_switch(channels)
+                sel = self.get_user_selection(idx, area)
+                channels = [self.item_list.channels[s] for s in sel]
+                if channels:
+                    tabs.show_tab('remote')
+                    tabs.channel_filter_switch(channels)
 
             elif 'channel_genre' == action:
                 genre = self.status_area.run_command('genre: ')
-                if not area.user_selection:
-                    self.item_list.channel_set_genre([idx], genre)
-                else:
-                    self.item_list.channel_set_genre(area.user_selection,
-                                                     genre)
+                sel = self.get_user_selection(idx, area)
+                self.item_list.channel_set_genre(sel, genre)
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
+
+    def get_user_selection(self, idx, area):
+        if not area.user_selection:
+            sel = [idx]
+        else:
+            sel = area.user_selection
+        return sel
 
     def print_infos(self, string):
         self.status_area.print(string)
