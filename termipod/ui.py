@@ -703,7 +703,8 @@ class ItemArea:
         self.first_line = first_line
 
         self.last_selected_idx = idx
-        self.last_selected_item = self.items[self.selection[idx]]
+        if self.selection:  # if display is not empty
+            self.last_selected_item = self.items[self.selection[idx]]
         self.display(redraw)
 
     def reset_display(self):
