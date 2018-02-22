@@ -51,14 +51,51 @@ class ItemList():
                     not os.path.isfile(medium['filename']):
                 self.remove(medium=medium, unlink=False)
 
+    def media_update_index(self):
+        for i, medium in enumerate(self.media):
+            medium['index'] = i
+
+    def channel_update_index(self):
+        for i, channel in enumerate(self.channels):
+            channel['index'] = i
+
     def add_channels(self, channels=None):
         if channels is None:
             channels = self.db.select_channels()
 
         self.channels[0:0] = channels
-        for i, c in enumerate(self.channels):
-            c['index'] = i
+        self.channel_update_index()
         self.update_channel_areas()  # TODO smart
+
+    def remove_channels(self, channel_idx):
+        urls = [self.channels[i]['url'] for i in channel_idx]
+        self.db.channel_remove(urls)
+
+        # Count how many objects will be removed
+        num_channel = len(urls)
+        num_media = 0
+
+        # Update channels and media
+        for ci in channel_idx:
+            channel = self.channels[ci]
+            del self.channels[ci]
+            mi_to_remove = [i for i, m in enumerate(self.media)
+                            if m['channel'] == channel]
+            mi_to_remove.sort(reverse=True)
+            num_media += len(mi_to_remove)
+            for mi in mi_to_remove:
+                del self.media[mi]
+
+        self.media_update_index()
+        self.channel_update_index()
+        self.print_infos('%d channel(s) and %d media removed' %
+                         (num_channel, num_media))
+
+    def disable_channels(self, channel_idx):
+        for i in channel_idx:
+            channel = self.item_list.channels[i]
+            channel['disabled'] = True
+            self.db.update(channel)
 
     def add_medium_area(self, area):
         self.medium_areas.append(area)
@@ -72,8 +109,7 @@ class ItemList():
             media = self.db.select_media()
 
         self.media[0:0] = media
-        for i, v in enumerate(self.media):
-            v['index'] = i
+        self.media_update_index()
 
         self.update_medium_areas(new_media=media)
 
@@ -190,6 +226,7 @@ class ItemList():
         # Add channel to db
         data['genre'] = genre
         data['auto'] = auto
+        data['disabled'] = 0
         self.db.add_channel(data)
 
         # Update medium list
@@ -237,7 +274,9 @@ class ItemList():
     def update_medium_list(self, urls=None):
         self.print_infos('Update...')
         if urls is None:
-            urls = list(map(lambda x: x['url'], self.db.select_channels()))
+            channels = self.db.select_channels()
+            channels = [c for c in channels if not c['disabled']]
+            urls = list(map(lambda x: x['url'], channels))
 
         thread = Thread(target=self.update_task, args=(urls, ))
         thread.daemon = True

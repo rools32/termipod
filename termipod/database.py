@@ -43,7 +43,8 @@ class DataBase:
                     type TEXT,
                     genre TEXT,
                     auto INTEGER,
-                    last_update INTEGER
+                    last_update INTEGER,
+                    disabled INTEGER
                 );
             """)
             self.cursor.executescript("""
@@ -137,6 +138,7 @@ class DataBase:
         data['genre'] = channel_list[3]
         data['auto'] = channel_list[4]
         data['updated'] = channel_list[5]
+        data['disabled'] = int(channel_list[6]) == 1
 
         # Save it in self.channels
         if not data['url'] in self.channels:
@@ -154,7 +156,8 @@ class DataBase:
             self.channels[channel['url']].update(channel)
 
         return (channel['url'], channel['title'], channel['type'],
-                channel['genre'], channel['auto'], channel['updated'])
+                channel['genre'], channel['auto'], channel['updated'],
+                int(channel['disabled']))
 
     def add_channel(self, data):
         channel = self.channel_to_list(data)
@@ -222,7 +225,8 @@ class DataBase:
                         type = ?,
                         genre = ?,
                         auto = ?,
-                        last_update = ?
+                        last_update = ?,
+                        disabled = ?
                     WHERE url = ?"""
         args = (
                 channel['title'],
@@ -230,6 +234,7 @@ class DataBase:
                 channel['genre'],
                 channel['auto'],
                 channel['updated'],
+                channel['disabled'],
                 channel['url'],
         )
         with self.mutex:
@@ -277,3 +282,12 @@ class DataBase:
         self.cursor.execute("SELECT * FROM media WHERE channel_url=?", (url,))
         rows = self.cursor.fetchall()
         return list(map(self.list_to_medium, rows))
+
+    def channel_remove(self, urls):
+        # Remove channels
+        sql = "DELETE FROM channels where url = ?"
+        self.cursor.executemany(sql, [[url] for url in urls])
+
+        # Remove media
+        sql = "DELETE FROM media where channel_url = ?"
+        self.cursor.executemany(sql, [[url] for url in urls])

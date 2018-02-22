@@ -41,6 +41,10 @@ def main():
     parser.add_argument(
         '--up', action='store_true',
         help='Update channels and download new videos for channel set as auto')
+    parser.add_argument('--disable-channel', type=str,
+                        help='Disable channel by url')
+    parser.add_argument('--remove-channel', type=str,
+                        help='Remove channel and media by url')
     args = parser.parse_args()
 
     if args.auto and not args.add:
@@ -61,6 +65,10 @@ def main():
             item_list.new_channel(args.add, auto=auto)
         if args.up:
             item_list.update_medium_list()
+        if args.disable_channel:
+            item_list.db.channel_disable(args.disable_channel)
+        if args.remove_channel:
+            item_list.db.channel_remove(args.remove_channel)
 
 
 if __name__ == "__main__":

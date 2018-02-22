@@ -127,14 +127,40 @@ class UI():
                 self.print_infos('Run: '+str(command))
                 if command[0] in ('q', 'quit'):
                     exit()
+
                 elif command[0] in ('h', 'help'):
                     area.show_help(self.keymap)
+
                 elif command[0] in ('add',):
                     if 1 == command:
                         add_help = 'Usage: add url [auto] [genre]'
                         self.print_infos(add_help)
                     else:
                         self.item_list.new_channel(*command[1:])
+
+                elif command[0] in ('channelDisable',):
+                    if area.key_class != 'channels':
+                        self.print_infos('Not in channel area')
+
+                    else:
+                        sel = self.get_user_selection(idx, area)
+                        for s in sel:
+                            channel = self.item_list.channels[s]
+                            channel['disabled'] = True
+                            self.item_list.db.update_channel(channel)
+
+                        self.item_list.update_channel_areas()
+
+                elif command[0] in ('channelRemove',):
+                    if area.key_class != 'channels':
+                        self.print_infos('Not in channel area')
+                    else:
+                        sel = self.get_user_selection(idx, area)
+                        self.item_list.remove_channels(sel)
+                        # Remove channels and media from item_list
+                        self.item_list.update_channel_areas()
+                        self.item_list.update_medium_areas()
+
                 else:
                     self.print_infos('Command "%s" not found' % command[0])
 
@@ -861,8 +887,10 @@ class ChannelArea(ItemArea):
         return self.display_name
 
     def filter(self, channels):
-        # TODO add filter
-        return channels, []
+        # Do not show media from disabled channels
+        channels = [c for c in channels if not c['disabled']]
+        disabled_channels = [c for c in channels if c['disabled']]
+        return channels, disabled_channels
 
     def item_to_string(self, channel, multi_lines=False, width=None):
         date = ts_to_date(channel['updated'])
