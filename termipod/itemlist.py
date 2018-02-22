@@ -25,7 +25,6 @@ import os.path
 import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase
-from termipod.utils import *
 
 
 class ItemList():
@@ -103,7 +102,6 @@ class ItemList():
         media = []
         for idx in indices:
             medium = self.media[idx]
-            link = medium['link']
 
             channel = self.db.get_channel(medium['url'])
             self.download_manager.add(medium, channel)

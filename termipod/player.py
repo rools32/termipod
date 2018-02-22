@@ -16,11 +16,10 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
-from time import sleep
 
 import mpv
 
-from termipod.utils import *
+from termipod.utils import print_log
 
 
 class Player():
@@ -84,7 +83,7 @@ class Player():
                 read_and_next()
 
         @self.player.property_observer('stream-path')
-        def update_played(_name, value):
+        def update_filename(_name, value):
             self.current_filename = value
 
     def mpv_log(self, loglevel, component, message):

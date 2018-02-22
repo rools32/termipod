@@ -210,7 +210,7 @@ class UI():
                 area.user_selection = []
 
             elif 'medium_update' == action:
-                updated = self.item_list.update_medium_list()
+                self.item_list.update_medium_list()
 
             ###################################################################
             # Local medium commands
@@ -466,9 +466,6 @@ class ItemArea:
 
         if self.contents is None:
             self.contents = []
-            replace = True
-        else:
-            replace = False
 
         for item in shown_items:
             try:
@@ -584,7 +581,6 @@ class ItemArea:
             self.win.refresh()
             return
 
-        style = None
         if bold:
             self.win.addstr(line, 0, string, bold_style)
         else:

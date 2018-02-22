@@ -27,7 +27,7 @@ import os.path
 
 import termipod.rss as rss
 import termipod.yt as yt
-from termipod.utils import *
+from termipod.utils import ts_to_date, str_to_filename
 
 
 def get_data(url, print_infos=print, new=False):

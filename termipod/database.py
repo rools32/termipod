@@ -19,8 +19,6 @@
 import sqlite3
 from multiprocessing import Lock
 
-from termipod.utils import *
-
 
 class DataBase:
     def __init__(self, name, print_infos=print):
@@ -167,7 +165,6 @@ class DataBase:
             self.conn.commit()
 
     def add_media(self, data, update=False):
-        updated = False
         url = data['url']
 
         channel = self.get_channel(url)

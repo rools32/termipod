@@ -15,12 +15,12 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-from time import mktime, time
+from time import mktime
 import urllib.request
 
 import feedparser as fp
 
-from termipod.utils import print_log, printable_str
+from termipod.utils import printable_str
 
 
 def get_data(url, print_infos=print):

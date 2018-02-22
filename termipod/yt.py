@@ -22,7 +22,7 @@ from time import mktime, time
 import feedparser as fp
 import youtube_dl as ytdl
 
-from termipod.utils import print_log, printable_str
+from termipod.utils import printable_str
 
 
 class DownloadLogger(object):

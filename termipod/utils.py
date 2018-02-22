@@ -47,6 +47,8 @@ def print_log(string):
     filename = log_path
     with open(filename, mode) as myfile:
         myfile.write(str(string)+"\n")
+
+
 print_log.reset = True
 
 
