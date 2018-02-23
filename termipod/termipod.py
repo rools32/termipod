@@ -72,7 +72,7 @@ def main():
                 auto = args.auto
             item_list.new_channel(args.add, auto=auto)
         if args.up:
-            item_list.update_medium_list()
+            item_list.update_channels()
         if args.disable_channel:
             item_list.db.channel_disable(args.disable_channel)
         if args.remove_channel:

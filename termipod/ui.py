@@ -237,8 +237,17 @@ class UI():
                 self.item_list.download(sel)
                 area.user_selection = []
 
-            elif 'medium_update' == action:
-                self.item_list.update_medium_list()
+            elif 'channel_update' == action:
+                # If in channel tab we update only user_selection
+                if 'channels' == area.key_class:
+                    sel = self.get_user_selection(idx, area)
+                    urls = [self.item_list.channels[s]['url'] for s in sel]
+
+                # We update all channels
+                else:
+                    urls = None
+
+                self.item_list.update_channels(urls)
 
             ###################################################################
             # Local medium commands

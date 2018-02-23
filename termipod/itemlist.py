@@ -276,7 +276,7 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def update_medium_list(self, urls=None):
+    def update_channels(self, urls=None):
         self.print_infos('Update...')
         if urls is None:
             channels = self.db.select_channels()

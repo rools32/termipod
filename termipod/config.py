@@ -64,6 +64,8 @@ default_keymaps = [
 
     ('*', 'q', 'quit'),
 
+    ('*', 'u', 'channel_update'),
+
     ('*', 'KEY_SPACE', 'select_item'),
     ('*', '$', 'select_until'),
     ('*', '^', 'select_clear'),
@@ -82,7 +84,6 @@ default_keymaps = [
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
 
     ('media_remote', '\n', 'medium_download'),
-    ('media_remote', 'u', 'medium_update'),
 
     ('media_local', '\n', 'medium_playadd'),
 

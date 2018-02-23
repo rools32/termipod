@@ -110,6 +110,8 @@ descriptions = {
 
         'quit': 'Quit',
 
+        'channel_update': 'Update channels',
+
         'select_item': 'Select item',
         'select_until': 'Grow selection',
         'select_clear': 'Clear selection',
@@ -128,7 +130,6 @@ descriptions = {
         'description': 'Show description',
 
         'medium_download': 'Download media',
-        'medium_update': 'Update media list',
 
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',
