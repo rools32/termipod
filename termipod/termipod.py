@@ -41,7 +41,7 @@ def main():
         help="Pattern for media to be downloaded automatically ('.*' for all)",
         required='--add' in sys.argv)
     parser.add_argument(
-        '--up', action='store_true',
+        '--up', type=str, nargs='?', const=True,
         help='Update channels and download new videos for channel set as auto')
     parser.add_argument('--disable-channel', type=str,
                         help='Disable channel by url')
@@ -72,7 +72,10 @@ def main():
                 auto = args.auto
             item_list.new_channel(args.add, auto=auto)
         if args.up:
-            item_list.update_channels()
+            if isinstance(args.up, bool):
+                item_list.update_channels()
+            else:
+                item_list.update_channels([args.up])
         if args.disable_channel:
             item_list.db.channel_disable(args.disable_channel)
         if args.remove_channel:

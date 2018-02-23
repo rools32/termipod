@@ -295,6 +295,10 @@ class ItemList():
         need_to_wait = False
         for i, url in enumerate(urls):
             channel = self.db.get_channel(url)
+            if channel is None:
+                self.print_infos('Channel with url "%s" not found' % url)
+                continue
+
             self.print_infos('Update channel %s (%d/%d)...' %
                              (channel['title'], i+1, len(urls)))
 
