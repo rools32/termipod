@@ -129,7 +129,7 @@ class UI():
                     exit()
 
                 elif command[0] in ('h', 'help'):
-                    area.show_help(self.keymap)
+                    area.show_command_help()
 
                 elif command[0] in ('add',):
                     if 1 == command:
@@ -638,6 +638,22 @@ class ItemArea:
     def show_help(self, keymap):
         lines = keymap.map_to_help(self.key_class)
         PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
+                  print_infos=self.print_infos)
+        self.display(redraw=True)
+
+    def show_command_help(self):
+        # TODO commands as parameter (dynamic depending in area)
+        commands = {
+            ('add',): 'Add new channel by url (<url> '
+                      '[pattern for auto download])',
+            ('channelDisable',): 'Disable channel',
+            ('channelRemove',): 'Remove channel (and all associated media)',
+            ('quit', 'q'): 'Quit',
+        }
+        lines = ['%s: %s' % (', '.join(keys), desc)
+                 for keys, desc in commands.items()]
+
+        PopupArea(self.screen, (self.height, self.width), lines, self.height,
                   print_infos=self.print_infos)
         self.display(redraw=True)
 
