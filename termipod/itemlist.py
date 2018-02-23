@@ -143,13 +143,18 @@ class ItemList():
             self.download_manager.add(medium, channel)
             media.append(medium)
 
-    def play(self, idx):
+    def play(self, indices):
+        # Play first item
+        idx = indices[0]
         medium = self.media[idx]
         self.player.play(medium)
+        # Enqueue next items
+        self.playadd(indices[1:])
 
-    def playadd(self, idx):
-        medium = self.media[idx]
-        self.player.add(medium)
+    def playadd(self, indices):
+        for idx in indices:
+            medium = self.media[idx]
+            self.player.add(medium)
 
     def stop(self):
         self.player.stop()

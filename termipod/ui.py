@@ -196,10 +196,12 @@ class UI():
                 tabs.highlight(channel)
 
             elif 'medium_play' == action:
-                self.item_list.play(idx)
+                sel = self.get_user_selection(idx, area)
+                self.item_list.play(sel)
 
             elif 'medium_playadd' == action:
-                self.item_list.playadd(idx)
+                sel = self.get_user_selection(idx, area)
+                self.item_list.playadd(sel)
 
             elif 'medium_stop' == action:
                 self.item_list.stop()
