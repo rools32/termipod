@@ -32,8 +32,7 @@ def get_key_name(screen):
 
 class Keymap():
     def __init__(self, config):
-        from termipod.config import keys
-        self.keymaps = self.load_keymap(keys)
+        self.keymaps = self.load_keymap(config.keys)
 
         self.keys = {}
         for m in self.keymaps:
@@ -64,6 +63,8 @@ class Keymap():
 
         lines = []
         for action, key_list in keys.items():
+            if not key_list:
+                key_list = '<empty>'
             num_spaces = max_len-len(key_list)+1
             lines.append('%s%s%s' %
                          (key_list, ' '*num_spaces, descriptions[action]))
@@ -85,62 +86,6 @@ class Keymap():
 
         return keymaps
 
-
-default_keymaps = [
-        ('*', 'j', 'line_down'),
-        ('*', 'KEY_DOWN', 'line_down'),
-        ('*', 'k', 'line_up'),
-        ('*', 'KEY_UP', 'line_up'),
-        ('*', '^F', 'page_down'),
-        ('*', 'KEY_NPAGE', 'page_down'),
-        ('*', '^B', 'page_up'),
-        ('*', 'KEY_PPAGE', 'page_up'),
-        ('*', 'g', 'top'),
-        ('*', 'KEY_HOME', 'top'),
-        ('*', 'G', 'bottom'),
-        ('*', 'KEY_END', 'bottom'),
-        ('*', '\t', 'tab_next'),
-        ('*', 'KEY_BTAB', 'tab_prev'),  # shift-tab
-        ('*', '?', 'help'),
-
-        ('*', '^R', 'redraw'),
-        ('*', '^L', 'refresh'),
-        ('*', '^G', 'screen_infos'),
-
-        ('*', ':', 'command_get'),
-        ('*', '/', 'search_get'),
-        ('*', 'n', 'search_next'),
-        ('*', 'N', 'search_prev'),
-
-        ('*', 'q', 'quit'),
-
-        ('*', 'KEY_SPACE', 'select_item'),
-        ('*', '$', 'select_until'),
-        ('*', '^', 'select_clear'),
-
-        ('media', '*', 'search_channel'),
-        ('media', 'l', 'medium_play'),
-        ('media', 'a', 'medium_playadd'),
-        ('media', 'h', 'medium_stop'),
-        ('media', 'd', 'medium_remove'),
-        ('media', 'r', 'medium_read'),
-        ('media', 'R', 'medium_skip'),
-        ('media', 's', 'medium_sort'),
-        ('media', 'c', 'channel_filter'),
-        ('media', 'f', 'state_filter'),
-        ('media', 'i', 'infos'),  # TODO for channels too (s/'media'/'')
-        ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
-
-        ('media_remote', '\n', 'medium_download'),
-        ('media_remote', 'u', 'medium_update'),
-
-        ('media_local', '\n', 'medium_playadd'),
-
-        ('channels', 'a', 'channel_auto'),
-        ('channels', 'A', 'channel_auto_custom'),
-        ('channels', '\n', 'channel_show_media'),
-        ('channels', 't', 'channel_genre'),
-    ]
 
 descriptions = {
         'line_down': 'Go one line down',

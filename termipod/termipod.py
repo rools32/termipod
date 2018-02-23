@@ -23,7 +23,7 @@ import os
 
 from termipod.itemlist import ItemList
 from termipod.ui import UI
-import termipod.config as config
+from termipod.config import Config
 
 
 def main():
@@ -32,6 +32,8 @@ def main():
         description='Manage your podcasts in your terminal.'
                     'It handle RSS feeds and also Youtube channels.\n'
                     'When no argument is provided UI is shown.')
+    parser.add_argument('-f', type=str,
+                        help='Configuration file')
     parser.add_argument('--add', type=str,
                         help='Add Youtube channel or RSS feed')
     parser.add_argument(
@@ -47,12 +49,18 @@ def main():
                         help='Remove channel and media by url')
     args = parser.parse_args()
 
+    # Check arguments
     if args.auto and not args.add:
         parser.error('with --auto, --add is required')
 
+    # Init configuration
+    config_params = {}
+    if args.f:
+        config_params['config_path'] = args.f
+    config = Config(**config_params)
     os.chdir(config.media_path)
 
-    if len(sys.argv) == 1:
+    if len(sys.argv) == 1 or (len(sys.argv) == 3 and args.f):
         UI(config)
 
     else:

@@ -22,52 +22,184 @@ from os.path import expanduser
 
 import appdirs
 
-from termipod.keymap import default_keymaps
+from termipod.utils import print_log
 
 appname = 'termipod'
 appauthor = 'termipod'
 
+default_config_dir = appdirs.user_config_dir(appname, appauthor)
+default_cache_dir = appdirs.user_cache_dir(appname, appauthor)
 
-def create_default_config(config_path):
-    config['Global'] = {'media_dir': expanduser("~")+'/'+appname}
+default_params = {
+    'log_path': '%s/%s.log' % (default_cache_dir, appname),
+    'db_path': '%s/%s.db' % (default_config_dir, appname),
+    'media_path': expanduser("~")+'/'+appname,
+}
 
-    # Write default keymaps
-    config['Keymap'] = {}
-    for (where, key, action) in default_keymaps:
-        if action in config['Keymap']:
-            value = config['Keymap'][action]+' '
+default_keymaps = [
+    ('*', 'j', 'line_down'),
+    ('*', 'KEY_DOWN', 'line_down'),
+    ('*', 'k', 'line_up'),
+    ('*', 'KEY_UP', 'line_up'),
+    ('*', '^F', 'page_down'),
+    ('*', 'KEY_NPAGE', 'page_down'),
+    ('*', '^B', 'page_up'),
+    ('*', 'KEY_PPAGE', 'page_up'),
+    ('*', 'g', 'top'),
+    ('*', 'KEY_HOME', 'top'),
+    ('*', 'G', 'bottom'),
+    ('*', 'KEY_END', 'bottom'),
+    ('*', '\t', 'tab_next'),
+    ('*', 'KEY_BTAB', 'tab_prev'),  # shift-tab
+    ('*', '?', 'help'),
+
+    ('*', '^R', 'redraw'),
+    ('*', '^L', 'refresh'),
+    ('*', '^G', 'screen_infos'),
+
+    ('*', ':', 'command_get'),
+    ('*', '/', 'search_get'),
+    ('*', 'n', 'search_next'),
+    ('*', 'N', 'search_prev'),
+
+    ('*', 'q', 'quit'),
+
+    ('*', 'KEY_SPACE', 'select_item'),
+    ('*', '$', 'select_until'),
+    ('*', '^', 'select_clear'),
+
+    ('media', '*', 'search_channel'),
+    ('media', 'l', 'medium_play'),
+    ('media', 'a', 'medium_playadd'),
+    ('media', 'h', 'medium_stop'),
+    ('media', 'd', 'medium_remove'),
+    ('media', 'r', 'medium_read'),
+    ('media', 'R', 'medium_skip'),
+    ('media', 's', 'medium_sort'),
+    ('media', 'c', 'channel_filter'),
+    ('media', 'f', 'state_filter'),
+    ('media', 'i', 'infos'),  # TODO for channels too (s/'media'/'')
+    ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
+
+    ('media_remote', '\n', 'medium_download'),
+    ('media_remote', 'u', 'medium_update'),
+
+    ('media_local', '\n', 'medium_playadd'),
+
+    ('channels', 'a', 'channel_auto'),
+    ('channels', 'A', 'channel_auto_custom'),
+    ('channels', '\n', 'channel_show_media'),
+    ('channels', 't', 'channel_genre'),
+]
+
+
+class Config():
+    def __init__(self, **kwargs):
+        """ kwargs: config_path, log_path, db_path, media_path
+        """
+        params = default_params.keys()
+
+        # We set config_path (for config file)
+        if 'config_path' in kwargs:  # If config_path is specified by user
+            self.config_path = kwargs['config_path']
+        else:  # default config_path
+            if not os.path.exists(default_config_dir):
+                os.makedirs(default_config_dir)
+            self.config_path = '%s/%s.ini' % (default_config_dir, appname)
+
+        # If config file exists, we read it and set found values
+        self.config_parser = configparser.ConfigParser()
+        if os.path.exists(self.config_path):
+            self.config_parser.read(self.config_path)
+            for param in params:
+                if param in self.config_parser['Global']:
+                    setattr(self, param, self.config_parser['Global'][param])
+
+        # We use values given as parameters or default values
+        for param in params:
+            if param in kwargs:
+                setattr(self, param, kwargs[param])
+            else:
+                if not hasattr(self, param):
+                    setattr(self, param, default_params[param])
+
+        # Set destination file for print_log
+        print_log.filename = self.log_path
+
+        # We create missing directories
+        dirs = [os.path.dirname(self.log_path),
+                os.path.dirname(self.db_path), self.media_path]
+        for d in dirs:
+            if not os.path.exists(d):
+                os.makedirs(d)
+
+        # If config file does not exist, we create it
+        default_keymap_config = self.default_keymap_to_config()
+        if not os.path.exists(self.config_path):
+            self.config_parser['Global'] = {}
+            for param in params:
+                self.config_parser['Global'][param] = getattr(self, param)
+
+            self.config_parser['Keymap'] = default_keymap_config
+
+            # We create the config file
+            with open(self.config_path, 'w') as f:
+                self.config_parser.write(f)
+
+        # If we already have a config file, we still check there is no new
+        # parameters available or we add them
         else:
-            value = ''
+            # Paths
+            new_param = False
+            for param in params:
+                if param not in self.config_parser['Global']:
+                    new_param = True
+                    self.config_parser['Global'][param] = getattr(self, param)
 
-        key = "%r" % key  # raw key
-        value += "%s/%s" % (where, key[1:-1])
+            # Keymap
+            keymap_config = self.config_parser['Keymap']
+            new_actions = [a for a in default_keymap_config
+                           if a not in keymap_config]
+            for action in new_actions:
+                key_seqs = default_keymap_config[action].split(' ')
 
-        config['Keymap'][action] = value
+                new_key_seqs = []
+                for key_seq in key_seqs:
+                    # If key sequence is available, we add it
+                    found = False
+                    for value in keymap_config.values():
+                        if key_seq in value:
+                            found = True
+                            break
+                    if not found:
+                        new_key_seqs.append(key_seq)
 
-    with open(config_path, 'w') as f:
-        config.write(f)
+                if new_key_seqs:
+                    keymap_config[action] = ' '.join(new_key_seqs)
+                # If no key sequence available, we set an empty sequence with
+                # the area of the first key sequence
+                else:
+                    key_seq = key_seqs[0]
+                    keymap_config[action] = key_seq[:key_seq.index('/')+1]
 
+            if new_param or new_actions:
+                # We update the config file
+                with open(self.config_path, 'w') as f:
+                    self.config_parser.write(f)
 
-config_dir = appdirs.user_config_dir(appname, appauthor)
-if not os.path.exists(config_dir):
-    os.makedirs(config_dir)
+        self.keys = self.config_parser['Keymap']
 
-cache_dir = appdirs.user_cache_dir(appname, appauthor)
-if not os.path.exists(cache_dir):
-    os.makedirs(cache_dir)
+    def default_keymap_to_config(self):
+        # Write default keymaps
+        keys = {}
+        for (where, key, action) in default_keymaps:
+            if action in keys:
+                value = keys[action]+' '
+            else:
+                value = ''
 
-config_path = '%s/%s.ini' % (config_dir, appname)
-db_path = '%s/%s.db' % (config_dir, appname)
-log_path = '%s/%s.log' % (cache_dir, appname)
+            key = "%r" % key  # raw key
+            value += "%s/%s" % (where, key[1:-1])
 
-config = configparser.ConfigParser()
-if not os.path.exists(config_path):
-    create_default_config(config_path)
-else:
-    config.read(config_path)
-
-media_path = config['Global']['media_dir']
-if not os.path.exists(media_path):
-    os.makedirs(media_path)
-
-keys = config['Keymap']
+            keys[action] = value
+        return keys

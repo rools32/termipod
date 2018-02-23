@@ -15,10 +15,9 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
+
 from datetime import datetime, timedelta
 import unicodedata
-
-from termipod.config import log_path
 
 
 def printable_str(string):
@@ -39,17 +38,20 @@ def printable_str(string):
 
 
 def print_log(string):
-    if print_log.reset:
-        mode = 'w'
-        print_log.reset = False
+    if print_log.filename:
+        if print_log.reset:
+            mode = 'w'
+            print_log.reset = False
+        else:
+            mode = 'a'
+        with open(print_log.filename, mode) as myfile:
+            myfile.write(str(string)+"\n")
     else:
-        mode = 'a'
-    filename = log_path
-    with open(filename, mode) as myfile:
-        myfile.write(str(string)+"\n")
+        print(string)
 
 
 print_log.reset = True
+print_log.filename = None
 
 
 def ts_to_date(ts):
