@@ -32,12 +32,12 @@ def main():
         description='Manage your podcasts in your terminal.'
                     'It handle RSS feeds and also Youtube channels.\n'
                     'When no argument is provided UI is shown.')
-    parser.add_argument('-f', type=str,
+    parser.add_argument('-f', type=str, nargs=1,
                         help='Configuration file')
-    parser.add_argument('--add', type=str,
+    parser.add_argument('--add', type=str, nargs=1,
                         help='Add Youtube channel or RSS feed')
     parser.add_argument(
-        '--auto', type=str,
+        '--auto', type=str, nargs=1,
         help="Pattern for media to be downloaded automatically ('.*' for all)",
         required='--add' in sys.argv)
     parser.add_argument(
