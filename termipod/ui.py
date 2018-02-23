@@ -977,9 +977,22 @@ class StatusArea:
 
     def run_command(self, prefix):
         self.print(prefix)
-        tb = curses.textpad.Textbox(self.win)
-        string = tb.edit()[len(prefix):-1]  # remove prefix and last char
+        tb = curses.textpad.Textbox(self.win, insert_mode=True)
+        curses.curs_set(1)  # enable cursor
+        string = tb.edit(self.run_command_intercept_key)
+        string = string[:-1]  # remove last char
+        if string.startswith(prefix):
+            string = string[len(prefix):]  # remove prefix
+        curses.curs_set(0)  # disable cursor
         return string
+
+    def run_command_intercept_key(self, key):
+        if curses.keyname(key) == b'^?':
+            key = curses.KEY_BACKSPACE
+        elif curses.keyname(key) == b'^I':
+            # TODO handle completion
+            return None
+        return key
 
 
 class PopupArea:
