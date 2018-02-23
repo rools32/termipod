@@ -158,6 +158,7 @@ class Config():
 
             # Keymap
             keymap_config = self.config_parser['Keymap']
+            # Add new actions
             new_actions = [a for a in default_keymap_config
                            if a not in keymap_config]
             for action in new_actions:
@@ -182,7 +183,13 @@ class Config():
                     key_seq = key_seqs[0]
                     keymap_config[action] = key_seq[:key_seq.index('/')+1]
 
-            if new_param or new_actions:
+            # Remove deleted actions
+            old_actions = [a for a in keymap_config
+                           if a not in default_keymap_config]
+            for action in old_actions:
+                del self.config_parser['Keymap'][action]
+
+            if new_param or new_actions or old_actions:
                 # We update the config file
                 with open(self.config_path, 'w') as f:
                     self.config_parser.write(f)
