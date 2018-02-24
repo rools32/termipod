@@ -29,33 +29,31 @@ from termipod.config import Config
 def main():
     parser = argparse.ArgumentParser(
         formatter_class=argparse.RawDescriptionHelpFormatter,
-        description='Manage your podcasts in your terminal.'
+        description='Manage your podcasts in your terminal. '
                     'It handle RSS feeds and also Youtube channels.\n'
                     'When no argument is provided UI is shown.')
-    parser.add_argument('-f', type=str, nargs=1,
-                        help='Configuration file')
-    parser.add_argument('--add', type=str, nargs=1,
+    parser.add_argument('-f', type=str, metavar='config_file',
+                        help='Alternate configuration file')
+    parser.add_argument('--add', type=str, metavar='url',
                         help='Add Youtube channel or RSS feed')
     parser.add_argument(
-        '--auto', type=str, nargs=1,
-        help="Pattern for media to be downloaded automatically ('.*' for all)",
-        required='--add' in sys.argv)
+        '--auto', type=str, nargs=2, metavar=('url', 'pattern'),
+        help="Pattern for media to be downloaded automatically "
+             "('.*' for all)")
     parser.add_argument(
-        '--up', type=str, nargs='?', const=True,
-        help='Update channels and download new videos for channel set as auto')
-    parser.add_argument('--disable-channel', type=str,
+        '--up', type=str, nargs='?', const=True,  metavar='url',
+        help='Update channels and download new videos for channels '
+             'maked as auto')
+    parser.add_argument('--disable-channel', type=str, metavar='url',
                         help='Disable channel by url')
-    parser.add_argument('--remove-channel', type=str,
+    parser.add_argument('--remove-channel', type=str, metavar='url',
                         help='Remove channel and media by url')
     parser.add_argument(
-        '--export-channels', type=str, nargs='?', const=True,
+        '--export-channels', type=str, nargs='?',
+        const=True, metavar='filename',
         help='Export channel list (url and name, one channel by line). '
              'Argument can be followed by filename')
     args = parser.parse_args()
-
-    # Check arguments
-    if args.auto and not args.add:
-        parser.error('with --auto, --add is required')
 
     # Init configuration
     config_params = {}
@@ -71,10 +69,11 @@ def main():
         item_list = ItemList(config, wait=True)
 
         if args.add:
-            auto = ''
-            if args.auto:
-                auto = args.auto
-            item_list.new_channel(args.add, auto=auto)
+            item_list.new_channel(args.add)
+
+        if args.auto:
+            url, auto = args.auto
+            item_list.channel_set_auto([url], auto)
 
         if args.up:
             if isinstance(args.up, bool):
