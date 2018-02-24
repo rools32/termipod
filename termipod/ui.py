@@ -241,13 +241,10 @@ class UI():
                 # If in channel tab we update only user_selection
                 if 'channels' == area.key_class:
                     sel = self.get_user_selection(idx, area)
-                    urls = [self.item_list.channels[s]['url'] for s in sel]
-
                 # We update all channels
                 else:
-                    urls = None
-
-                self.item_list.update_channels(urls)
+                    sel = None
+                self.item_list.update_channels(sel)
 
             ###################################################################
             # Local medium commands
@@ -261,11 +258,13 @@ class UI():
             # Channel commands
             ###################################################################
             elif 'channel_auto' == action:
-                self.item_list.channel_auto(idx)
+                sel = self.get_user_selection(idx, area)
+                self.item_list.channel_set_auto(sel)
 
             elif 'channel_auto_custom' == action:
+                sel = self.get_user_selection(idx, area)
                 auto = self.status_area.run_command('auto: ')
-                self.item_list.channel_auto(idx, auto)
+                self.item_list.channel_set_auto(sel, auto)
 
             elif 'channel_show_media' == action:
                 sel = self.get_user_selection(idx, area)

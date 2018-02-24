@@ -67,8 +67,9 @@ class ItemList():
         self.channel_update_index()
         self.update_channel_areas()  # TODO smart
 
-    def remove_channels(self, channel_idx):
-        urls = [self.channels[i]['url'] for i in channel_idx]
+    def remove_channels(self, channel_ids):
+        channels = self.channel_ids_to_objects(channel_ids)
+        urls = [channels['url'] for c in channels]
         self.db.channel_remove(urls)
 
         # Count how many objects will be removed
@@ -76,9 +77,9 @@ class ItemList():
         num_media = 0
 
         # Update channels and media
-        for ci in channel_idx:
-            channel = self.channels[ci]
-            del self.channels[ci]
+        for channel in channels:
+            channel_idx = self.channels.index(channel)
+            del self.channels[channel_idx]
             mi_to_remove = [i for i, m in enumerate(self.media)
                             if m['channel'] == channel]
             mi_to_remove.sort(reverse=True)
@@ -242,29 +243,48 @@ class ItemList():
 
         self.print_infos(data['title']+' added')
 
-    def channel_auto(self, idx, auto=None):
+    def channel_id_to_object(self, channel_id):
+        if isinstance(channel_id, int):  # idx in channels
+            channel = self.channels[channel_id]
+        elif isinstance(channel_id, str):  # url
+            channel = self.db.get_channel(channel_id)
+            if channel is None:
+                self.print_infos('Channel "%s" not found' % channel_id)
+        elif isinstance(channel_id, dict):  # channel object
+            channel = channel_id
+        else:  # error
+            channel = None
+        return channel
+
+    def channel_ids_to_objects(self, channel_ids):
+        channels = [self.channel_id_to_object(c) for c in channel_ids]
+        return [c for c in channels if c is not None]
+
+    def channel_set_auto(self, channel_ids, auto=None):
         """ Switch auto value or set it to a value if argument auto is
         provided """
-        channel = self.channels[idx]
-        title = channel['title']
+        for channel_id in channel_ids:
+            channel = self.channel_id_to_object(channel_id)
+            title = channel['title']
 
-        if auto is None:
-            if '' == channel['auto']:
-                new_value = '.*'
+            if auto is None:
+                if '' == channel['auto']:
+                    new_value = '.*'
+                else:
+                    new_value = ''
             else:
-                new_value = ''
-        else:
-            new_value = auto
-        channel['auto'] = new_value
-        self.print_infos('Auto for channel %s is set to: "%s"' %
-                         (title, new_value))
+                new_value = auto
+            channel['auto'] = new_value
+            self.print_infos('Auto for channel %s is set to: "%s"' %
+                             (title, new_value))
+
+            self.db.update_channel(channel)
 
         self.update_channel_areas()
-        self.db.update_channel(channel)
 
-    def channel_set_genre(self, indices, genre):
-        for idx in indices:
-            channel = self.channels[idx]
+    def channel_set_genre(self, channel_ids, genre):
+        for channel_id in channel_ids:
+            channel = self.channel_id_to_object(channel_id)
             title = channel['title']
 
             old_genres = channel['genre'].split(',')
@@ -276,33 +296,29 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def update_channels(self, urls=None):
+    def update_channels(self, channel_ids=None):
         self.print_infos('Update...')
-        if urls is None:
+        if channel_ids is None:
             channels = self.db.select_channels()
             channels = [c for c in channels if not c['disabled']]
-            urls = list(map(lambda x: x['url'], channels))
+        else:
+            channels = self.channel_ids_to_objects(channel_ids)
 
-        thread = Thread(target=self.update_task, args=(urls, ))
+        thread = Thread(target=self.update_task, args=(channels, ))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def update_task(self, urls):
+    def update_task(self, channels):
         all_new_media = []
 
         need_to_wait = False
-        for i, url in enumerate(urls):
-            channel = self.db.get_channel(url)
-            if channel is None:
-                self.print_infos('Channel with url "%s" not found' % url)
-                continue
-
+        for i, channel in enumerate(channels):
             self.print_infos('Update channel %s (%d/%d)...' %
-                             (channel['title'], i+1, len(urls)))
+                             (channel['title'], i+1, len(channels)))
 
-            data = backends.get_data(url, self.print_infos)
+            data = backends.get_data(channel['url'], self.print_infos)
 
             if data is None:
                 continue
