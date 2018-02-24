@@ -329,3 +329,12 @@ class ItemList():
         if self.wait and need_to_wait:
             self.print_infos('Wait for downloads to complete...')
             self.download_manager.wait_done()
+
+    def export_channels(self):
+        exports = []
+        for c in self.channels:
+            export = '%s - %s' % (c['url'], c['title'])
+            if c['disabled']:
+                export = '# '+export
+            exports .append(export)
+        return '\n'.join(exports)

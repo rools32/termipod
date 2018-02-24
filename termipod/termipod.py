@@ -47,6 +47,10 @@ def main():
                         help='Disable channel by url')
     parser.add_argument('--remove-channel', type=str,
                         help='Remove channel and media by url')
+    parser.add_argument(
+        '--export-channels', type=str, nargs='?', const=True,
+        help='Export channel list (url and name, one channel by line). '
+             'Argument can be followed by filename')
     args = parser.parse_args()
 
     # Check arguments
@@ -71,15 +75,26 @@ def main():
             if args.auto:
                 auto = args.auto
             item_list.new_channel(args.add, auto=auto)
+
         if args.up:
             if isinstance(args.up, bool):
                 item_list.update_channels()
             else:
                 item_list.update_channels([args.up])
+
         if args.disable_channel:
             item_list.db.channel_disable(args.disable_channel)
+
         if args.remove_channel:
             item_list.db.channel_remove(args.remove_channel)
+
+        if args.export_channels:
+            channels = item_list.export_channels()
+            if isinstance(args.export_channels, bool):
+                output = sys.stdout
+            else:
+                output = args.export_channels
+            print(channels, file=output)
 
 
 if __name__ == "__main__":
