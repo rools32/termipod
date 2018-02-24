@@ -82,7 +82,7 @@ def main():
                 item_list.update_channels([args.up])
 
         if args.disable_channel:
-            item_list.db.channel_disable([args.disable_channel])
+            item_list.disable_channels([args.disable_channel])
 
         if args.remove_channel:
             item_list.remove_channels([args.remove_channel])

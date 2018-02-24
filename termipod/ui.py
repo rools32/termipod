@@ -144,11 +144,8 @@ class UI():
 
                     else:
                         sel = self.get_user_selection(idx, area)
-                        for s in sel:
-                            channel = self.item_list.channels[s]
-                            channel['disabled'] = True
-                            self.item_list.db.update_channel(channel)
-
+                        self.item_list.disable_channels(sel)
+                        # Remove channels from item_list
                         self.item_list.update_channel_areas()
 
                 elif command[0] in ('channelRemove',):

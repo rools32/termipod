@@ -67,6 +67,12 @@ class ItemList():
         self.channel_update_index()
         self.update_channel_areas()  # TODO smart
 
+    def disable_channels(self, channel_ids):
+        channels = self.channel_ids_to_objects(channel_ids)
+        for channel in channels:
+            channel['disabled'] = True
+            self.item_list.db.update_channel(channel)
+
     def remove_channels(self, channel_ids):
         channels = self.channel_ids_to_objects(channel_ids)
         urls = [channels['url'] for c in channels]
@@ -91,12 +97,6 @@ class ItemList():
         self.channel_update_index()
         self.print_infos('%d channel(s) and %d media removed' %
                          (num_channel, num_media))
-
-    def disable_channels(self, channel_idx):
-        for i in channel_idx:
-            channel = self.item_list.channels[i]
-            channel['disabled'] = True
-            self.db.update(channel)
 
     def add_medium_area(self, area):
         self.medium_areas.append(area)
