@@ -82,7 +82,7 @@ class Player():
             if value:  # can be True thanks to keep_open
                 read_and_next()
 
-        @self.player.property_observer('stream-path')
+        @self.player.property_observer('path')
         def update_filename(_name, value):
             self.current_filename = value
 
