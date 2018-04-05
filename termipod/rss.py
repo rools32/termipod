@@ -24,7 +24,10 @@ from termipod.utils import printable_str
 
 
 def get_data(url, print_infos=print):
-    rss = fp.parse(url)
+    # to avoid using request_headers in fp.parse
+    # we use urlopen
+    rawpage = urllib.request.urlopen(url).read()
+    rss = fp.parse(rawpage)
 
     feed = rss.feed
     if not feed:
