@@ -75,7 +75,7 @@ class ItemList():
 
     def remove_channels(self, channel_ids):
         channels = self.channel_ids_to_objects(channel_ids)
-        urls = [channels['url'] for c in channels]
+        urls = [c['url'] for c in channels]
         self.db.channel_remove(urls)
 
         # Count how many objects will be removed
