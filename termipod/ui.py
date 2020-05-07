@@ -31,7 +31,6 @@ class UI():
     def __init__(self, config):
         screen = curses.initscr()
         screen.keypad(1)  # to handle special keys as one key
-        height, width = screen.getmaxyx()
         screen.immedok(True)
         curses.start_color()
         curses.curs_set(0)  # disable cursor
@@ -106,6 +105,7 @@ class UI():
                 self.status_area.print('')
 
             elif 'refresh' == action:
+                area.init_win()
                 area.reset_contents()
                 tabs.show_tab()
                 self.status_area.print('')
@@ -402,13 +402,8 @@ class ItemArea:
         self.screen = screen
         self.title_area = title_area
         self.mutex = Lock()
-        height, width = screen.getmaxyx()
-        self.height = height-2
-        self.width = width-1
         self.name = name
         self.display_name = display_name
-        self.win = curses.newwin(self.height+1, self.width, 1, 0)
-        self.win.bkgd(curses.color_pair(2))
         self.highlight_on = False
         self.highlight_string = None
         self.old_cursor = 0
@@ -423,7 +418,15 @@ class ItemArea:
         self.user_selection = []
         self.sort = None
 
+        self.init_win()
         self.add_contents()
+
+    def init_win(self):
+        height, width = self.screen.getmaxyx()
+        self.height = height-2
+        self.width = width-1
+        self.win = curses.newwin(self.height+1, self.width, 1, 0)
+        self.win.bkgd(curses.color_pair(2))
 
     def add_to_user_selection(self, idx=None):
         if idx is None:
@@ -608,39 +611,42 @@ class ItemArea:
         bold_style = curses.color_pair(1)
         select_style = curses.color_pair(3)
         highlight_style = curses.color_pair(4)
-        self.win.move(line, 0)
-        self.win.clrtoeol()
+        try:
+            self.win.move(line, 0)
+            self.win.clrtoeol()
 
-        if not string:
-            self.win.refresh()
-            return
+            if not string:
+                self.win.refresh()
+                return
 
-        if bold:
-            self.win.addstr(line, 0, string, bold_style)
-        else:
-            # If line is in user selection
-            if self.selection[line+self.first_line] in self.user_selection:
-                self.win.addstr(line, 0, string, select_style)
-
-            elif self.highlight_on:
-                styles = (normal_style, highlight_style)
-
-                # Split with highlight string and put it back
-                parts = string.split(self.highlight_string)
-                missing_strings = [self.highlight_string]*len(parts)
-                parts = [val for pair in zip(parts, missing_strings)
-                         for val in pair][:-1]
-
-                written = 0
-                style_idx = 0
-                for part in parts:
-                    self.win.addstr(line, written, part, styles[style_idx])
-                    written += len(part)
-                    style_idx = (style_idx+1) % 2
+            if bold:
+                self.win.addstr(line, 0, string, bold_style)
             else:
-                self.win.addstr(line, 0, string, normal_style)
+                # If line is in user selection
+                if self.selection[line+self.first_line] in self.user_selection:
+                    self.win.addstr(line, 0, string, select_style)
 
-        self.win.refresh()
+                elif self.highlight_on:
+                    styles = (normal_style, highlight_style)
+
+                    # Split with highlight string and put it back
+                    parts = string.split(self.highlight_string)
+                    missing_strings = [self.highlight_string]*len(parts)
+                    parts = [val for pair in zip(parts, missing_strings)
+                             for val in pair][:-1]
+
+                    written = 0
+                    style_idx = 0
+                    for part in parts:
+                        self.win.addstr(line, written, part, styles[style_idx])
+                        written += len(part)
+                        style_idx = (style_idx+1) % 2
+                else:
+                    self.win.addstr(line, 0, string, normal_style)
+
+            self.win.refresh()
+        except curses.error:
+            pass
 
     def show_help(self, keymap):
         lines = keymap.map_to_help(self.key_class)
@@ -945,24 +951,38 @@ class ChannelArea(ItemArea):
 
 class TitleArea:
     def __init__(self, screen, title):
-        height, width = screen.getmaxyx()
+        self.screen = screen
+        self.title = title
+        self.init_win()
+
+    def init_win(self):
+        height, width = self.screen.getmaxyx()
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, 0, 0)
         self.win.bkgd(curses.color_pair(3))
         self.win.keypad(1)
-        self.print(title)
+
+        self.print(format_string(self.title, self.width-1))
+        # self.print(self.title)
 
     def print(self, string):
-        self.win.move(0, 0)
-        self.win.clrtoeol()
-        self.win.addstr(0, 0, str(string))
-        self.win.refresh()
+        try:
+            self.win.move(0, 0)
+            self.win.clrtoeol()
+            self.win.addstr(0, 0, str(string))
+            self.win.refresh()
+        except curses.error:
+            pass
 
 
 class StatusArea:
     def __init__(self, screen):
-        height, width = screen.getmaxyx()
+        self.screen = screen
+        self.init_win()
+
+    def init_win(self):
+        height, width = self.screen.getmaxyx()
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, height-1, 0)
@@ -978,10 +998,13 @@ class StatusArea:
         else:
             short_string = string
 
-        self.win.move(0, 0)
-        self.win.clrtoeol()
-        self.win.addstr(0, 0, str(short_string))
-        self.win.refresh()
+        try:
+            self.win.move(0, 0)
+            self.win.clrtoeol()
+            self.win.addstr(0, 0, str(short_string))
+            self.win.refresh()
+        except curses.error:
+            pass
 
     def run_command(self, prefix):
         self.print(prefix)
@@ -1036,10 +1059,13 @@ class PopupArea:
         self.win.keypad(1)
         self.win.border('|', '|', '-', '-', '+', '+', '+', '+')
 
-        for line in range(len(lines)):
-            self.win.move(line+1, self.inner_margin)
-            self.win.addstr(line+1, self.inner_margin, str(lines[line]))
-        self.win.refresh()
+        try:
+            for line in range(len(lines)):
+                self.win.move(line+1, self.inner_margin)
+                self.win.addstr(line+1, self.inner_margin, str(lines[line]))
+            self.win.refresh()
+        except curses.error:
+            pass
 
         key = screen.getch()
         curses.ungetch(key)
