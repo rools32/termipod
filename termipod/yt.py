@@ -81,11 +81,16 @@ def download(url, filename, print_infos=print):
             return 1
 
 
-def get_data(url, print_infos=print, new=False):
+def get_data(url, print_infos=print, new=False, count=-1):
     # If first add, we use ytdl to get old media
     if new:
         ydl_opts = {'logger': DataLogger(print_infos, url),
                     'ignoreerrors': True}
+
+        # If a limit on the number of elements is given
+        if count != -1:
+            ydl_opts['playlistend'] = count
+
         with ytdl.YoutubeDL(ydl_opts) as ydl:
             result = ydl.extract_info(url, download=False)
         if result is None or result['entries'] is None:

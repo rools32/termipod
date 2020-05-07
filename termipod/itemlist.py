@@ -207,8 +207,14 @@ class ItemList():
 
         self.update_medium_areas(modified_media=[medium])
 
-    def new_channel(self, url, auto='', genre=''):
-        self.print_infos('Add '+url)
+    def new_channel(self, url, count=-1, auto='', genre=''):
+        if isinstance(count, str):
+            if count == '':
+                count = -1
+            else:
+                count = int(count)
+
+        self.print_infos(f'Add {url} ({count} elements requested)')
         # Check not already present in db
         channel = self.db.get_channel(url)
         if channel is not None:
@@ -216,15 +222,16 @@ class ItemList():
                              (channel['url'], channel['title']))
             return False
 
-        thread = Thread(target=self.new_channel_task, args=(url, genre, auto))
+        thread = Thread(target=self.new_channel_task,
+                        args=(url, count, auto, genre))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def new_channel_task(self, url, genre, auto):
+    def new_channel_task(self, url, count, auto, genre):
         # Retrieve url feed
-        data = backends.get_data(url, self.print_infos, True)
+        data = backends.get_data(url, self.print_infos, True, count)
 
         if data is None:
             return False

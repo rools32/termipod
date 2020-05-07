@@ -662,7 +662,7 @@ class ItemArea:
         # TODO commands as parameter (dynamic depending in area)
         commands = {
             ('add',): 'Add new channel by url (<url> '
-                      '[pattern for auto download])',
+                      '[max items [pattern for auto download [genre]]])',
             ('channelDisable',): 'Disable channel',
             ('channelRemove',): 'Remove channel (and all associated media)',
             ('quit', 'q'): 'Quit',
