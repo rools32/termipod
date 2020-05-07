@@ -93,7 +93,7 @@ def main():
                 output = sys.stdout
             else:
                 output = args.export_channels
-            print(channels, file=output)
+            print(channels, file=open(output, 'w'))
 
 
 if __name__ == "__main__":
