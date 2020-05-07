@@ -106,6 +106,7 @@ class UI():
 
             elif 'refresh' == action:
                 area.init_win()
+                self.status_area = StatusArea(screen)
                 area.reset_contents()
                 tabs.show_tab()
                 self.status_area.print('')
