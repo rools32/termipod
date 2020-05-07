@@ -127,6 +127,7 @@ class UI():
 
                 self.print_infos('Run: '+str(command))
                 if command[0] in ('q', 'quit'):
+                    curses.endwin()
                     exit()
 
                 elif command[0] in ('h', 'help'):
@@ -278,6 +279,8 @@ class UI():
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
+
+        curses.endwin()
 
     def get_user_selection(self, idx, area):
         if not area.user_selection:
