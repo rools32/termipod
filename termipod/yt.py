@@ -128,7 +128,10 @@ def get_data(url, print_infos=print, new=False):
         return data
 
     else:
-        feed_url = url.replace('channel/', 'feeds/videos.xml?channel_id=')
+        feed_url = url
+        feed_url = feed_url.replace('/channel/',
+                                    '/feeds/videos.xml?channel_id=')
+        feed_url = feed_url.replace('/user/', '/feeds/videos.xml?user=')
         rss = fp.parse(feed_url)
 
         feed = rss.feed
