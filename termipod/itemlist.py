@@ -145,6 +145,8 @@ class ItemList():
             media.append(medium)
 
     def play(self, indices):
+        if not len(indices):
+            return
         # Play first item
         idx = indices[0]
         medium = self.media[idx]

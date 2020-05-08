@@ -190,6 +190,8 @@ class UI():
             ###################################################################
             # Highlight channel name
             elif 'search_channel' == action:
+                if idx is None:
+                    continue
                 channel = area.get_current_channel()
                 self.print_infos('Search: '+channel)
                 tabs.highlight(channel)
@@ -207,6 +209,8 @@ class UI():
 
             elif 'medium_remove' == action:
                 # TODO if is being played: self.item_list.stop()
+                if idx is None:
+                    continue
                 self.item_list.remove(idx)
 
             elif 'channel_filter' == action:
@@ -284,6 +288,8 @@ class UI():
 
     def get_user_selection(self, idx, area):
         if not area.user_selection:
+            if idx is None or idx < 0:
+                return []
             sel = [idx]
         else:
             sel = area.user_selection
@@ -443,6 +449,8 @@ class ItemArea:
 
     def add_until_to_user_selection(self):
         idx = self.get_idx()
+        if idx is None:
+            return
         if idx < self.user_selection[-1]:
             step = -1
         else:
@@ -574,6 +582,8 @@ class ItemArea:
         return self.items[self.get_idx()]
 
     def get_current_line(self):
+        if self.first_line+self.cursor < 0:
+            return ''
         return self.contents[self.first_line+self.cursor]
 
     def highlight(self, string):
@@ -823,7 +833,10 @@ class MediumArea(ItemArea):
         return '%s (%s)' % (self.display_name, self.state)
 
     def extract_channel_name(self, line):
-        return line.split(u" \u2022 ")[1]
+        parts = line.split(u" \u2022 ")
+        if len(parts) >= 2:
+            return line.split(u" \u2022 ")[1]
+        return ''
 
     def get_current_channel(self):
         line = self.get_current_line()
