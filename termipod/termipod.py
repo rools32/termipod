@@ -95,10 +95,9 @@ def main():
         if args.export_channels:
             channels = item_list.export_channels()
             if isinstance(args.export_channels, bool):
-                output = sys.stdout
+                print(channels)
             else:
-                output = args.export_channels
-            print(channels, file=open(output, 'w'))
+                print(channels, file=open(args.export_channels, 'w'))
 
 
 if __name__ == "__main__":
