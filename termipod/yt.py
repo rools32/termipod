@@ -133,7 +133,7 @@ def get_data(url, print_infos=print, new=False, count=-1):
         return data
 
     else:
-        feed_url = url
+        feed_url = re.sub("/featured$|/videos$|/$", "", url)
         feed_url = feed_url.replace('/channel/',
                                     '/feeds/videos.xml?channel_id=')
         feed_url = feed_url.replace('/user/', '/feeds/videos.xml?user=')
