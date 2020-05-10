@@ -24,7 +24,7 @@ class DataBase:
     def __init__(self, name, print_infos=print):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 2
+        self.version = 3
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -45,6 +45,7 @@ class DataBase:
                     genre TEXT,
                     auto INTEGER,
                     last_update INTEGER,
+                    addcount INTEGER,
                     disabled INTEGER
                 );
                 CREATE INDEX url ON channels (url);
@@ -151,7 +152,8 @@ class DataBase:
         data['genre'] = channel_list[4]
         data['auto'] = channel_list[5]
         data['updated'] = channel_list[6]
-        data['disabled'] = int(channel_list[7]) == 1
+        data['addcount'] = int(channel_list[7])
+        data['disabled'] = int(channel_list[8]) == 1
 
         # Save it in self.channels
         if not data['id'] in self.channels:
@@ -164,14 +166,15 @@ class DataBase:
     def channel_to_list(self, channel):
         return (channel['url'], channel['title'],
                 channel['type'], channel['genre'], channel['auto'],
-                channel['updated'], int(channel['disabled']))
+                channel['updated'], int(channel['addcount']),
+                int(channel['disabled']))
 
     def add_channel(self, data):
         channel = self.channel_to_list(data)
         params = ','.join('?'*len(channel))
         with self.mutex:
             self.cursor.execute('INSERT INTO channels (url, title, type, '
-                                'genre, auto, last_update, disabled) '
+                                'genre, auto, last_update, addcount, disabled) '
                                 'VALUES (%s)' %
                                 params, channel)
             self.conn.commit()
@@ -244,6 +247,7 @@ class DataBase:
                         genre = ?,
                         auto = ?,
                         last_update = ?,
+                        addcount = ?,
                         disabled = ?
                     WHERE id = ?"""
         args = (
@@ -252,6 +256,7 @@ class DataBase:
                 channel['genre'],
                 channel['auto'],
                 channel['updated'],
+                channel['addcount'],
                 channel['disabled'],
                 channel['id'],
         )

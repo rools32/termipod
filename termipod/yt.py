@@ -114,6 +114,10 @@ def get_data(url, print_infos=print, new=False, count=-1):
         data['title'] = channel_title
         data['updated'] = int(time())
         data['type'] = 'youtube'
+        if count == len(entries):
+            data['addcount'] = count
+        else:
+            data['addcount'] = -1
 
         data['items'] = []
         for entry in entries:
