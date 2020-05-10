@@ -218,6 +218,7 @@ class ItemList():
 
         self.print_infos(f'Add {url} ({count} elements requested)')
         # Check not already present in db
+        url = backends.get_clean_url(url)
         channel = self.db.get_channel(url)
         if channel is not None:
             self.print_infos('"%s" already present (%s)' %

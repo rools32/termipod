@@ -40,6 +40,15 @@ def get_data(url, print_infos=print, new=False, count=-1):
     return data
 
 
+def get_clean_url(url):
+    if not url.startswith('http'):  # local file
+        return url
+    elif 'youtube' in url:
+        return yt.get_clean_url(url)
+    else:  # rss
+        return url
+
+
 def get_duration(medium):
     filename = os.path.abspath(medium['filename']).replace('"', '\\"')
     commandline = 'ffprobe -i "%s" -show_entries ' \

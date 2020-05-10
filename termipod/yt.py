@@ -170,3 +170,7 @@ def get_data(url, print_infos=print, new=False, count=-1):
         data['updated'] = updated
 
         return data
+
+
+def get_clean_url(url):
+    return re.sub("/featured$|/videos$|/$", "", url)
