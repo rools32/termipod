@@ -943,25 +943,42 @@ class ChannelArea(ItemArea):
         return channels, disabled_channels
 
     def item_to_string(self, channel, multi_lines=False, width=None):
-        date = ts_to_date(channel['updated'])
-
         cid = channel['id']
+        date = ts_to_date(channel['updated'])
         unread_elements = self.data_base.channel_get_unread_media(cid)
         total_elements = self.data_base.channel_get_all_media(cid)
         separator = u" \u2022 "
 
-        # TODO format and align
-        string = channel['title']
-        string += separator
-        string += channel['type']
-        string += separator
-        string += '%d/%d' % (len(unread_elements), len(total_elements))
-        string += separator
-        string += channel['genre']
-        string += separator
-        string += channel['auto']
-        string += separator
-        string += date
+        if not multi_lines:
+            # TODO format and align
+            string = channel['title']
+            string += separator
+            string += channel['type']
+            string += separator
+            string += '%d/%d' % (len(unread_elements), len(total_elements))
+            string += separator
+            string += channel['genre']
+            string += separator
+            string += channel['auto']
+            string += separator
+            string += date
+
+        else:
+            formatted_item = dict(channel)
+            formatted_item['updated'] = date
+            formatted_item['unread'] = len(unread_elements)
+            formatted_item['total'] = len(total_elements)
+            if channel['addcount'] == -1:
+                formatted_item['added items at creation'] = 'all'
+            else:
+                formatted_item['added items at creation'] = \
+                    f'{channel["addcount"]} (incomplete)'
+            fields = ['title', 'type', 'updated', 'url', 'genre',
+                      'auto', 'added items at creation', 'unread', 'total']
+            string = []
+            for f in fields:
+                s = '%s%s: %s' % (separator, f, formatted_item[f])
+                string.append(s)
 
         return string
 
