@@ -78,19 +78,19 @@ def main():
 
         if args.auto:
             url, auto = args.auto
-            item_list.channel_set_auto([url], auto)
+            item_list.channel_set_auto('cmd', [url], auto)
 
         if args.up:
             if isinstance(args.up, bool):
-                item_list.update_channels()
+                item_list.update_channels('cmd')
             else:
-                item_list.update_channels([args.up])
+                item_list.update_channels('cmd', [args.up])
 
         if args.disable_channel:
-            item_list.disable_channels([args.disable_channel])
+            item_list.disable_channels('cmd', [args.disable_channel])
 
         if args.remove_channel:
-            item_list.remove_channels([args.remove_channel])
+            item_list.remove_channels('cmd', [args.remove_channel])
 
         if args.export_channels:
             channels = item_list.export_channels()

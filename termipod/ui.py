@@ -146,7 +146,7 @@ class UI():
 
                     else:
                         sel = self.get_user_selection(idx, area)
-                        self.item_list.disable_channels(sel)
+                        self.item_list.disable_channels('ui', sel)
                         # Remove channels from item_list
                         self.item_list.update_channel_areas()
 
@@ -155,7 +155,7 @@ class UI():
                         self.print_infos('Not in channel area')
                     else:
                         sel = self.get_user_selection(idx, area)
-                        self.item_list.remove_channels(sel)
+                        self.item_list.remove_channels('ui', sel)
                         # Remove channels and media from item_list
                         self.item_list.update_channel_areas()
                         self.item_list.update_medium_areas()
@@ -247,7 +247,7 @@ class UI():
                 # We update all channels
                 else:
                     sel = None
-                self.item_list.update_channels(sel)
+                self.item_list.update_channels('ui', sel)
 
             ###################################################################
             # Local medium commands
@@ -262,12 +262,12 @@ class UI():
             ###################################################################
             elif 'channel_auto' == action:
                 sel = self.get_user_selection(idx, area)
-                self.item_list.channel_set_auto(sel)
+                self.item_list.channel_set_auto('ui', sel)
 
             elif 'channel_auto_custom' == action:
                 sel = self.get_user_selection(idx, area)
                 auto = self.status_area.run_command('auto: ')
-                self.item_list.channel_set_auto(sel, auto)
+                self.item_list.channel_set_auto('ui', sel, auto)
 
             elif 'channel_show_media' == action:
                 sel = self.get_user_selection(idx, area)
@@ -279,7 +279,7 @@ class UI():
             elif 'channel_genre' == action:
                 genre = self.status_area.run_command('genre: ')
                 sel = self.get_user_selection(idx, area)
-                self.item_list.channel_set_genre(sel, genre)
+                self.item_list.channel_set_genre('ui', sel, genre)
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
@@ -945,9 +945,9 @@ class ChannelArea(ItemArea):
     def item_to_string(self, channel, multi_lines=False, width=None):
         date = ts_to_date(channel['updated'])
 
-        url = channel['url']
-        unread_elements = self.data_base.channel_get_unread_media(url)
-        total_elements = self.data_base.channel_get_all_media(url)
+        cid = channel['id']
+        unread_elements = self.data_base.channel_get_unread_media(cid)
+        total_elements = self.data_base.channel_get_all_media(cid)
         separator = u" \u2022 "
 
         # TODO format and align

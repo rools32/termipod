@@ -24,7 +24,7 @@ class DataBase:
     def __init__(self, name, print_infos=print):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 1
+        self.version = 2
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -38,7 +38,8 @@ class DataBase:
         if not tables:
             self.cursor.executescript("""
                 CREATE TABLE channels (
-                    url TEXT PRIMARY KEY,
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    url TEXT NOT NULL UNIQUE,
                     title TEXT,
                     type TEXT,
                     genre TEXT,
@@ -46,10 +47,11 @@ class DataBase:
                     last_update INTEGER,
                     disabled INTEGER
                 );
+                CREATE INDEX url ON channels (url);
             """)
             self.cursor.executescript("""
                 CREATE TABLE media (
-                    channel_url TEXT,
+                    cid TEXT,
                     title TEXT,
                     date INTEGER,
                     duration INTEGER,
@@ -59,7 +61,7 @@ class DataBase:
                     filename TEXT,
                     tags TEXT,
                     description TEXT,
-                    PRIMARY KEY (channel_url, title, date)
+                    PRIMARY KEY (cid, title, date)
                 );
             """)
             self.set_user_version(self.version)
@@ -87,11 +89,11 @@ class DataBase:
         return list(map(self.list_to_medium, rows))
 
     def list_to_medium(self, medium_list):
-        url = medium_list[0]
-        channel = self.get_channel(url)
+        channel_id = medium_list[0]
+        channel = self.get_channel(channel_id)
         data = {}
         data['channel'] = channel
-        data['url'] = url
+        data['cid'] = channel_id
         data['title'] = str(medium_list[1])  # str if title is only a number
         data['date'] = medium_list[2]
         data['duration'] = medium_list[3]
@@ -104,21 +106,31 @@ class DataBase:
         return data
 
     def medium_to_list(self, medium):
-        return (medium['url'], medium['title'], medium['date'],
+        return (medium['cid'], medium['title'], medium['date'],
                 medium['duration'], medium['link'], medium['location'],
                 medium['state'], medium['filename'], medium['tags'],
                 medium['description'])
 
-    def get_channel(self, url):
+    def get_channel(self, channel_id):
         try:
-            return self.channels[url]
+            return self.channels[channel_id]
         except KeyError:
-            """ Get Channel by url (primary key) """
-            self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
+            """ Get Channel by id (primary key) """
+            self.cursor.execute("SELECT * FROM channels WHERE id=?",
+                                (channel_id,))
             rows = self.cursor.fetchall()
             if 1 != len(rows):
                 return None
             return self.list_to_channel(rows[0])
+
+    # TODO XXX use when checking exists
+    def find_channel(self, url):
+        """ Get Channel by url """
+        self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
+        rows = self.cursor.fetchall()
+        if 1 != len(rows):
+            return None
+        return self.list_to_channel(rows[0])
 
     def select_channels(self):
         # if already called
@@ -132,45 +144,50 @@ class DataBase:
 
     def list_to_channel(self, channel_list):
         data = {}
-        data['url'] = channel_list[0]
-        data['title'] = channel_list[1]
-        data['type'] = channel_list[2]
-        data['genre'] = channel_list[3]
-        data['auto'] = channel_list[4]
-        data['updated'] = channel_list[5]
-        data['disabled'] = int(channel_list[6]) == 1
+        data['id'] = channel_list[0]
+        data['url'] = channel_list[1]
+        data['title'] = channel_list[2]
+        data['type'] = channel_list[3]
+        data['genre'] = channel_list[4]
+        data['auto'] = channel_list[5]
+        data['updated'] = channel_list[6]
+        data['disabled'] = int(channel_list[7]) == 1
 
         # Save it in self.channels
-        if not data['url'] in self.channels:
-            self.channels[data['url']] = data
+        if not data['id'] in self.channels:
+            self.channels[data['id']] = data
         else:
-            self.channels[data['url']].update(data)
+            self.channels[data['id']].update(data)
 
         return data
 
     def channel_to_list(self, channel):
-        # Save it in self.channels
-        if not channel['url'] in self.channels:
-            self.channels[channel['url']] = channel
-        else:
-            self.channels[channel['url']].update(channel)
-
-        return (channel['url'], channel['title'], channel['type'],
-                channel['genre'], channel['auto'], channel['updated'],
-                int(channel['disabled']))
+        return (channel['url'], channel['title'],
+                channel['type'], channel['genre'], channel['auto'],
+                channel['updated'], int(channel['disabled']))
 
     def add_channel(self, data):
         channel = self.channel_to_list(data)
         params = ','.join('?'*len(channel))
         with self.mutex:
-            self.cursor.execute('INSERT INTO channels VALUES (%s)' %
+            self.cursor.execute('INSERT INTO channels (url, title, type, '
+                                'genre, auto, last_update, disabled) '
+                                'VALUES (%s)' %
                                 params, channel)
             self.conn.commit()
 
-    def add_media(self, data, update=False):
-        url = data['url']
+        cid = self.cursor.lastrowid
+        data['id'] = cid
+        # Save it in self.channels
+        if cid not in self.channels:
+            self.channels[cid] = data
+        else:
+            self.channels[cid].update(data)
 
-        channel = self.get_channel(url)
+    def add_media(self, data, update=False):
+        cid = data['id']
+
+        channel = self.get_channel(cid)
         if channel is None:
             return None
 
@@ -185,7 +202,8 @@ class DataBase:
         if (feed_date > updated_date):  # new items
             # Filter feed to keep only new items
             for medium in data['items']:
-                medium['channel'] = self.channels[url]  # link to channel
+                medium['cid'] = cid
+                medium['channel'] = self.channels[cid]
                 if medium['date'] > updated_date:
                     if 'duration' not in medium:
                         medium['duration'] = 0
@@ -213,7 +231,7 @@ class DataBase:
                     self.print_infos('Cannot add %s' % str(new_media))
 
         if new_media:
-            channel['url'] = url
+            channel['id'] = cid
             channel['updated'] = feed_date
             self.update_channel(channel)
 
@@ -227,7 +245,7 @@ class DataBase:
                         auto = ?,
                         last_update = ?,
                         disabled = ?
-                    WHERE url = ?"""
+                    WHERE id = ?"""
         args = (
                 channel['title'],
                 channel['type'],
@@ -235,7 +253,7 @@ class DataBase:
                 channel['auto'],
                 channel['updated'],
                 channel['disabled'],
-                channel['url'],
+                channel['id'],
         )
         with self.mutex:
             self.cursor.execute(sql, args)
@@ -249,7 +267,7 @@ class DataBase:
                         state = ?,
                         filename = ?,
                         tags = ?
-                    WHERE channel_url = ? and
+                    WHERE cid = ? and
                           title = ? and
                           date = ?"""
         if 'duration' not in medium:
@@ -265,29 +283,34 @@ class DataBase:
         args = (
                 medium['duration'], medium['link'], medium['location'],
                 medium['state'], medium['filename'], medium['tags'],
-                medium['url'], medium['title'], medium['date']
+                medium['cid'], medium['title'], medium['date']
         )
         with self.mutex:
             self.cursor.execute(sql, args)
             self.conn.commit()
 
-    def channel_get_unread_media(self, url):
+    def channel_get_unread_media(self, cid):
         self.cursor.execute(
-            "SELECT * FROM media WHERE channel_url=? AND state='unread'",
-            (url, ))
+            "SELECT * FROM media WHERE cid=? AND state='unread'",
+            (cid, ))
         rows = self.cursor.fetchall()
         return list(map(self.list_to_medium, rows))
 
-    def channel_get_all_media(self, url):
-        self.cursor.execute("SELECT * FROM media WHERE channel_url=?", (url,))
+    def channel_get_all_media(self, cid):
+        self.cursor.execute("SELECT * FROM media WHERE cid=?", (cid,))
         rows = self.cursor.fetchall()
         return list(map(self.list_to_medium, rows))
 
-    def channel_remove(self, urls):
-        # Remove channels
-        sql = "DELETE FROM channels where url = ?"
-        self.cursor.executemany(sql, [[url] for url in urls])
+    def channel_remove(self, cids):
+        for cid in cids:
+            channel = self.get_channel(cid)
+            if channel is None:
+                continue
+            # Remove channels
+            sql = "DELETE FROM channels where id = ?"
+            self.cursor.execute(sql, [cid])
 
-        # Remove media
-        sql = "DELETE FROM media where channel_url = ?"
-        self.cursor.executemany(sql, [[url] for url in urls])
+            # Remove media
+            sql = "DELETE FROM media where cid = ?"
+            self.cursor.execute(sql, [cid])
+            self.conn.commit()
