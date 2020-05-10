@@ -297,7 +297,10 @@ class ItemList():
             channel = self.channel_id_to_object(channel_id)
             title = channel['title']
 
-            old_genres = channel['genre'].split(',')
+            if not len(channel['genre']):
+                old_genres = []
+            else:
+                old_genres = channel['genre'].split(',')
             if genre not in old_genres:
                 genres = set(old_genres+[genre])
                 channel['genre'] = ','.join(genres)
