@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 import sqlite3
+import sys
 from multiprocessing import Lock
 
 
@@ -29,43 +30,43 @@ class DataBase:
         self.channels = {}
 
         self.conn = sqlite3.connect(name, check_same_thread=False)
-        self.cursor = self.conn.cursor()
 
-        self.cursor.execute(
+        cursor = self.conn.execute(
                 "SELECT name FROM sqlite_master WHERE type='table'")
-        tables = list(map(lambda x: x[0], self.cursor.fetchall()))
+        tables = list(map(lambda x: x[0], cursor.fetchall()))
 
         if not tables:
-            self.cursor.executescript("""
-                CREATE TABLE channels (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    url TEXT NOT NULL UNIQUE,
-                    title TEXT,
-                    type TEXT,
-                    genre TEXT,
-                    auto INTEGER,
-                    last_update INTEGER,
-                    addcount INTEGER,
-                    disabled INTEGER
-                );
-                CREATE INDEX url ON channels (url);
-            """)
-            self.cursor.executescript("""
-                CREATE TABLE media (
-                    cid TEXT,
-                    title TEXT,
-                    date INTEGER,
-                    duration INTEGER,
-                    url TEXT,
-                    location TEXT,
-                    state TEXT,
-                    filename TEXT,
-                    tags TEXT,
-                    description TEXT,
-                    PRIMARY KEY (cid, title, date)
-                );
-            """)
-            self.set_user_version(self.version)
+            with self.conn:
+                self.conn.executescript("""
+                    CREATE TABLE channels (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        url TEXT NOT NULL UNIQUE,
+                        title TEXT,
+                        type TEXT,
+                        genre TEXT,
+                        auto INTEGER,
+                        last_update INTEGER,
+                        addcount INTEGER,
+                        disabled INTEGER
+                    );
+                    CREATE INDEX url ON channels (url);
+                """)
+                self.conn.executescript("""
+                    CREATE TABLE media (
+                        cid TEXT,
+                        title TEXT,
+                        date INTEGER,
+                        duration INTEGER,
+                        url TEXT,
+                        location TEXT,
+                        state TEXT,
+                        filename TEXT,
+                        tags TEXT,
+                        description TEXT,
+                        PRIMARY KEY (cid, title, date)
+                    );
+                """)
+                self.set_user_version(self.version)
 
         else:
             db_version = self.get_user_version()
@@ -74,19 +75,17 @@ class DataBase:
                                  'please update') % (db_version, self.version))
                 exit(1)
 
-        self.conn.commit()
-
     def get_user_version(self):
-        self.cursor.execute('PRAGMA user_version')
-        return self.cursor.fetchone()[0]
+        cursor = self.conn.execute('PRAGMA user_version')
+        return cursor.fetchone()[0]
 
     def set_user_version(self, version):
-        self.cursor.execute('PRAGMA user_version={:d}'.format(version))
+        self.conn.execute('PRAGMA user_version={:d}'.format(version))
 
     def select_media(self):
-        self.cursor.execute("""SELECT * FROM media
+        cursor = self.conn.execute("""SELECT * FROM media
                 ORDER BY date DESC""")
-        rows = self.cursor.fetchall()
+        rows = cursor.fetchall()
         return list(map(self.list_to_medium, rows))
 
     def list_to_medium(self, medium_list):
@@ -117,9 +116,9 @@ class DataBase:
             return self.channels[channel_id]
         except KeyError:
             """ Get Channel by id (primary key) """
-            self.cursor.execute("SELECT * FROM channels WHERE id=?",
+            cursor = self.conn.execute("SELECT * FROM channels WHERE id=?",
                                 (channel_id,))
-            rows = self.cursor.fetchall()
+            rows = cursor.fetchall()
             if 1 != len(rows):
                 return None
             return self.list_to_channel(rows[0])
@@ -127,8 +126,8 @@ class DataBase:
     # TODO XXX use when checking exists
     def find_channel(self, url):
         """ Get Channel by url """
-        self.cursor.execute("SELECT * FROM channels WHERE url=?", (url,))
-        rows = self.cursor.fetchall()
+        cursor = self.conn.execute("SELECT * FROM channels WHERE url=?", (url,))
+        rows = cursor.fetchall()
         if 1 != len(rows):
             return None
         return self.list_to_channel(rows[0])
@@ -138,9 +137,9 @@ class DataBase:
         if self.channels:
             return list(self.channels.values())
         else:
-            self.cursor.execute("""SELECT * FROM channels
+            cursor = self.conn.execute("""SELECT * FROM channels
                     ORDER BY last_update DESC""")
-            rows = self.cursor.fetchall()
+            rows = cursor.fetchall()
             return list(map(self.list_to_channel, rows))
 
     def list_to_channel(self, channel_list):
@@ -172,22 +171,26 @@ class DataBase:
     def add_channel(self, data):
         channel = self.channel_to_list(data)
         params = ','.join('?'*len(channel))
-        with self.mutex:
-            self.cursor.execute('INSERT INTO channels (url, title, type, '
-                                'genre, auto, last_update, addcount, disabled) '
-                                'VALUES (%s)' %
-                                params, channel)
-            self.conn.commit()
+        with self.mutex, self.conn:
+            cursor = self.conn.execute(
+                'INSERT INTO channels (url, title, type, '
+                'genre, auto, last_update, addcount, disabled) '
+                'VALUES (%s)' % params, channel)
+            cid = cursor.lastrowid
 
-        cid = self.cursor.lastrowid
-        data['id'] = cid
-        # Save it in self.channels
-        if cid not in self.channels:
-            self.channels[cid] = data
-        else:
-            self.channels[cid].update(data)
+            data['id'] = cid
+            # Save it in self.channels
+            if cid not in self.channels:
+                self.channels[cid] = data
+            else:
+                self.channels[cid].update(data)
 
-    def add_media(self, data, update=False):
+            # Update medium list
+            media = self.add_media(data, update=True, mutex=False)
+
+        return media
+
+    def add_media(self, data, update=False, mutex=True):
         cid = data['id']
 
         channel = self.get_channel(cid)
@@ -224,23 +227,23 @@ class DataBase:
             # Add new items to database
             if new_entries:
                 try:
-                    with self.mutex:
-                        params = ','.join('?'*len(new_entries[0]))
-                        self.cursor.executemany(
-                            'INSERT INTO media VALUES (%s)' % params,
-                            new_entries)
-                        self.conn.commit()
+                    params = ','.join('?'*len(new_entries[0]))
+                    sql = 'INSERT INTO media VALUES (%s)' % params
+                    if mutex:
+                        self.mutex.acquire()
+                    with self.conn:
+                        self.conn.executemany(sql, new_entries)
+                        self.update_channel(channel, mutex=mutex)
+                    if mutex:
+                        self.mutex.release()
                 except sqlite3.IntegrityError:
-                    self.print_infos('Cannot add %s' % str(new_media))
-
-        if new_media:
-            channel['id'] = cid
-            channel['updated'] = feed_date
-            self.update_channel(channel)
+                    self.print_infos(
+                        f'Cannot add media from {channel["title"]}: '
+                        'database error')
 
         return new_media
 
-    def update_channel(self, channel):
+    def update_channel(self, channel, mutex=True):
         sql = """UPDATE channels
                     SET title = ?,
                         type = ?,
@@ -260,9 +263,12 @@ class DataBase:
                 channel['disabled'],
                 channel['id'],
         )
-        with self.mutex:
-            self.cursor.execute(sql, args)
-            self.conn.commit()
+        if mutex:
+            with self.mutex, self.conn:
+                self.conn.execute(sql, args)
+        else:
+            with self.conn:
+                self.conn.execute(sql, args)
 
     def update_medium(self, medium):
         sql = """UPDATE media
@@ -290,20 +296,19 @@ class DataBase:
                 medium['state'], medium['filename'], medium['tags'],
                 medium['cid'], medium['title'], medium['date']
         )
-        with self.mutex:
-            self.cursor.execute(sql, args)
-            self.conn.commit()
+        with self.mutex, self.conn:
+            self.conn.execute(sql, args)
 
     def channel_get_unread_media(self, cid):
-        self.cursor.execute(
+        cursor = self.conn.execute(
             "SELECT * FROM media WHERE cid=? AND state='unread'",
             (cid, ))
-        rows = self.cursor.fetchall()
+        rows = cursor.fetchall()
         return list(map(self.list_to_medium, rows))
 
     def channel_get_all_media(self, cid):
-        self.cursor.execute("SELECT * FROM media WHERE cid=?", (cid,))
-        rows = self.cursor.fetchall()
+        cursor = self.conn.execute("SELECT * FROM media WHERE cid=?", (cid,))
+        rows = cursor.fetchall()
         return list(map(self.list_to_medium, rows))
 
     def channel_remove(self, cids):
@@ -311,11 +316,12 @@ class DataBase:
             channel = self.get_channel(cid)
             if channel is None:
                 continue
-            # Remove channels
-            sql = "DELETE FROM channels where id = ?"
-            self.cursor.execute(sql, [cid])
 
-            # Remove media
-            sql = "DELETE FROM media where cid = ?"
-            self.cursor.execute(sql, [cid])
-            self.conn.commit()
+            with self.conn:
+                # Remove channels
+                sql = "DELETE FROM channels where id = ?"
+                self.conn.execute(sql, [cid])
+
+                # Remove media
+                sql = "DELETE FROM media where cid = ?"
+                self.conn.execute(sql, [cid])

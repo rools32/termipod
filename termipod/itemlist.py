@@ -243,10 +243,7 @@ class ItemList():
         data['genre'] = genre
         data['auto'] = auto
         data['disabled'] = 0
-        self.db.add_channel(data)
-
-        # Update medium list
-        media = self.db.add_media(data, update=True)
+        media = self.db.add_channel(data)
 
         self.add_channels([data])
         self.add_media(media)
