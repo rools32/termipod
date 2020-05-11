@@ -235,7 +235,7 @@ class DataBase:
                         self.mutex.acquire()
                     with self.conn:
                         self.conn.executemany(sql, new_entries)
-                        self.update_channel(channel, mutex=mutex)
+                        self.update_channel(channel, mutex=False)
                     if mutex:
                         self.mutex.release()
                 except sqlite3.IntegrityError:

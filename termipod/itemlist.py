@@ -329,6 +329,7 @@ class ItemList():
                              (channel['title'], i+1, len(channels)))
 
             data = backends.get_data(channel['url'], self.print_infos)
+            data['id'] = channel['id']
 
             if data is None:
                 continue
