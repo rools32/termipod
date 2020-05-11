@@ -248,7 +248,7 @@ class ItemList():
         self.add_channels([data])
         self.add_media(media)
 
-        self.print_infos(data['title']+' added')
+        self.print_infos(f'{data["title"]} added ({len(media)} media)')
 
     def channel_id_to_object(self, origin, channel_id):  # TODO XXX oops
         if origin == 'ui':

@@ -115,7 +115,11 @@ class Player():
         if 'local' == medium['location'] and '' != medium['filename']:
             target = medium['filename']
         else:
-            target = medium['link']
+            if medium['channel']['type'] == 'youtube' \
+                    and 'youtube' not in medium['link']:
+                target = 'ytdl://'+medium['link']
+            else:
+                target = medium['link']
 
         self.playlist[target] = medium
         self.player.loadfile(target, 'append-play')

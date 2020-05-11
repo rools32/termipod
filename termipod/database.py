@@ -199,7 +199,7 @@ class DataBase:
 
         # Find out if feed has updates
         if update:
-            updated_date = 0
+            updated_date = -1
         else:
             updated_date = channel['updated']
         feed_date = data['updated']
@@ -226,6 +226,8 @@ class DataBase:
 
             # Add new items to database
             if new_entries:
+                channel['id'] = cid
+                channel['updated'] = feed_date
                 try:
                     params = ','.join('?'*len(new_entries[0]))
                     sql = 'INSERT INTO media VALUES (%s)' % params

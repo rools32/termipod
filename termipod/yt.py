@@ -54,6 +54,7 @@ class DataLogger(object):
     def __init__(self, print_infos, url):
         self.print_infos = print_infos
         self.url = url
+        self.title = get_title(url)
 
     def debug(self, msg):
         regex = "\[download\] Downloading video (\d*) of (\d*)"
@@ -61,8 +62,16 @@ class DataLogger(object):
         if match is not None:
             current = float(match.groups()[0])
             total = float(match.groups()[1])
-            self.print_infos('Adding %s (%d%%)' %
-                             (self.url, int(current*100/total)))
+            percent = int(current*100/total)
+            self.print_infos(f'Adding {self.title} ({percent}%%)')
+
+        else:
+            regex = "\[youtube:playlist\] [^:]*: Downloading page #(\d*)"
+            match = re.match(regex, msg)
+            if match is not None:
+                page = match.groups()[0]
+                self.print_infos(
+                    f'Adding {self.title}: downloading page #{page}...')
 
     def warning(self, msg):
         self.print_infos('[YTDL warning] %s' % msg)
@@ -81,58 +90,86 @@ def download(url, filename, print_infos=print):
             return 1
 
 
+def get_title(url):
+    ydl_opts = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+    with ytdl.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False, process=False)
+        if 'entries' not in info and 'url' in info:
+            info = ydl.extract_info(info['url'], download=False,
+                                    process=False)
+    title = info['title']
+    return re.sub(r'Uploads from ', '', title)
+
+
 def get_data(url, print_infos=print, new=False, count=-1):
     # If first add, we use ytdl to get old media
     if new:
+        title = None
         ydl_opts = {'logger': DataLogger(print_infos, url),
                     'ignoreerrors': True}
 
-        # If a limit on the number of elements is given
-        if count != -1:
-            ydl_opts['playlistend'] = count
-
-        with ytdl.YoutubeDL(ydl_opts) as ydl:
-            result = ydl.extract_info(url, download=False)
-        if result is None or result['entries'] is None:
-            print_infos("Cannot get data from %s" % url)
-            return None
-
-        entries = result['entries']
-
-        # Find channel name
-        channel_title = None
-        for entry in entries:
-            if entry is not None:
-                channel_title = printable_str(entry['uploader'])
-                break
-
-        if channel_title is None:
-            return None
-
         data = {}
         data['url'] = url
-        data['title'] = channel_title
         data['updated'] = int(time())
         data['type'] = 'youtube'
-        if count == len(entries):
+
+        data['items'] = []
+        with ytdl.YoutubeDL(ydl_opts) as ydl:
+            info = ydl.extract_info(url, download=False, process=False)
+            # If not a playlist no info
+            if 'entries' not in info and 'url' in info:
+                info = ydl.extract_info(info['url'], download=False,
+                                        process=False)
+
+            if info is None or info['entries'] is None:
+                print_infos("Cannot get data from %s" % url)
+                return None
+            title = info['title']
+
+            if title is None:
+                return None
+            title = re.sub(r'Uploads from ', '', title)
+            data['title'] = title
+
+            c = 0
+            for entry in info['entries']:
+                if c != count:
+                    if count == -1:
+                        print_infos(
+                            f'Adding {title}: getting video info #{c+1}...')
+                    else:
+                        print_infos(f'Adding {title}: getting info for {count}'
+                                    f' videos ({int(c/count*100)}%)...')
+                    vidinfo = ydl.extract_info(entry['url'], download=False,
+                                               process=False)
+                    if vidinfo is None:
+                        continue
+                    entry['upload_date'] = vidinfo['upload_date']
+                    entry['duration'] = vidinfo['duration']
+                    entry['description'] = vidinfo['description']
+                    c += 1
+
+                else:
+                    entry['upload_date'] = '19700102'
+                    entry['duration'] = 0
+                    entry['description'] = ''
+
+                medium = {
+                    'channel': title,
+                    'url': url,
+                    'title': printable_str(entry['title']),
+                    'date': int(mktime(datetime.strptime(
+                        entry['upload_date'], "%Y%m%d").timetuple())),
+                    'description': entry['description'],
+                    'link': entry['url'],
+                    'duration': entry['duration'],
+                }
+                data['items'].append(medium)
+
+        if count == len(data['items']):
             data['addcount'] = count
         else:
             data['addcount'] = -1
-
-        data['items'] = []
-        for entry in entries:
-            if entry is None:
-                continue
-            medium = {}
-            medium['channel'] = data['title']
-            medium['url'] = url
-            medium['title'] = printable_str(entry['title'])
-            medium['date'] = int(mktime(datetime.strptime(
-                entry['upload_date'], "%Y%m%d").timetuple()))
-            medium['description'] = entry['description']
-            medium['link'] = entry['webpage_url']
-            medium['duration'] = entry['duration']
-            data['items'].append(medium)
 
         return data
 
