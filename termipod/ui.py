@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import curses
 import curses.textpad
+import re
 import shlex
 from bisect import bisect
 from threading import Lock
@@ -609,14 +610,15 @@ class ItemArea:
             return
 
         item_idx = None
+        no_case_string = self.highlight_string.casefold()
         if not reverse:
             for i in range(self.first_line+self.cursor+1, len(self.contents)):
-                if self.highlight_string in self.contents[i]:
+                if no_case_string in self.contents[i].casefold():
                     item_idx = i
                     break
         else:
             for i in range(self.first_line+self.cursor-1, -1, -1):
-                if self.highlight_string in self.contents[i]:
+                if no_case_string in self.contents[i].casefold():
                     item_idx = i
                     break
 
@@ -654,10 +656,8 @@ class ItemArea:
                     styles = (normal_style, highlight_style)
 
                     # Split with highlight string and put it back
-                    parts = string.split(self.highlight_string)
-                    missing_strings = [self.highlight_string]*len(parts)
-                    parts = [val for pair in zip(parts, missing_strings)
-                             for val in pair][:-1]
+                    parts = re.split('('+self.highlight_string+')',
+                                     string, flags=re.IGNORECASE)
 
                     written = 0
                     style_idx = 0
