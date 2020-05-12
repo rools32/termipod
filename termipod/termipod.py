@@ -36,8 +36,12 @@ def main():
                         help='Alternate configuration file')
     parser.add_argument('--add', type=str, metavar='url',
                         help='Add Youtube channel or RSS feed')
-    parser.add_argument('--add-yt-count', type=int, metavar='count',
-                        help='Limit number of youtube elements retrieved')
+    parser.add_argument(
+        '--add-opts', type=str, metavar='options',
+        help="""Options given with key=value pair space separated string:
+                [count=<count>] [strict[=<0 or 1>]] [auto[=<regex>]]
+                [genre=<genre1,genre2>].
+        """)
     parser.add_argument(
         '--auto', type=str, nargs=2, metavar=('url', 'pattern'),
         help="Pattern for media to be downloaded automatically "
@@ -71,10 +75,7 @@ def main():
         item_list = ItemList(config, wait=True)
 
         if args.add:
-            if args.add_yt_count:
-                item_list.new_channel(args.add, args.add_yt_count)
-            else:
-                item_list.new_channel(args.add)
+            item_list.new_channel(args.add, args.add_opts)
 
         if args.auto:
             url, auto = args.auto

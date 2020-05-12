@@ -119,13 +119,13 @@ class UI():
 
             elif 'command_get' == action:
                 string = self.status_area.run_command(':')
+                string = string.strip()
                 command = shlex.split(string)
 
                 if not command:
                     self.print_infos('No command to run')
                     continue
 
-                self.print_infos('Run: '+str(command))
                 if command[0] in ('q', 'quit'):
                     curses.endwin()
                     exit()
@@ -134,14 +134,17 @@ class UI():
                     area.show_command_help()
 
                 elif command[0] in ('add',):
-                    if 1 == command:
-                        add_help = 'Usage: add url [auto] [genre]'
-                        self.print_infos(add_help)
+                    if len(command) == 1:
+                        area.show_command_help('add')
                     else:
-                        self.item_list.new_channel(*command[1:])
+                        url = command[1]
+                        opts = string[4:].lstrip()[len(url)+1:].lstrip()
+                        self.item_list.new_channel(url, opts)
 
                 elif command[0] in ('channelDisable',):
-                    if area.key_class != 'channels':
+                    if len(command) != 1:
+                        area.show_command_help('channelDisable')
+                    elif area.key_class != 'channels':
                         self.print_infos('Not in channel area')
 
                     else:
@@ -151,7 +154,9 @@ class UI():
                         self.item_list.update_channel_areas()
 
                 elif command[0] in ('channelRemove',):
-                    if area.key_class != 'channels':
+                    if len(command) != 1:
+                        area.show_command_help('channelRemove')
+                    elif area.key_class != 'channels':
                         self.print_infos('Not in channel area')
                     else:
                         sel = self.get_user_selection(idx, area)
@@ -663,22 +668,51 @@ class ItemArea:
             pass
 
     def show_help(self, keymap):
-        lines = keymap.map_to_help(self.key_class)
+        lines = []
+        lines.append('In termipod')
+        lines.append('===========')
+        lines.extend(keymap.map_to_help(self.key_class))
+
+        lines.append('')
+        lines.append("In mpv (launched by termipod")
+        lines.append("============================")
+        lines.append("?      Show new commands")
+
         PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
                   print_infos=self.print_infos)
         self.display(redraw=True)
 
-    def show_command_help(self):
+    def show_command_help(self, cmd=None):
+        self.print_infos('Invalid syntax!')
         # TODO commands as parameter (dynamic depending in area)
         commands = {
-            ('add',): 'Add new channel by url (<url> '
-                      '[max items [pattern for auto download [genre]]])',
-            ('channelDisable',): 'Disable channel',
-            ('channelRemove',): 'Remove channel (and all associated media)',
-            ('quit', 'q'): 'Quit',
+            'add': (
+                'Add channel',
+                'add <url> [count=<max items>] [strict[=<0 or 1>]] '
+                '[auto[=<regex>]] [genre=<genre1,genre2>]'
+            ),
+            'channelDisable': (
+                'Disable selected channels',
+                'channelDisable'),
+            'channelRemove': (
+                'Remove selected channels (and all associated media)',
+                'channelRemove'
+            ),
+            'quit': (
+                'Quit',
+                'q[uit]'
+            )
         }
-        lines = ['%s: %s' % (', '.join(keys), desc)
-                 for keys, desc in commands.items()]
+
+        lines = []
+        if cmd is None:
+            for key, desc in commands.items():
+                lines.append(f'{key} - {desc[0]}')
+                lines.append(f'  Usage: {desc[1]}')
+        else:
+            desc = commands[cmd]
+            lines.append(f'{cmd} - {desc[0]}')
+            lines.append(f'  Usage: {desc[1]}')
 
         PopupArea(self.screen, (self.height, self.width), lines, self.height,
                   print_infos=self.print_infos)

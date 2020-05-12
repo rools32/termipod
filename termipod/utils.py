@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime, timedelta
+import shlex
 import unicodedata
 
 
@@ -38,6 +39,7 @@ def printable_str(string):
 
 
 def print_log(string):
+    string = str(string)
     if print_log.filename:
         if print_log.reset:
             mode = 'w'
@@ -45,7 +47,7 @@ def print_log(string):
         else:
             mode = 'a'
         with open(print_log.filename, mode) as myfile:
-            myfile.write(str(string)+"\n")
+            myfile.write(string+"\n")
     else:
         print(string)
 
@@ -105,3 +107,9 @@ def format_string(string, width, truncate=True):
                 strings.append(line+' '*remain)
 
         return strings
+
+
+def options_string_to_dict(string):
+    sopts = shlex.split(string)
+    sopts = [o if '=' in o else o+'=' for o in sopts]
+    return dict(item.split("=", 1) for item in sopts)

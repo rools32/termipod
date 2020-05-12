@@ -101,7 +101,7 @@ def get_title(url):
     return re.sub(r'Uploads from ', '', title)
 
 
-def get_data(url, print_infos=print, new=False, count=-1):
+def get_data(url, opts, print_infos=print, new=False):
     # If first add, we use ytdl to get old media
     if new:
         title = None
@@ -133,13 +133,14 @@ def get_data(url, print_infos=print, new=False, count=-1):
 
             c = 0
             for entry in info['entries']:
-                if c != count:
-                    if count == -1:
+                if c != opts['count']:
+                    if opts['count'] == -1:
                         print_infos(
                             f'Adding {title}: getting video info #{c+1}...')
                     else:
-                        print_infos(f'Adding {title}: getting info for {count}'
-                                    f' videos ({int(c/count*100)}%)...')
+                        print_infos(
+                            f'Adding {title}: getting info for {opts["count"]}'
+                            f' videos ({int(c/opts["count"]*100)}%)...')
                     vidinfo = ydl.extract_info(entry['url'], download=False,
                                                process=False)
                     if vidinfo is None:
@@ -166,8 +167,11 @@ def get_data(url, print_infos=print, new=False, count=-1):
                 }
                 data['items'].append(medium)
 
-        if count == len(data['items']):
-            data['addcount'] = count
+                if opts['strict'] and c == opts['count']:
+                    break
+
+        if opts['count'] == len(data['items']):
+            data['addcount'] = opts['count']
         else:
             data['addcount'] = -1
 

@@ -25,6 +25,7 @@ import os.path
 import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase
+from termipod.utils import options_string_to_dict
 
 
 class ItemList():
@@ -209,14 +210,31 @@ class ItemList():
 
         self.update_medium_areas(modified_media=[medium])
 
-    def new_channel(self, url, count=-1, auto='', genre=''):
-        if isinstance(count, str):
-            if count == '':
-                count = -1
-            else:
-                count = int(count)
+    def new_channel(self, url, sopts=None):
+        opts = {
+            'count': -1,
+            'strict': 0,
+            'auto': '',
+            'genre': '',
+        }
 
-        self.print_infos(f'Add {url} ({count} elements requested)')
+        if sopts is not None and len(sopts):
+            uopts = options_string_to_dict(sopts)
+            if 'count' in uopts:
+                uopts['count'] = int(uopts['count'])
+            if 'strict' in uopts:
+                if not len(uopts['strict']):
+                    uopts['strict'] = 1
+                else:
+                    uopts['strict'] = int(uopts['strict'])
+            if 'auto' in uopts and not len(uopts['auto']):
+                uopts['auto'] = '.*'
+
+            # Merge options
+            opts.update(uopts)
+
+        self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
+
         # Check not already present in db
         url = backends.get_clean_url(url)
         channel = self.db.find_channel(url)
@@ -225,23 +243,22 @@ class ItemList():
                              (channel['url'], channel['title']))
             return False
 
-        thread = Thread(target=self.new_channel_task,
-                        args=(url, count, auto, genre))
+        thread = Thread(target=self.new_channel_task, args=(url, opts))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def new_channel_task(self, url, count, auto, genre):
+    def new_channel_task(self, url, opts):
         # Retrieve url feed
-        data = backends.get_data(url, self.print_infos, True, count)
+        data = backends.get_data(url, opts, self.print_infos, True)
 
         if data is None:
             return False
 
         # Add channel to db
-        data['genre'] = genre
-        data['auto'] = auto
+        data['genre'] = opts['genre']
+        data['auto'] = opts['auto']
         data['disabled'] = 0
         media = self.db.add_channel(data)
 
