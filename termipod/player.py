@@ -45,7 +45,7 @@ class Player():
             help_msg = ''
             help_msg += 'Added keys:'
             help_msg += '\n'
-            help_msg += separator+"'r' to mark as read"
+            help_msg += separator+"'r' to mark as read and play next"
             help_msg += '\n'
             help_msg += separator+"'d' to mark as read, delete and play next"
             help_msg += '\n'
@@ -95,7 +95,7 @@ class Player():
         medium['state'] = 'read'
         self.print_infos('Mark as read %s' % medium['filename'])
 
-        if unlink:
+        if unlink and len(medium['filename']):
             self.print_infos('Remove %s' % medium['filename'])
             os.unlink(medium['filename'])
             medium['location'] = 'remote'
