@@ -42,6 +42,17 @@ def get_data(url, opts, print_infos=print, new=False):
     return data
 
 
+def update_medium(medium, print_infos=print):
+    channel_type = medium['channel']['type']
+    if channel_type == 'youtube':
+        updated = yt.update_medium(medium, print_infos)
+    else:
+        print('Not implemented on this type of channel')
+        updated = False
+
+    return updated
+
+
 def get_clean_url(url):
     if not url.startswith('http'):  # local file
         return url

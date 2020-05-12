@@ -182,6 +182,20 @@ class ItemList():
 
         self.update_medium_areas(modified_media=media)
 
+    def update_media(self, indices, skip=False):
+        if isinstance(indices, int):
+            indices = [indices]
+
+        media = []
+        for idx in indices:
+            medium = self.media[idx]
+            if medium['duration'] == 0:
+                if backends.update_medium(medium, self.print_infos):
+                    self.db.update_medium(medium)
+                    media.append(medium)
+
+        self.update_medium_areas(modified_media=media)
+
     def remove(self, idx=None, medium=None, unlink=True):
         if idx:
             medium = self.media[idx]

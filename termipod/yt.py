@@ -80,6 +80,21 @@ class DataLogger(object):
         self.print_infos('[YTDL error] %s' % msg)
 
 
+class MediumDataLogger(object):
+    def __init__(self, print_infos, title):
+        self.print_infos = print_infos
+        self.title = title
+
+    def debug(self, msg):
+        pass
+
+    def warning(self, msg):
+        self.print_infos('[YTDL warning] %s' % msg)
+
+    def error(self, msg):
+        self.print_infos('[YTDL error] %s' % msg)
+
+
 def download(url, filename, print_infos=print):
     ydl_opts = {'logger': DownloadLogger(print_infos, url),
                 'outtmpl': filename, 'format': 'mp4'}
@@ -155,16 +170,8 @@ def get_data(url, opts, print_infos=print, new=False):
                     entry['duration'] = 0
                     entry['description'] = ''
 
-                medium = {
-                    'channel': title,
-                    'url': url,
-                    'title': printable_str(entry['title']),
-                    'date': int(mktime(datetime.strptime(
-                        entry['upload_date'], "%Y%m%d").timetuple())),
-                    'description': entry['description'],
-                    'link': entry['url'],
-                    'duration': entry['duration'],
-                }
+                medium = medium_from_ytdl(entry)
+                medium['channel'] = title
                 data['items'].append(medium)
 
                 if opts['strict'] and c == opts['count']:
@@ -215,6 +222,33 @@ def get_data(url, opts, print_infos=print, new=False):
         data['updated'] = updated
 
         return data
+
+
+def medium_from_ytdl(data):
+    medium = {
+        'title': printable_str(data['title']),
+        'date': int(mktime(datetime.strptime(
+            data['upload_date'], "%Y%m%d").timetuple())),
+        'description': data['description'],
+        'duration': data['duration'],
+    }
+    if 'url' in data:
+        medium['link'] = data['url']
+    return medium
+
+
+def update_medium(medium, print_infos=print):
+    ydl_opts = {'logger': MediumDataLogger(print_infos, medium['title']),
+                'ignoreerrors': True}
+    with ytdl.YoutubeDL(ydl_opts) as ydl:
+        url = medium['link']
+        data = ydl.extract_info(url, download=False, process=False)
+    if data is None:
+        return False
+
+    new_medium = medium_from_ytdl(data)
+    medium.update(new_medium)
+    return True
 
 
 def get_clean_url(url):

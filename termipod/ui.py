@@ -237,6 +237,11 @@ class UI():
                 self.item_list.switch_read(sel, skip)
                 area.user_selection = []
 
+            elif 'medium_update' == action:
+                sel = self.get_user_selection(idx, area)
+                self.item_list.update_media(sel)
+                area.user_selection = []
+
             ###################################################################
             # Remote medium commands
             ###################################################################

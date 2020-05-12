@@ -124,6 +124,7 @@ descriptions = {
         'medium_remove': 'Remove media',
         'medium_read': 'Mark as read/unread',
         'medium_skip': 'Mark/Unmark as skipped',
+        'medium_update': 'Update media',
         'medium_sort': 'Change media sorting (date+name, duration)',
         'channel_filter': 'Filter same channel',
         'state_filter': 'Change panel state view (read, unread, skipped...)',
