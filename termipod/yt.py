@@ -152,17 +152,21 @@ def get_data(source, opts, print_infos=print):
                     'ignoreerrors': True}
 
         data = {}
-        data['url'] = url
         data['updated'] = int(time())
         data['type'] = 'youtube'
 
         data['items'] = []
         with ytdl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False, process=False)
+
             # If not a playlist no info
-            if 'entries' not in info and 'url' in info:
+            if info['_type'] == 'url':
+                data['url'] = info['url']
                 info = ydl.extract_info(info['url'], download=False,
                                         process=False)
+            elif info['_type'] != 'playlist':
+                print_infos("Cannot get data from %s" % url)
+                return None
 
             if info is None or info['entries'] is None:
                 print_infos("Cannot get data from %s" % url)
@@ -173,6 +177,7 @@ def get_data(source, opts, print_infos=print):
                 return None
             title = re.sub(r'Uploads from ', '', title)
             data['title'] = title
+            data['url'] = info['webpage_url']
 
             c = 0
             i = 0
@@ -331,4 +336,12 @@ def update_medium(medium, print_infos=print):
 
 
 def get_clean_url(url):
-    return re.sub("/featured$|/videos$|/$", "", url)
+    ydl_opts = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+    with ytdl.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info(url, download=False, process=False)
+        if info['_type'] == 'url':
+            return info['url']
+        elif info['_type'] == 'playlist':
+            return info['webpage_url']
+        else:
+            return ''
