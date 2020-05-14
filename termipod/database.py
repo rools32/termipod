@@ -25,7 +25,7 @@ class DataBase:
     def __init__(self, name, print_infos=print):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 3
+        self.version = 4
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -53,27 +53,65 @@ class DataBase:
                 """)
                 self.conn.executescript("""
                     CREATE TABLE media (
-                        cid TEXT,
+                        url TEXT PRIMARY KEY,
+                        cid INTEGER,
                         title TEXT,
                         date INTEGER,
                         duration INTEGER,
-                        url TEXT,
                         location TEXT,
                         state TEXT,
                         filename TEXT,
                         tags TEXT,
                         description TEXT,
-                        PRIMARY KEY (cid, title, date)
+                        PRIMARY KEY (url, cid)
                     );
                 """)
                 self.set_user_version(self.version)
 
         else:
-            db_version = self.get_user_version()
-            if self.version != db_version:
-                self.print_infos(('Database is version "%d" but "%d" needed: '
-                                 'please update') % (db_version, self.version))
-                exit(1)
+            if self.version != self.get_user_version():
+                # Update db from 3 to 4
+                if 3 == self.get_user_version():
+                    # Change primary key of media table
+                    with self.conn:
+                        self.conn.executescript("""
+                            CREATE TABLE media_tmp (
+                                url TEXT,
+                                cid INTEGER,
+                                title TEXT,
+                                date INTEGER,
+                                duration INTEGER,
+                                location TEXT,
+                                state TEXT,
+                                filename TEXT,
+                                tags TEXT,
+                                description TEXT,
+                                PRIMARY KEY (url, cid)
+                            );
+                        """)
+                        self.conn.executescript("""
+                            INSERT INTO media_tmp
+                                (url, cid, title, date, duration, location,
+                                 state, filename, tags, description)
+                                SELECT url, cid, title, date, duration,
+                                       location, state, filename, tags,
+                                       description
+                                       FROM media;
+                        """)
+                        self.conn.executescript("""
+                            DROP TABLE media;
+                        """)
+                        self.conn.executescript("""
+                            ALTER TABLE media_tmp RENAME TO media;
+                        """)
+                        self.set_user_version(4)
+
+                if self.version != self.get_user_version():
+                    self.print_infos(
+                        'Database is version "%d" but "%d" needed: '
+                        'please update' %
+                        (self.get_user_version(), self.version))
+                    exit(1)
 
     def get_user_version(self):
         cursor = self.conn.execute('PRAGMA user_version')
@@ -89,27 +127,34 @@ class DataBase:
         return list(map(self.list_to_medium, rows))
 
     def list_to_medium(self, medium_list):
-        channel_id = medium_list[0]
-        channel = self.get_channel(channel_id)
         data = {}
-        data['channel'] = channel
-        data['cid'] = channel_id
-        data['title'] = str(medium_list[1])  # str if title is only a number
-        data['date'] = medium_list[2]
-        data['duration'] = medium_list[3]
-        data['link'] = medium_list[4]
+        data['link'] = medium_list[0]
+        channel_id = medium_list[1]
+        data['title'] = str(medium_list[2])  # str if title is only a number
+        data['date'] = medium_list[3]
+        data['duration'] = medium_list[4]
         data['location'] = medium_list[5]
         data['state'] = medium_list[6]
         data['filename'] = medium_list[7]
         data['tags'] = medium_list[8]
         data['description'] = medium_list[9]
+
+        data['cid'] = channel_id
+        channel = self.get_channel(channel_id)
+        data['channel'] = channel
+
+        # Build complete yt link
+        if channel['type'] == 'youtube':  # TODO move into backends/yt
+            data['id'] = data['link']
+            if 'youtube' not in data['link']:
+                data['link'] = 'https://www.youtube.com/watch?v='+data['link']
+
         return data
 
     def medium_to_list(self, medium):
-        return (medium['cid'], medium['title'], medium['date'],
-                medium['duration'], medium['link'], medium['location'],
-                medium['state'], medium['filename'], medium['tags'],
-                medium['description'])
+        return (medium['link'], medium['cid'], medium['title'], medium['date'],
+                medium['duration'], medium['location'], medium['state'],
+                medium['filename'], medium['tags'], medium['description'])
 
     def get_channel(self, channel_id):
         try:
@@ -275,14 +320,12 @@ class DataBase:
     def update_medium(self, medium):
         sql = """UPDATE media
                     SET duration = ?,
-                        url = ?,
+                        date = ?,
                         location = ?,
                         state = ?,
                         filename = ?,
                         tags = ?
-                    WHERE cid = ? and
-                          title = ? and
-                          date = ?"""
+                    WHERE url = ? and cid = ?"""
         if 'duration' not in medium:
             medium['duration'] = 0
         if 'location' not in medium:
@@ -294,12 +337,14 @@ class DataBase:
         if 'tags' not in medium:
             medium['tags'] = ''
         args = (
-                medium['duration'], medium['link'], medium['location'],
-                medium['state'], medium['filename'], medium['tags'],
-                medium['cid'], medium['title'], medium['date']
+            medium['duration'], medium['date'], medium['location'],
+            medium['state'], medium['filename'], medium['tags'],
+            medium['id'], medium['cid']
         )
         with self.mutex, self.conn:
-            self.conn.execute(sql, args)
+            ret = self.conn.execute(sql, args)
+
+        return ret.rowcount == 1
 
     def channel_get_unread_media(self, cid):
         cursor = self.conn.execute(
