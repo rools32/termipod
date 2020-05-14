@@ -694,7 +694,8 @@ class ItemArea:
             'add': (
                 'Add channel',
                 'add <url> [count=<max items>] [strict[=<0 or 1>]] '
-                '[auto[=<regex>]] [genre=<genre1,genre2>]'
+                '[auto[=<regex>]] [mask=<regex>] [genre=<genre1,genre2>] '
+                '[force[=<0|1]> [name=<new name>]'
             ),
             'channelDisable': (
                 'Disable selected channels',

@@ -25,7 +25,7 @@ class DataBase:
     def __init__(self, name, print_infos=print):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 4
+        self.version = 6
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -40,16 +40,16 @@ class DataBase:
                 self.conn.executescript("""
                     CREATE TABLE channels (
                         id INTEGER PRIMARY KEY AUTOINCREMENT,
-                        url TEXT NOT NULL UNIQUE,
+                        url TEXT NOT NULL,
                         title TEXT,
                         type TEXT,
                         genre TEXT,
                         auto INTEGER,
                         last_update INTEGER,
                         addcount INTEGER,
-                        disabled INTEGER
+                        disabled INTEGER,
+                        mask TEXT
                     );
-                    CREATE INDEX url ON channels (url);
                 """)
                 self.conn.executescript("""
                     CREATE TABLE media (
@@ -105,6 +105,47 @@ class DataBase:
                             ALTER TABLE media_tmp RENAME TO media;
                         """)
                         self.set_user_version(4)
+
+                if 4 == self.get_user_version():
+                    with self.conn:
+                        self.conn.execute(
+                            "ALTER TABLE channels ADD COLUMN 'mask' 'TEXT'")
+                        self.set_user_version(5)
+
+                if 5 == self.get_user_version():
+                    self.conn.execute(
+                        "DROP INDEX url;")
+                    # Remove unique constraint from channels table
+                    with self.conn:
+                        self.conn.executescript("""
+                            CREATE TABLE channels_tmp (
+                                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                                url TEXT NOT NULL,
+                                title TEXT,
+                                type TEXT,
+                                genre TEXT,
+                                auto INTEGER,
+                                last_update INTEGER,
+                                addcount INTEGER,
+                                disabled INTEGER,
+                                mask TEXT
+                            );
+                        """)
+                        self.conn.executescript("""
+                            INSERT INTO channels_tmp
+                                (id, url, title, type, genre, auto,
+                                last_update, addcount, disabled, mask)
+                                SELECT id, url, title, type, genre, auto,
+                                       last_update, addcount, disabled, mask
+                                       FROM channels;
+                        """)
+                        self.conn.executescript("""
+                            DROP TABLE channels;
+                        """)
+                        self.conn.executescript("""
+                            ALTER TABLE channels_tmp RENAME TO channels;
+                        """)
+                        self.set_user_version(6)
 
                 if self.version != self.get_user_version():
                     self.print_infos(
@@ -162,20 +203,18 @@ class DataBase:
         except KeyError:
             """ Get Channel by id (primary key) """
             cursor = self.conn.execute("SELECT * FROM channels WHERE id=?",
-                                (channel_id,))
+                                       (channel_id,))
             rows = cursor.fetchall()
             if 1 != len(rows):
                 return None
             return self.list_to_channel(rows[0])
 
-    # TODO XXX use when checking exists
-    def find_channel(self, url):
+    def find_channels(self, url):
         """ Get Channel by url """
-        cursor = self.conn.execute("SELECT * FROM channels WHERE url=?", (url,))
+        cursor = self.conn.execute(
+            "SELECT * FROM channels WHERE url=?", (url,))
         rows = cursor.fetchall()
-        if 1 != len(rows):
-            return None
-        return self.list_to_channel(rows[0])
+        return [self.list_to_channel(row) for row in rows]
 
     def select_channels(self):
         # if already called
@@ -198,6 +237,7 @@ class DataBase:
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])
         data['disabled'] = int(channel_list[8]) == 1
+        data['mask'] = channel_list[9]
 
         # Save it in self.channels
         if not data['id'] in self.channels:
@@ -211,7 +251,7 @@ class DataBase:
         return (channel['url'], channel['title'],
                 channel['type'], channel['genre'], channel['auto'],
                 channel['updated'], int(channel['addcount']),
-                int(channel['disabled']))
+                int(channel['disabled']), channel['mask'])
 
     def add_channel(self, data):
         channel = self.channel_to_list(data)
@@ -219,7 +259,7 @@ class DataBase:
         with self.mutex, self.conn:
             cursor = self.conn.execute(
                 'INSERT INTO channels (url, title, type, '
-                'genre, auto, last_update, addcount, disabled) '
+                'genre, auto, last_update, addcount, disabled, mask) '
                 'VALUES (%s)' % params, channel)
             cid = cursor.lastrowid
 

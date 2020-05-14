@@ -39,8 +39,9 @@ def main():
     parser.add_argument(
         '--add-opts', type=str, metavar='options',
         help="""Options given with key=value pair space separated string:
-                [count=<count>] [strict[=<0 or 1>]] [auto[=<regex>]]
-                [genre=<genre1,genre2>].
+                [count=<count>] [strict[=<0|1>]] [auto[=<regex>]]
+                [mask=<regex>] [genre=<genre1,genre2>] [force[=<0|1>]]
+                [name=<new name>]
         """)
     parser.add_argument(
         '--auto', type=str, nargs=2, metavar=('url', 'pattern'),

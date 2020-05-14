@@ -129,6 +129,10 @@ def get_feed_url(url):
 def get_data(source, opts, print_infos=print):
     new = 'update' not in opts or not opts['update']
 
+    mask = False
+    if 'mask' in opts and len(opts['mask']):
+        mask = opts['mask']
+
     if new:
         url = source
         start_date = 0
@@ -171,11 +175,18 @@ def get_data(source, opts, print_infos=print):
             data['title'] = title
 
             c = 0
+            i = 0
             for entry in info['entries']:
                 # Start from 'fromidx' element
-                if 'fromidx' in opts and c < opts['fromidx']:
-                    c += 1
+                if 'fromidx' in opts and i < opts['fromidx']:
+                    i += 1
                     continue
+
+                if mask:
+                    regex = re.compile(mask)
+                    if not regex.match(entry['title']):
+                        i += 1
+                        continue
 
                 if c != opts['count']:
                     if opts['count'] == -1:
@@ -212,6 +223,8 @@ def get_data(source, opts, print_infos=print):
 
                 if 'strict' in opts and opts['strict'] and c == opts['count']:
                     break
+
+                i += 1
 
         if opts['count'] == len(data['items']):
             data['addcount'] = opts['count']
@@ -250,6 +263,11 @@ def get_data(source, opts, print_infos=print):
             if medium['date'] < start_date:
                 overlap = True
                 break
+
+            if mask:
+                regex = re.compile(mask)
+                if not regex.match(medium['title']):
+                    continue
 
             # Get missing info
             update_medium(medium, print_infos)

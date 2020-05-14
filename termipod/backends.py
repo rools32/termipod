@@ -22,6 +22,7 @@ from time import sleep
 from queue import Queue
 from threading import Thread
 import subprocess
+import re
 
 import os.path
 
@@ -38,16 +39,29 @@ def get_all_data(url, opts, print_infos=print):
         data = rss.get_all_data(url, print_infos)
         data['addcount'] = -1
 
+    if 'mask' in opts and len(opts['mask']):
+        regex = re.compile(opts['mask'])
+        data['items'] = [medium for medium in data['items']
+                if regex.match(medium['title'])]
+
     return data
 
 
 def get_new_data(channel, opts, print_infos=print):
+    if 'mask' not in opts:
+        opts['mask'] = channel['mask']
+
     if channel['type'] == 'youtube':
         data = yt.get_new_data(channel, opts, print_infos)
 
     else:  # rss
         data = rss.get_new_data(channel, print_infos)
         data['addcount'] = -1
+
+    if len(channel['mask']):
+        regex = re.compile(channel['mask'])
+        data = [medium for medium in data
+                if regex.match(medium['title'])]
 
     return data
 

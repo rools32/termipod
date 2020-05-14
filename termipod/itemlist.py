@@ -239,6 +239,9 @@ class ItemList():
             'strict': 0,
             'auto': '',
             'genre': '',
+            'mask': '',
+            'force': False,
+            'name': ''
         }
 
         if sopts is not None and len(sopts):
@@ -246,27 +249,40 @@ class ItemList():
             if 'count' in uopts:
                 uopts['count'] = int(uopts['count'])
             if 'strict' in uopts:
-                if not len(uopts['strict']):
-                    uopts['strict'] = 1
-                else:
-                    uopts['strict'] = int(uopts['strict'])
+                uopts['strict'] = \
+                    1 if not uopts['strict'] else  \
+                    int(uopts['strict'])
             if 'auto' in uopts and not len(uopts['auto']):
                 uopts['auto'] = '.*'
+            if 'force' in uopts:
+                uopts['force'] = \
+                    1 if not uopts['force'] else  \
+                    int(uopts['force'])
 
             # Merge options
             opts.update(uopts)
 
-        self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
-
         # Check not already present in db
-        url = backends.get_clean_url(url)
-        channel = self.db.find_channel(url)
-        if channel is not None:
-            self.print_infos('"%s" already present (%s)' %
-                             (channel['url'], channel['title']))
+        cleanurl = backends.get_clean_url(url)
+        if not cleanurl:
+            self.print_infos(f'Unsupported address \"{url}\"')
             return False
 
-        thread = Thread(target=self.new_channel_task, args=(url, opts))
+        channels = self.db.find_channels(cleanurl)
+        channel_titles = [c['title'] for c in channels]
+        if channels:
+            if not opts['force'] \
+                    or not len(opts['name']) \
+                    or opts['name'] in channel_titles:
+                channel = channels[0]
+                self.print_infos(f'\"{channel["url"]}\" already present '
+                                 f'({channel["title"]}). '
+                                 'Use force=1 name=<new name>')
+                return False
+
+        self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
+
+        thread = Thread(target=self.new_channel_task, args=(cleanurl, opts))
         thread.daemon = True
         thread.start()
         if self.wait:
@@ -279,10 +295,14 @@ class ItemList():
         if data is None:
             return False
 
-        # Add channel to db
         data['genre'] = opts['genre']
         data['auto'] = opts['auto']
+        data['mask'] = opts['mask']
         data['disabled'] = 0
+        if opts['name']:
+            data['title'] = opts['name']
+
+        # Add channel to db
         media = self.db.add_channel(data)
 
         self.add_channels([data])
