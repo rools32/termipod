@@ -271,11 +271,11 @@ class DataBase:
                 self.channels[cid].update(data)
 
             # Update medium list
-            media = self.add_media(data, update=True, mutex=False)
+            media = self.add_media(data, new=True, mutex=False)
 
         return media
 
-    def add_media(self, data, update=False, mutex=True):
+    def add_media(self, data, new=False, mutex=True):
         cid = data['id']
 
         channel = self.get_channel(cid)
@@ -283,7 +283,7 @@ class DataBase:
             return None
 
         # Find out if feed has updates
-        if update:
+        if new:
             updated_date = -1
         else:
             updated_date = channel['updated']
@@ -292,6 +292,7 @@ class DataBase:
         new_entries = []
         if (feed_date > updated_date):  # new items
             # Filter feed to keep only new items
+            media_by_key = {}
             for medium in data['items']:
                 medium['cid'] = cid
                 medium['channel'] = self.channels[cid]
@@ -307,11 +308,23 @@ class DataBase:
                     if 'tags' not in medium:
                         medium['tags'] = ''
                     new_entry = self.medium_to_list(medium)
-                    cur = self.conn.execute(
-                        "SELECT url FROM media WHERE url = ? and cid = ?",
-                        (medium['link'], medium['cid'])
-                    )
-                    if cur.fetchone() is None:
+
+                    # Check medium was not already in db
+                    if new:
+                        not_found = True
+                    else:
+                        cur = self.conn.execute(
+                            "SELECT url FROM media WHERE url = ? and cid = ?",
+                            (medium['link'], medium['cid'])
+                        )
+                        not_found = cur.fetchone() is None
+
+                    if not_found:
+                        # Remove duplicates from playlist
+                        if (medium['link'], medium['cid']) in media_by_key:
+                            continue
+
+                        media_by_key[(medium['link'], medium['cid'])] = medium
                         new_entries.append(new_entry)
                         new_media.append(medium)
 
@@ -329,10 +342,10 @@ class DataBase:
                         self.update_channel(channel, mutex=False)
                     if mutex:
                         self.mutex.release()
-                except sqlite3.IntegrityError:
+                except sqlite3.IntegrityError as e:
                     self.print_infos(
-                        f'Cannot add media from {channel["title"]}: '
-                        'database error')
+                        f'Cannot add media from {channel["title"]}: '+str(e))
+                    return None
 
         return new_media
 

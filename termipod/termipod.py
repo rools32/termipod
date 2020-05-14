@@ -76,7 +76,9 @@ def main():
         item_list = ItemList(config, wait=True)
 
         if args.add:
-            item_list.new_channel(args.add, args.add_opts)
+            ret = item_list.new_channel(args.add, args.add_opts)
+            if not ret:
+                sys.exit(-1)
 
         if args.auto:
             url, auto = args.auto

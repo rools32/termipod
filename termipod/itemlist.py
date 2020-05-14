@@ -309,6 +309,8 @@ class ItemList():
 
         # Add channel to db
         media = self.db.add_channel(data)
+        if media is None:
+            return False
 
         self.add_channels([data])
         self.add_media(media)
