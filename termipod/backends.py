@@ -30,15 +30,25 @@ import termipod.yt as yt
 from termipod.utils import ts_to_date, str_to_filename
 
 
-def get_data(url, opts, print_infos=print, new=False):
-    if not url.startswith('http'):  # local file
-        data = rss.get_data(url, print_infos)
-        data['addcount'] = -1
-    elif 'youtube' in url:
-        data = yt.get_data(url, opts, print_infos, new)
+def get_all_data(url, opts, print_infos=print):
+    if 'youtube' in url:
+        data = yt.get_all_data(url, opts, print_infos)
+
     else:
-        data = rss.get_data(url, print_infos)
+        data = rss.get_all_data(url, print_infos)
         data['addcount'] = -1
+
+    return data
+
+
+def get_new_data(channel, opts, print_infos=print):
+    if channel['type'] == 'youtube':
+        data = yt.get_new_data(channel, opts, print_infos)
+
+    else:  # rss
+        data = rss.get_new_data(channel, print_infos)
+        data['addcount'] = -1
+
     return data
 
 

@@ -187,14 +187,23 @@ class ItemList():
             indices = [indices]
 
         media = []
+        nfailed = 0
+        i = 1
         for idx in indices:
+            self.print_infos(f'Update media {i}/{len(indices)}...')
             medium = self.media[idx]
             if medium['duration'] == 0:
                 if backends.update_medium(medium, self.print_infos):
-                    self.db.update_medium(medium)
+                    if not self.db.update_medium(medium):
+                        nfailed += 1
+                        continue
                     media.append(medium)
+            i += 1
 
         self.update_medium_areas(modified_media=media)
+        self.print_infos(
+            'Update media done' +
+            f' ({nfailed} failed)' if nfailed else '')
 
     def remove(self, idx=None, medium=None, unlink=True):
         if idx:
@@ -265,7 +274,7 @@ class ItemList():
 
     def new_channel_task(self, url, opts):
         # Retrieve url feed
-        data = backends.get_data(url, opts, self.print_infos, True)
+        data = backends.get_all_data(url, opts, self.print_infos)
 
         if data is None:
             return False
@@ -356,15 +365,13 @@ class ItemList():
 
         need_to_wait = False
         for i, channel in enumerate(channels):
-            self.print_infos('Update channel %s (%d/%d)...' %
-                             (channel['title'], i+1, len(channels)))
+            self.print_infos(f'Update channel {i+1}/{len(channels)} '
+                             f'({channel["title"]})...')
 
-            data = backends.get_data(channel['url'], self.print_infos)
+            opts = {}
+            data = backends.get_new_data(channel, opts, self.print_infos)
+
             data['id'] = channel['id']
-
-            if data is None:
-                continue
-
             new_media = self.db.add_media(data)
             if not new_media:
                 continue

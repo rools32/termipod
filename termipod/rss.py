@@ -23,6 +23,15 @@ import feedparser as fp
 from termipod.utils import printable_str
 
 
+def get_all_data(url, opts, print_infos=print):
+    return get_data(url, print_infos)
+
+
+def get_new_data(channel, opts, print_infos=print):
+    url = channel['url']
+    return get_data(url, print_infos)
+
+
 def get_data(url, print_infos=print):
     # to avoid using request_headers in fp.parse
     # we use urlopen

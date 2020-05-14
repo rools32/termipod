@@ -116,9 +116,33 @@ def get_title(url):
     return re.sub(r'Uploads from ', '', title)
 
 
-def get_data(url, opts, print_infos=print, new=False):
-    # If first add, we use ytdl to get old media
+def get_feed_url(url):
+    feed_url = re.sub("/featured$|/videos$|/$", "", url)
+    feed_url = feed_url.replace('/channel/',
+                                '/feeds/videos.xml?channel_id=')
+    feed_url = feed_url.replace('/user/', '/feeds/videos.xml?user=')
+    feed_url = feed_url.replace('/playlist?list=',
+                                '/feeds/videos.xml?playlist_id=')
+    return feed_url
+
+
+def get_data(source, opts, print_infos=print):
+    new = 'update' not in opts or not opts['update']
+
     if new:
+        url = source
+        start_date = 0
+        method = 'ytdl'
+    else:
+        channel = source
+        url = channel['url']
+        # NOTE: cannot use daterange from ytdl, it won't change extract_info
+        # (only for downloading)
+        start_date = channel['updated']
+        method = opts['update_method']
+        opts['count'] = -1
+
+    if method == 'ytdl':
         title = None
         ydl_opts = {'logger': DataLogger(print_infos, url),
                     'ignoreerrors': True}
@@ -148,6 +172,11 @@ def get_data(url, opts, print_infos=print, new=False):
 
             c = 0
             for entry in info['entries']:
+                # Start from 'fromidx' element
+                if 'fromidx' in opts and c < opts['fromidx']:
+                    c += 1
+                    continue
+
                 if c != opts['count']:
                     if opts['count'] == -1:
                         print_infos(
@@ -165,6 +194,13 @@ def get_data(url, opts, print_infos=print, new=False):
                     entry['description'] = vidinfo['description']
                     c += 1
 
+                    # If update, check not before last update
+                    if start_date:
+                        entry_timestamp = int(mktime(datetime.strptime(
+                            entry['upload_date'], "%Y%m%d").timetuple()))
+                        if entry_timestamp < start_date:
+                            break
+
                 else:
                     entry['upload_date'] = '19700102'
                     entry['duration'] = 0
@@ -174,7 +210,7 @@ def get_data(url, opts, print_infos=print, new=False):
                 medium['channel'] = title
                 data['items'].append(medium)
 
-                if opts['strict'] and c == opts['count']:
+                if 'strict' in opts and opts['strict'] and c == opts['count']:
                     break
 
         if opts['count'] == len(data['items']):
@@ -182,20 +218,12 @@ def get_data(url, opts, print_infos=print, new=False):
         else:
             data['addcount'] = -1
 
-        return data
-
     else:
-        feed_url = re.sub("/featured$|/videos$|/$", "", url)
-        feed_url = feed_url.replace('/channel/',
-                                    '/feeds/videos.xml?channel_id=')
-        feed_url = feed_url.replace('/user/', '/feeds/videos.xml?user=')
-        feed_url = feed_url.replace('/playlist?list=',
-                                    '/feeds/videos.xml?playlist_id=')
+        feed_url = get_feed_url(url)
         rss = fp.parse(feed_url)
-
         feed = rss.feed
         if not feed:
-            print_infos('Cannot load '+feed_url)
+            print_infos(f'Cannot load {feed_url}')
             return None
 
         data = {}
@@ -206,6 +234,7 @@ def get_data(url, opts, print_infos=print, new=False):
         updated = 0
         data['items'] = []
         entries = rss.entries
+        overlap = False
         for entry in entries:
             medium = {}
             medium['channel'] = data['title']
@@ -213,15 +242,43 @@ def get_data(url, opts, print_infos=print, new=False):
             medium['title'] = printable_str(entry['title'])
             medium['date'] = int(mktime(entry['published_parsed']))
             medium['description'] = entry['description']
-            medium['link'] = entry['link']
+            medium['link'] = entry['yt_videoid']
+
             updated = max(updated, medium['date'])
+
+            # If too old, break
+            if medium['date'] < start_date:
+                overlap = True
+                break
+
+            # Get missing info
+            update_medium(medium, print_infos)
+
             data['items'].append(medium)
+
+        # If last item is too recent compared to last update, we need ytdl
+        if not overlap:
+            opts['fromidx'] = len(entries)
+            opts['update_method'] = 'ytdl'
+            ytdl_data = get_new_data(channel, opts, print_infos)
+            data['items'].extend(ytdl_data['items'])
 
         # Published parsed is the date of creation of the channel, so we take
         # the one from entries
         data['updated'] = updated
 
-        return data
+    return data
+
+
+def get_all_data(url, opts, print_infos=print):
+    return get_data(url, opts, print_infos)
+
+
+def get_new_data(channel, opts, print_infos=print):
+    opts['update'] = True
+    if 'update_method' not in opts:
+        opts['update_method'] = 'rss'
+    return get_data(channel, opts, print_infos)
 
 
 def medium_from_ytdl(data):
@@ -237,12 +294,16 @@ def medium_from_ytdl(data):
     return medium
 
 
-def update_medium(medium, print_infos=print):
-    ydl_opts = {'logger': MediumDataLogger(print_infos, medium['title']),
+def get_medium_data(url, title, print_infos=print):
+    ydl_opts = {'logger': MediumDataLogger(print_infos, title),
                 'ignoreerrors': True}
     with ytdl.YoutubeDL(ydl_opts) as ydl:
-        url = medium['link']
         data = ydl.extract_info(url, download=False, process=False)
+    return data
+
+
+def update_medium(medium, print_infos=print):
+    data = get_medium_data(medium['link'], medium['title'], print_infos)
     if data is None:
         return False
 
