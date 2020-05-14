@@ -116,7 +116,7 @@ class DownloadManager():
 
         for medium in self.item_list.media:
             if 'download' == medium['location']:
-                channel = self.item_list.db.get_channel(medium['url'])
+                channel = self.item_list.db.get_channel(medium['link'])
                 self.add(medium, channel, update=False)
         if self.wait:
             self.wait_done()
