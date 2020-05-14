@@ -239,7 +239,7 @@ class ItemList():
             'count': -1,
             'strict': 0,
             'auto': '',
-            'category': '',
+            'categories': '',
             'mask': '',
             'force': False,
             'name': ''
@@ -301,7 +301,7 @@ class ItemList():
         if data is None:
             return False
 
-        data['category'] = opts['category']
+        data['categories'] = opts['categories']
         data['auto'] = opts['auto']
         data['mask'] = opts['mask']
         data['disabled'] = 0
@@ -317,6 +317,13 @@ class ItemList():
         self.add_media(media)
 
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
+
+    def medium_idx_to_object(self, idx):
+        return self.media[idx]
+
+    def medium_idx_to_objects(self, idx):
+        medium = [self.medium_idx_to_object(c) for c in idx]
+        return [c for c in medium if c is not None]
 
     def channel_id_to_object(self, origin, channel_id):  # TODO XXX oops
         if origin == 'ui':
@@ -357,20 +364,29 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def channel_set_category(self, origin, channel_ids, category):
+    def channel_set_categories(self, origin, channel_ids, categories,
+                               add=True):
         for channel_id in channel_ids:
             channel = self.channel_id_to_object(origin, channel_id)
             title = channel['title']
 
-            if not len(channel['category']):
-                old_categories = []
+            if add:
+                original = set(channel['categories'])
+                channel['categories'] = original | set(categories)
+                new = channel['categories']-original
+                channel['categories'] = list(channel['categories'])
+                if new:
+                    category_str = ', '.join(new)
+                    self.print_infos('Add %s for channel %s' %
+                                     (category_str, title))
+                    self.db.update_channel(channel)
+
             else:
-                old_categories = channel['category'].split(',')
-            if category not in old_categories:
-                categories = set(old_categories+[category])
-                channel['category'] = ','.join(categories)
-                self.print_infos('Add %s for channel %s' % (category, title))
-            self.db.update_channel(channel)
+                categories = list(set(categories))
+                channel['categories'] = categories
+                category_str = ', '.join(categories)
+                self.print_infos('Set %s for channel %s' % (categories, title))
+                self.db.update_channel(channel)
 
         self.update_channel_areas()
 

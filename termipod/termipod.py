@@ -40,7 +40,7 @@ def main():
         '--add-opts', type=str, metavar='options',
         help="""Options given with key=value pair space separated string:
                 [count=<count>] [strict[=<0|1>]] [auto[=<regex>]]
-                [mask=<regex>] [category=<category,category>] [force[=<0|1>]]
+                [mask=<regex>] [categories=<category,category>] [force[=<0|1>]]
                 [name=<new name>]
         """)
     parser.add_argument(

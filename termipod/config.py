@@ -83,6 +83,7 @@ default_keymaps = [
     ('media', 'U', 'medium_update'),
     ('media', 's', 'medium_sort'),
     ('media', 'c', 'channel_filter'),
+    ('media', 'e', 'category_filter'),
     ('media', 'f', 'state_filter'),
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
 

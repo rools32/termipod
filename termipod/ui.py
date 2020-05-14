@@ -224,7 +224,28 @@ class UI():
                 self.item_list.remove(idx)
 
             elif 'channel_filter' == action:
-                tabs.channel_filter_switch()
+                tabs.filter_by_channels()
+
+            elif 'category_filter' == action:
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.medium_idx_to_objects(sel)
+                channels = [medium['channel'] for medium in media]
+                if channels:
+                    categories = set(channels[0]['categories'])
+                    for c in channels[1:]:
+                        categories &= set(c['categories'])
+                    init = ', '.join(list(categories))
+                else:
+                    init = ''
+
+                category_str = self.status_area.run_command('categories: ',
+                                                            init=init)
+                if not category_str:
+                    categories = None
+                else:
+                    categories = category_str.split(', ')
+
+                tabs.filter_by_categories(categories=categories)
 
             elif 'medium_sort' == action:
                 tabs.sort_switch()
@@ -289,12 +310,34 @@ class UI():
                 channels = [self.item_list.channels[s] for s in sel]
                 if channels:
                     tabs.show_tab('remote')
-                    tabs.channel_filter_switch(channels)
+                    tabs.filter_by_channels(channels)
 
             elif 'channel_category' == action:
-                category = self.status_area.run_command('category: ')
                 sel = self.get_user_selection(idx, area)
-                self.item_list.channel_set_category('ui', sel, category)
+                channels = self.item_list.channel_ids_to_objects('ui', sel)
+                same_categories = True
+                cats = set(channels[0]['categories'])
+                for c in channels[1:]:
+                    if set(c['categories']) != cats:
+                        same_categories = False
+                        break
+
+                # If same categories, we edit them
+                if same_categories:
+                    add = False
+                    text = 'Comma separated categories: '
+                    init = ', '.join(list(cats))
+
+                # If not, we add categories
+                else:
+                    add = True
+                    text = 'Comma separated new categories: '
+                    init = ''
+
+                category_str = self.status_area.run_command(text, init=init)
+                categories = category_str.split(', ')
+                self.item_list.channel_set_categories('ui', sel, categories,
+                                                      add=add)
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
@@ -383,9 +426,13 @@ class Tabs:
         area = self.get_current_area()
         area.highlight(search_string)
 
-    def channel_filter_switch(self, channels=[]):
+    def filter_by_channels(self, channels=None):
         area = self.get_current_area()
-        area.channel_filter_switch(channels)
+        area.filter_by_channels(channels)
+
+    def filter_by_categories(self, categories=None):
+        area = self.get_current_area()
+        area.filter_by_categories(categories)
 
     def sort_switch(self):
         area = self.get_current_area()
@@ -594,6 +641,8 @@ class ItemArea:
             return None
 
     def get_current_item(self):
+        if self.get_idx() is None:
+            return None
         return self.items[self.get_idx()]
 
     def get_current_line(self):
@@ -699,7 +748,7 @@ class ItemArea:
                 'Add channel',
                 'add <url> [count=<max items>] [strict[=<0 or 1>]] '
                 '[auto[=<regex>]] [mask=<regex>] '
-                '[category=<category1,category2>] '
+                '[categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
             ),
             'channelDisable': (
@@ -869,7 +918,11 @@ class MediumArea(ItemArea):
         self.location = location
         self.state = 'unread'
         self.key_class = 'media_'+location
-        self.channel_filter = []
+        self.filters = {
+            'channels': None,
+            'categories': None,
+            'tags': None,
+        }
 
         super().__init__(screen, items, location, name, title_area,
                          print_infos)
@@ -887,11 +940,11 @@ class MediumArea(ItemArea):
         line = self.get_current_line()
         return self.extract_channel_name(line)
 
-    def channel_filter_switch(self, channels=[]):
-        if not channels and self.channel_filter:
-            self.channel_filter = []
+    def filter_by_channels(self, channels=None):
+        if channels is None and self.filters['channels']:
+            self.filters['channels'] = None
         else:
-            if not channels:
+            if channels is None:
                 if not self.user_selection:
                     medium = self.get_current_item()
                     channel_titles = [medium['channel']['title']]
@@ -899,10 +952,35 @@ class MediumArea(ItemArea):
                 else:
                     media = [self.items[i] for i in self.user_selection]
                     channel_titles = [m['channel']['title'] for m in media]
-                self.channel_filter = list(set(channel_titles))
+
+                self.filters['channels'] = list(set(channel_titles))
 
             else:
-                self.channel_filter = list(set([c['title'] for c in channels]))
+                self.filters['channels'] = \
+                    list(set([c['title'] for c in channels]))
+
+        # Update screen
+        self.reset_contents()
+
+    def filter_by_categories(self, categories=None):
+        if categories is None and self.filters['categories']:
+            self.filters['categories'] = None
+        else:
+            if categories is None:
+                if not self.user_selection:
+                    medium = self.get_current_item()
+                    channel_categories = \
+                        medium['channel']['categories']
+
+                else:
+                    media = [self.items[i] for i in self.user_selection]
+                    channel_categories = [m['channel']['categories']
+                                          for m in media]
+
+                self.filters['categories'] = list(set(channel_categories))
+
+            else:
+                self.filters['categories'] = categories
 
         # Update screen
         self.reset_contents()
@@ -921,11 +999,22 @@ class MediumArea(ItemArea):
         other_items = []
         for item in new_items:
             match = True
-            if self.channel_filter and \
-                    item['channel']['title'] not in self.channel_filter:
+            if self.filters['channels'] is not None and \
+                    item['channel']['title'] not in self.filters['channels']:
                 match = False
+
+            elif self.filters['categories'] is not None and \
+                    set(self.filters['categories']) - \
+                    set(item['channel']['categories']):
+                match = False
+
+            elif self.filters['tags'] is not None and \
+                    item['tags'] not in self.filters['tags']:
+                match = False
+
             elif self.location != item['location']:
                 match = False
+
             elif 'all' != self.state and self.state != item['state']:
                 match = False
 
@@ -1002,7 +1091,7 @@ class ChannelArea(ItemArea):
             string += separator
             string += '%d/%d' % (len(unread_elements), len(total_elements))
             string += separator
-            string += channel['category']
+            string += ', '.join(channel['categories'])
             string += separator
             string += channel['auto']
             string += separator
@@ -1013,12 +1102,14 @@ class ChannelArea(ItemArea):
             formatted_item['updated'] = date
             formatted_item['unread'] = len(unread_elements)
             formatted_item['total'] = len(total_elements)
+            formatted_item['categories'] = \
+                ', '.join(formatted_item['categories'])
             if channel['addcount'] == -1:
                 formatted_item['added items at creation'] = 'all'
             else:
                 formatted_item['added items at creation'] = \
                     f'{channel["addcount"]} (incomplete)'
-            fields = ['title', 'type', 'updated', 'url', 'category',
+            fields = ['title', 'type', 'updated', 'url', 'categories',
                       'auto', 'added items at creation', 'unread', 'total']
             string = []
             for f in fields:

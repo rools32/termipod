@@ -155,7 +155,8 @@ class DataBase:
         data['url'] = channel_list[1]
         data['title'] = channel_list[2]
         data['type'] = channel_list[3]
-        data['category'] = channel_list[4]
+        data['categories'] = \
+            channel_list[4].split(', ') if channel_list[4] else []
         data['auto'] = channel_list[5]
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])
@@ -171,8 +172,9 @@ class DataBase:
         return data
 
     def channel_to_list(self, channel):
+        category_str = ', '.join(channel['categories'])
         return (channel['url'], channel['title'],
-                channel['type'], channel['category'], channel['auto'],
+                channel['type'], category_str, channel['auto'],
                 channel['updated'], int(channel['addcount']),
                 int(channel['disabled']), channel['mask'])
 
@@ -285,7 +287,7 @@ class DataBase:
         args = (
                 channel['title'],
                 channel['type'],
-                channel['category'],
+                ', '.join(channel['categories']),
                 channel['auto'],
                 channel['updated'],
                 channel['addcount'],

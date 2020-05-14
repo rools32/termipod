@@ -127,6 +127,7 @@ descriptions = {
         'medium_update': 'Update media',
         'medium_sort': 'Change media sorting (date+name, duration)',
         'channel_filter': 'Filter same channel',
+        'category_filter': 'Filter same category',
         'state_filter': 'Change panel state view (read, unread, skipped...)',
         'infos': 'Show information',
         'description': 'Show description',
