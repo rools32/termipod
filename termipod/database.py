@@ -323,7 +323,7 @@ class DataBase:
         args = (
             medium['duration'], medium['date'], medium['location'],
             medium['state'], medium['filename'], medium['tags'],
-            medium['id'], medium['cid']
+            medium['link'], medium['cid']
         )
         with self.mutex, self.conn:
             ret = self.conn.execute(sql, args)
