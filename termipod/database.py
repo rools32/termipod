@@ -266,8 +266,14 @@ class DataBase:
                         medium['filename'] = ''
                     if 'tags' not in medium:
                         medium['tags'] = ''
-                    new_entries.append(self.medium_to_list(medium))
-                    new_media.append(medium)
+                    new_entry = self.medium_to_list(medium)
+                    cur = self.conn.execute(
+                        "SELECT url FROM media WHERE url = ? and cid = ?",
+                        (medium['link'], medium['cid'])
+                    )
+                    if cur.fetchone() is None:
+                        new_entries.append(new_entry)
+                        new_media.append(medium)
 
             # Add new items to database
             if new_entries:
