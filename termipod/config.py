@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -93,7 +93,7 @@ default_keymaps = [
     ('channels', 'a', 'channel_auto'),
     ('channels', 'A', 'channel_auto_custom'),
     ('channels', '\n', 'channel_show_media'),
-    ('channels', 't', 'channel_genre'),
+    ('channels', 't', 'channel_category'),
 ]
 
 

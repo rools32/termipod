@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -42,7 +42,7 @@ def get_all_data(url, opts, print_infos=print):
     if 'mask' in opts and len(opts['mask']):
         regex = re.compile(opts['mask'])
         data['items'] = [medium for medium in data['items']
-                if regex.match(medium['title'])]
+                         if regex.match(medium['title'])]
 
     return data
 

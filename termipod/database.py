@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -20,12 +20,14 @@ import sqlite3
 import sys
 from multiprocessing import Lock
 
+from termipod.database_update import update_version, get_user_version
+
 
 class DataBase:
-    def __init__(self, name, print_infos=print):
+    def __init__(self, name, updatedb=False, print_infos=print):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 6
+        self.version = 7
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -43,7 +45,7 @@ class DataBase:
                         url TEXT NOT NULL,
                         title TEXT,
                         type TEXT,
-                        genre TEXT,
+                        category TEXT,
                         auto INTEGER,
                         last_update INTEGER,
                         addcount INTEGER,
@@ -69,97 +71,18 @@ class DataBase:
                 self.set_user_version(self.version)
 
         else:
-            if self.version != self.get_user_version():
-                # Update db from 3 to 4
-                if 3 == self.get_user_version():
-                    # Change primary key of media table
-                    with self.conn:
-                        self.conn.executescript("""
-                            CREATE TABLE media_tmp (
-                                url TEXT,
-                                cid INTEGER,
-                                title TEXT,
-                                date INTEGER,
-                                duration INTEGER,
-                                location TEXT,
-                                state TEXT,
-                                filename TEXT,
-                                tags TEXT,
-                                description TEXT,
-                                PRIMARY KEY (url, cid)
-                            );
-                        """)
-                        self.conn.executescript("""
-                            INSERT INTO media_tmp
-                                (url, cid, title, date, duration, location,
-                                 state, filename, tags, description)
-                                SELECT url, cid, title, date, duration,
-                                       location, state, filename, tags,
-                                       description
-                                       FROM media;
-                        """)
-                        self.conn.executescript("""
-                            DROP TABLE media;
-                        """)
-                        self.conn.executescript("""
-                            ALTER TABLE media_tmp RENAME TO media;
-                        """)
-                        self.set_user_version(4)
-
-                if 4 == self.get_user_version():
-                    with self.conn:
-                        self.conn.execute(
-                            "ALTER TABLE channels ADD COLUMN 'mask' 'TEXT'")
-                        self.set_user_version(5)
-
-                if 5 == self.get_user_version():
-                    self.conn.execute(
-                        "DROP INDEX url;")
-                    # Remove unique constraint from channels table
-                    with self.conn:
-                        self.conn.executescript("""
-                            CREATE TABLE channels_tmp (
-                                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                                url TEXT NOT NULL,
-                                title TEXT,
-                                type TEXT,
-                                genre TEXT,
-                                auto INTEGER,
-                                last_update INTEGER,
-                                addcount INTEGER,
-                                disabled INTEGER,
-                                mask TEXT
-                            );
-                        """)
-                        self.conn.executescript("""
-                            INSERT INTO channels_tmp
-                                (id, url, title, type, genre, auto,
-                                last_update, addcount, disabled, mask)
-                                SELECT id, url, title, type, genre, auto,
-                                       last_update, addcount, disabled, mask
-                                       FROM channels;
-                        """)
-                        self.conn.executescript("""
-                            DROP TABLE channels;
-                        """)
-                        self.conn.executescript("""
-                            ALTER TABLE channels_tmp RENAME TO channels;
-                        """)
-                        self.set_user_version(6)
-
-                if self.version != self.get_user_version():
+            if self.version != get_user_version(self.conn):
+                if not updatedb:
                     self.print_infos(
-                        'Database is version "%d" but "%d" needed: '
-                        'please update' %
-                        (self.get_user_version(), self.version))
+                        'We need to update your database, please make a '
+                        'backup and rerun with "--updatedb"')
                     exit(1)
-
-    def get_user_version(self):
-        cursor = self.conn.execute('PRAGMA user_version')
-        return cursor.fetchone()[0]
-
-    def set_user_version(self, version):
-        self.conn.execute('PRAGMA user_version={:d}'.format(version))
+                if update_version(self.conn, self.version):
+                    self.print_infos('Database migrated!')
+                else:
+                    self.print_infos(
+                        'Database migration failed, please report the issue.')
+                    exit(1)
 
     def select_media(self):
         cursor = self.conn.execute("""SELECT * FROM media
@@ -232,7 +155,7 @@ class DataBase:
         data['url'] = channel_list[1]
         data['title'] = channel_list[2]
         data['type'] = channel_list[3]
-        data['genre'] = channel_list[4]
+        data['category'] = channel_list[4]
         data['auto'] = channel_list[5]
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])
@@ -249,7 +172,7 @@ class DataBase:
 
     def channel_to_list(self, channel):
         return (channel['url'], channel['title'],
-                channel['type'], channel['genre'], channel['auto'],
+                channel['type'], channel['category'], channel['auto'],
                 channel['updated'], int(channel['addcount']),
                 int(channel['disabled']), channel['mask'])
 
@@ -259,7 +182,7 @@ class DataBase:
         with self.mutex, self.conn:
             cursor = self.conn.execute(
                 'INSERT INTO channels (url, title, type, '
-                'genre, auto, last_update, addcount, disabled, mask) '
+                'category, auto, last_update, addcount, disabled, mask) '
                 'VALUES (%s)' % params, channel)
             cid = cursor.lastrowid
 
@@ -353,7 +276,7 @@ class DataBase:
         sql = """UPDATE channels
                     SET title = ?,
                         type = ?,
-                        genre = ?,
+                        category = ?,
                         auto = ?,
                         last_update = ?,
                         addcount = ?,
@@ -362,7 +285,7 @@ class DataBase:
         args = (
                 channel['title'],
                 channel['type'],
-                channel['genre'],
+                channel['category'],
                 channel['auto'],
                 channel['updated'],
                 channel['addcount'],

@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -46,7 +46,7 @@ class UI():
         self.keymap = Keymap(config)
 
         self.status_area = StatusArea(screen)
-        self.item_list = ItemList(config, self.print_infos)
+        self.item_list = ItemList(config, print_infos=self.print_infos)
 
         tabs = Tabs(screen, self.item_list, self.print_infos)
 
@@ -291,10 +291,10 @@ class UI():
                     tabs.show_tab('remote')
                     tabs.channel_filter_switch(channels)
 
-            elif 'channel_genre' == action:
-                genre = self.status_area.run_command('genre: ')
+            elif 'channel_category' == action:
+                category = self.status_area.run_command('category: ')
                 sel = self.get_user_selection(idx, area)
-                self.item_list.channel_set_genre('ui', sel, genre)
+                self.item_list.channel_set_category('ui', sel, category)
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
@@ -698,7 +698,8 @@ class ItemArea:
             'add': (
                 'Add channel',
                 'add <url> [count=<max items>] [strict[=<0 or 1>]] '
-                '[auto[=<regex>]] [mask=<regex>] [genre=<genre1,genre2>] '
+                '[auto[=<regex>]] [mask=<regex>] '
+                '[category=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
             ),
             'channelDisable': (
@@ -1001,7 +1002,7 @@ class ChannelArea(ItemArea):
             string += separator
             string += '%d/%d' % (len(unread_elements), len(total_elements))
             string += separator
-            string += channel['genre']
+            string += channel['category']
             string += separator
             string += channel['auto']
             string += separator
@@ -1017,7 +1018,7 @@ class ChannelArea(ItemArea):
             else:
                 formatted_item['added items at creation'] = \
                     f'{channel["addcount"]} (incomplete)'
-            fields = ['title', 'type', 'updated', 'url', 'genre',
+            fields = ['title', 'type', 'updated', 'url', 'category',
                       'auto', 'added items at creation', 'unread', 'total']
             string = []
             for f in fields:

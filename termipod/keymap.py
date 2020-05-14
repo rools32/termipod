@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -136,5 +136,5 @@ descriptions = {
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',
         'channel_show_media': 'Show media of channel',
-        'channel_genre': 'Add genre to channel',
+        'channel_category': 'Add category to channel',
 }

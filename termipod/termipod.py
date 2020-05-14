@@ -2,7 +2,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -40,7 +40,7 @@ def main():
         '--add-opts', type=str, metavar='options',
         help="""Options given with key=value pair space separated string:
                 [count=<count>] [strict[=<0|1>]] [auto[=<regex>]]
-                [mask=<regex>] [genre=<genre1,genre2>] [force[=<0|1>]]
+                [mask=<regex>] [category=<category,category>] [force[=<0|1>]]
                 [name=<new name>]
         """)
     parser.add_argument(
@@ -60,6 +60,8 @@ def main():
         const=True, metavar='filename',
         help='Export channel list (url and name, one channel by line). '
              'Argument can be followed by filename')
+    parser.add_argument('--updatedb', action='store_true',
+                        help='Update old database')
     args = parser.parse_args()
 
     # Init configuration
@@ -73,7 +75,8 @@ def main():
         UI(config)
 
     else:
-        item_list = ItemList(config, wait=True)
+        updatedb = True if args.updatedb else False
+        item_list = ItemList(config, wait=True, updatedb=updatedb)
 
         if args.add:
             ret = item_list.new_channel(args.add, args.add_opts)

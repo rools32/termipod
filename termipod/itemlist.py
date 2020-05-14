@@ -1,7 +1,7 @@
 # -*- coding: utf-8 -*-
 #
 # termipod
-# Copyright (c) 2018 Cyril Bordage
+# Copyright (c) 2020 Cyril Bordage
 #
 # termipod is free software; you can redistribute it and/or modify
 # it under the terms of the GNU General Public License as published by
@@ -29,10 +29,11 @@ from termipod.utils import options_string_to_dict
 
 
 class ItemList():
-    def __init__(self, config, print_infos=print, wait=False):
+    def __init__(self, config, print_infos=print, wait=False, updatedb=False):
         self.db_name = config.db_path
         self.wait = wait
-        self.db = DataBase(self.db_name, print_infos)
+        self.db = DataBase(
+            self.db_name, updatedb=updatedb, print_infos=print_infos)
         self.print_infos = print_infos
         self.medium_areas = []
         self.channel_areas = []
@@ -127,7 +128,7 @@ class ItemList():
 
     def update_channel_areas(self):
         for area in self.channel_areas:
-                area.reset_contents()
+            area.reset_contents()
 
     def add(self, medium):
         self.media.append(medium)
@@ -238,7 +239,7 @@ class ItemList():
             'count': -1,
             'strict': 0,
             'auto': '',
-            'genre': '',
+            'category': '',
             'mask': '',
             'force': False,
             'name': ''
@@ -300,7 +301,7 @@ class ItemList():
         if data is None:
             return False
 
-        data['genre'] = opts['genre']
+        data['category'] = opts['category']
         data['auto'] = opts['auto']
         data['mask'] = opts['mask']
         data['disabled'] = 0
@@ -356,19 +357,19 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def channel_set_genre(self, origin, channel_ids, genre):
+    def channel_set_category(self, origin, channel_ids, category):
         for channel_id in channel_ids:
             channel = self.channel_id_to_object(origin, channel_id)
             title = channel['title']
 
-            if not len(channel['genre']):
-                old_genres = []
+            if not len(channel['category']):
+                old_categories = []
             else:
-                old_genres = channel['genre'].split(',')
-            if genre not in old_genres:
-                genres = set(old_genres+[genre])
-                channel['genre'] = ','.join(genres)
-                self.print_infos('Add %s for channel %s' % (genre, title))
+                old_categories = channel['category'].split(',')
+            if category not in old_categories:
+                categories = set(old_categories+[category])
+                channel['category'] = ','.join(categories)
+                self.print_infos('Add %s for channel %s' % (category, title))
             self.db.update_channel(channel)
 
         self.update_channel_areas()
