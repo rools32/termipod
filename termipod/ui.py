@@ -121,7 +121,11 @@ class UI():
             elif 'command_get' == action:
                 string = self.status_area.run_command(':')
                 string = string.strip()
-                command = shlex.split(string)
+                try:
+                    command = shlex.split(string)
+                except ValueError as e:
+                    self.print_infos(f'Error in command: {e}')
+                    continue
 
                 if not command:
                     self.print_infos('No command to run')

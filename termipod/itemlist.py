@@ -245,7 +245,12 @@ class ItemList():
         }
 
         if sopts is not None and len(sopts):
-            uopts = options_string_to_dict(sopts)
+            try:
+                uopts = options_string_to_dict(sopts, opts.keys())
+            except ValueError as e:
+                self.print_infos(e)
+                return False
+
             if 'count' in uopts:
                 uopts['count'] = int(uopts['count'])
             if 'strict' in uopts:

@@ -109,7 +109,18 @@ def format_string(string, width, truncate=True):
         return strings
 
 
-def options_string_to_dict(string):
+def options_string_to_dict(string, keys):
     sopts = shlex.split(string)
     sopts = [o if '=' in o else o+'=' for o in sopts]
-    return dict(item.split("=", 1) for item in sopts)
+    options = dict(item.split("=", 1) for item in sopts)
+
+    # Check no extra option
+    additional_options = options.keys()-keys
+    if additional_options:
+        optstr = ', '.join(additional_options)
+        if len(additional_options) == 1:
+            raise ValueError(f'Unknown option \"{optstr}\"')
+        else:
+            raise ValueError(f'Unknown options: {optstr}')
+
+    return options
