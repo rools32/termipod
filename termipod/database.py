@@ -53,7 +53,7 @@ class DataBase:
                 """)
                 self.conn.executescript("""
                     CREATE TABLE media (
-                        url TEXT PRIMARY KEY,
+                        url TEXT,
                         cid INTEGER,
                         title TEXT,
                         date INTEGER,
