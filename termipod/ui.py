@@ -1085,19 +1085,28 @@ class StatusArea:
         except curses.error:
             pass
 
-    def run_command(self, prefix):
-        self.print(prefix)
-        tb = curses.textpad.Textbox(self.win, insert_mode=True)
+    def run_command(self, prefix, init=''):
+        self.print(prefix+init)
+        y, x = curses.getsyx()
+        start = x-len(init)
+
         curses.curs_set(1)  # enable cursor
-        string = tb.edit(self.run_command_intercept_key)
-        string = string[:-1]  # remove last char
+        tb = curses.textpad.Textbox(self.win, insert_mode=True)
+        tb.stripspaces = True
+
+        string = tb.edit(
+            lambda k: self.run_command_intercept_key(k, start))
         if string.startswith(prefix):
             string = string[len(prefix):]  # remove prefix
+        string = string.strip()  # remove last char
         curses.curs_set(0)  # disable cursor
         return string
 
-    def run_command_intercept_key(self, key):
+    def run_command_intercept_key(self, key, start):
         if curses.keyname(key) == b'^?':
+            y, x = curses.getsyx()
+            if x == start:
+                return None
             key = curses.KEY_BACKSPACE
         elif curses.keyname(key) == b'^I':
             # TODO handle completion
