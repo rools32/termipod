@@ -24,7 +24,7 @@ import os.path
 
 import termipod.backends as backends
 import termipod.player as player
-from termipod.database import DataBase
+from termipod.database import DataBase, DataBaseUpdateException
 from termipod.utils import options_string_to_dict
 
 
@@ -181,8 +181,11 @@ class ItemList():
                     medium['state'] = 'skipped'
                 else:
                     medium['state'] = 'read'
-            self.db.update_medium(medium)
-            media.append(medium)
+            try:
+                self.db.update_medium(medium)
+                media.append(medium)
+            except DataBaseUpdateException:
+                self.print_infos('Update media failed!')
 
         self.update_medium_areas(modified_media=media)
 
@@ -198,11 +201,12 @@ class ItemList():
             medium = self.media[idx]
             if medium['duration'] == 0:
                 if backends.update_medium(medium, self.print_infos):
-                    if not self.db.update_medium(medium):
+                    try:
+                        self.db.update_medium(medium)
+                        media.append(medium)
+                        i += 1
+                    except DataBaseUpdateException:
                         nfailed += 1
-                        continue
-                    media.append(medium)
-            i += 1
 
         self.update_medium_areas(modified_media=media)
         self.print_infos(
@@ -236,8 +240,11 @@ class ItemList():
         medium['location'] = 'remote'
         medium['filename'] = ''
 
-        self.db.update_medium(medium)
-        self.update_medium_areas(modified_media=[medium])
+        try:
+            self.db.update_medium(medium)
+            self.update_medium_areas(modified_media=[medium])
+        except DataBaseUpdateException:
+            self.print_infos('Update media failed!')
 
     def new_channel(self, url, sopts=None):
         opts = {

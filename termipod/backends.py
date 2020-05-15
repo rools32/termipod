@@ -92,6 +92,20 @@ def get_clean_url(url):
         return url
 
 
+def expand_link(channel, link):
+    if channel['type'] == 'youtube':
+        return yt.expand_link(link)
+    else:
+        return link
+
+
+def shrink_link(channel, link):
+    if channel['type'] == 'youtube':
+        return yt.shrink_link(link)
+    else:
+        return link
+
+
 def get_duration(medium):
     filename = os.path.abspath(medium['filename']).replace('"', '\\"')
     commandline = 'ffprobe -i "%s" -show_entries ' \

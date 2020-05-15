@@ -21,9 +21,14 @@ import sys
 from multiprocessing import Lock
 
 from termipod.database_update import update_version, get_user_version
+import termipod.backends as backends
 
 
 class DataBaseVersionException(Exception):
+    pass
+
+
+class DataBaseUpdateException(Exception):
     pass
 
 
@@ -112,15 +117,13 @@ class DataBase:
         data['channel'] = channel
 
         # Build complete yt link
-        if channel['type'] == 'youtube':  # TODO move into backends/yt
-            data['id'] = data['link']
-            if 'youtube' not in data['link']:
-                data['link'] = 'https://www.youtube.com/watch?v='+data['link']
+        data['link'] = backends.expand_link(channel, data['link'])
 
         return data
 
     def medium_to_list(self, medium):
-        return (medium['link'], medium['cid'], medium['title'], medium['date'],
+        link = backends.shrink_link(medium['channel'], medium['link'])
+        return (link, medium['cid'], medium['title'], medium['date'],
                 medium['duration'], medium['location'], medium['state'],
                 medium['filename'], medium['tags'], medium['description'])
 
@@ -324,15 +327,17 @@ class DataBase:
             medium['filename'] = ''
         if 'tags' not in medium:
             medium['tags'] = ''
+        link = backends.shrink_link(medium['channel'], medium['link'])
         args = (
             medium['duration'], medium['date'], medium['location'],
             medium['state'], medium['filename'], medium['tags'],
-            medium['link'], medium['cid']
+            link, medium['cid']
         )
         with self.mutex, self.conn:
             ret = self.conn.execute(sql, args)
 
-        return ret.rowcount == 1
+        if not ret.rowcount:
+            raise DataBaseUpdateException('Cannot update media')
 
     def channel_get_unread_media(self, cid):
         cursor = self.conn.execute(

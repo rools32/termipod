@@ -113,7 +113,7 @@ def get_title(url):
             info = ydl.extract_info(info['url'], download=False,
                                     process=False)
     title = info['title']
-    return re.sub(r'Uploads from ', '', title)
+    return re.sub(r'^Uploads from ', '', title)
 
 
 def get_feed_url(url):
@@ -260,7 +260,7 @@ def get_data(source, opts, print_infos=print):
             medium['title'] = printable_str(entry['title'])
             medium['date'] = int(mktime(entry['published_parsed']))
             medium['description'] = entry['description']
-            medium['link'] = entry['yt_videoid']
+            medium['link'] = expand_link(entry['yt_videoid'])
 
             updated = max(updated, medium['date'])
 
@@ -313,7 +313,7 @@ def medium_from_ytdl(data):
         'duration': data['duration'],
     }
     if 'url' in data:
-        medium['link'] = data['url']
+        medium['link'] = expand_link(data['url'])
     return medium
 
 
@@ -345,3 +345,14 @@ def get_clean_url(url):
             return info['webpage_url']
         else:
             return ''
+
+
+def expand_link(link):
+    if 'youtube' not in link:
+        return 'https://www.youtube.com/watch?v='+link
+    else:
+        return link
+
+
+def shrink_link(link):
+    return re.sub(r'^https://www.youtube.com/watch\?v=', '', link)
