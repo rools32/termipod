@@ -203,7 +203,7 @@ class DownloadManager():
             filename = "%s/%s_%s.%s" % (
                     path, ts_to_date(medium['date']),
                     str_to_filename(medium['title']), ext)
-            dl_func = yt.rss
+            dl_func = rss.download
 
         elif 'youtube' == channel['type']:
             filename = "%s/%s_%s.%s" % (path, ts_to_date(medium['date']),
