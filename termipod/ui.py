@@ -1166,6 +1166,7 @@ class StatusArea:
     def __init__(self, screen):
         self.screen = screen
 
+        self.mutex = Lock()
         self.messages = Queue()
         message_handler = Thread(target=self.handle_queue)
         message_handler.daemon = True
@@ -1188,17 +1189,25 @@ class StatusArea:
         exit when the main thread ends."""
         while True:
             message = self.messages.get()
-            try:
-                self.win.move(0, 0)
-                self.win.clrtoeol()
-                self.win.addstr(0, 0, str(message))
-                self.win.refresh()
-                self.messages.task_done()
-            except curses.error:
-                pass
+            self.print_raw(message)
             sleep(1)
 
-    def print(self, value):
+    def print_raw(self, string, mutex=True):
+        try:
+            if mutex:
+                self.mutex.acquire()
+            self.win.move(0, 0)
+            self.win.clrtoeol()
+            self.win.addstr(0, 0, str(string))
+            self.win.refresh()
+            self.messages.task_done()
+        except curses.error:
+            pass
+        finally:
+            if mutex:
+                self.mutex.release()
+
+    def print(self, value, direct=False, mutex=True):
         string = str(value)
         print_log(string)
 
@@ -1209,10 +1218,14 @@ class StatusArea:
         else:
             short_string = string
 
-        self.messages.put(short_string)
+        if direct:
+            self.print_raw(short_string, mutex=mutex)
+        else:
+            self.messages.put(short_string)
 
     def run_command(self, prefix, init=''):
-        self.print(prefix+init)
+        self.mutex.acquire()
+        self.print(prefix+init, direct=True, mutex=False)
         y, x = curses.getsyx()
         start = x-len(init)
 
@@ -1226,6 +1239,7 @@ class StatusArea:
             string = string[len(prefix):]  # remove prefix
         string = string.strip()  # remove last char
         curses.curs_set(0)  # disable cursor
+        self.mutex.release()
         return string
 
     def run_command_intercept_key(self, key, start):
