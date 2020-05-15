@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import curses
 import curses.textpad
+import os
 import re
 import shlex
 from bisect import bisect
@@ -59,7 +60,7 @@ class UI():
 
         # New tabs
         tabs.add_media('remote', 'Remote media')
-        tabs.add_media('local', 'Playlist')
+        tabs.add_media('local', 'Local media')
         tabs.add_media('download', 'Downloading')
         tabs.add_channels('channels', 'Channels')
         tabs.show_tab(0)
@@ -1040,6 +1041,15 @@ class MediumArea(ItemArea):
         formatted_item['date'] = ts_to_date(medium['date'])
         formatted_item['duration'] = duration_to_str(medium['duration'])
         formatted_item['channel'] = formatted_item['channel']['title']
+        try:
+            formatted_item['size'] = (
+                str(int(os.path.getsize(
+                    formatted_item['filename'])/1024**2))+'MB'
+                if formatted_item['filename']
+                else '')
+        except FileNotFoundError:
+            formatted_item['size'] = ''
+
         separator = u" \u2022 "
 
         if not multi_lines:
@@ -1057,7 +1067,7 @@ class MediumArea(ItemArea):
 
         else:
             fields = ['title', 'channel', 'date', 'duration', 'filename',
-                      'link']
+                      'size', 'link']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
