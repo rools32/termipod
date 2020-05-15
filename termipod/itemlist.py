@@ -141,9 +141,7 @@ class ItemList():
         media = []
         for idx in indices:
             medium = self.media[idx]
-
-            channel = self.db.get_channel(medium['cid'])
-            self.download_manager.add(medium, channel)
+            self.download_manager.add(medium)
             media.append(medium)
 
     def play(self, indices):

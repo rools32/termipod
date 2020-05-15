@@ -116,8 +116,7 @@ class DownloadManager():
 
         for medium in self.item_list.media:
             if 'download' == medium['location']:
-                channel = self.item_list.db.get_channel(medium['link'])
-                self.add(medium, channel, update=False)
+                self.add(medium, update=False)
         if self.wait:
             self.wait_done()
 
@@ -127,8 +126,8 @@ class DownloadManager():
         exit when the main thread ends."""
         q = self.queue
         while True:
-            medium, channel = q.get()
-            ret = self.download(medium, channel)
+            medium = q.get()
+            ret = self.download(medium)
             q.task_done()
             if ret is None:
                 if not medium['link'] in self.handle_queue.retries:
@@ -140,22 +139,23 @@ class DownloadManager():
 
                 self.handle_queue.retries[medium['link']] += 1
                 sleep(5)
-                self.add(medium, channel, update=False)
+                self.add(medium, update=False)
     handle_queue.retries = {}
 
-    def add(self, medium, channel, update=True):
+    def add(self, medium, update=True):
         if update:
             self.print_infos('Add to download: %s' % medium['title'])
             medium['location'] = 'download'
             self.item_list.db.update_medium(medium)
             self.item_list.update_medium_areas(modified_media=[medium])
-        self.queue.put((medium, channel))
+        self.queue.put(medium)
 
     def wait_done(self):
         self.queue.join()
 
-    def download(self, medium, channel):
+    def download(self, medium):
         link = medium['link']
+        channel = medium['channel']
 
         # Set filename # TODO handle collision
         path = str_to_filename(channel['title'])
