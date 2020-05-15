@@ -168,7 +168,7 @@ class DataBase:
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])
         data['disabled'] = int(channel_list[8]) == 1
-        data['mask'] = channel_list[9]
+        data['mask'] = '' if channel_list[9] is None else channel_list[9]
 
         # Save it in self.channels
         if not data['id'] in self.channels:
