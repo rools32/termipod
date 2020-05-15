@@ -376,29 +376,23 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def channel_set_categories(self, origin, channel_ids, categories,
-                               add=True):
+    def channel_set_categories(self, origin, channel_ids, add_categories,
+                               remove_categories):
         for channel_id in channel_ids:
             channel = self.channel_id_to_object(origin, channel_id)
-            title = channel['title']
 
-            if add:
-                original = set(channel['categories'])
-                channel['categories'] = original | set(categories)
-                new = channel['categories']-original
-                channel['categories'] = list(channel['categories'])
-                if new:
-                    category_str = ', '.join(new)
-                    self.print_infos('Add %s for channel %s' %
-                                     (category_str, title))
-                    self.db.update_channel(channel)
+            add_category_str = ', '.join(list(add_categories))
+            remove_category_str = ', '.join(list(remove_categories))
 
-            else:
-                categories = list(set(categories))
-                channel['categories'] = categories
-                category_str = ', '.join(categories)
-                self.print_infos('Set %s for channel %s' % (categories, title))
-                self.db.update_channel(channel)
+            channel['categories'] = set(channel['categories'])
+            channel['categories'] -= remove_categories
+            channel['categories'] |= add_categories
+            channel['categories'] = list(channel['categories'])
+
+            self.db.update_channel(channel)
+
+        self.print_infos(f'Categories: add "{add_category_str}" '
+                         f'remove "{remove_category_str}"')
 
         self.update_channel_areas()
 

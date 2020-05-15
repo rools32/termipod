@@ -323,29 +323,26 @@ class UI():
             elif 'channel_category' == action:
                 sel = self.get_user_selection(idx, area)
                 channels = self.item_list.channel_ids_to_objects('ui', sel)
-                same_categories = True
-                cats = set(channels[0]['categories'])
-                for c in channels[1:]:
-                    if set(c['categories']) != cats:
-                        same_categories = False
-                        break
 
-                # If same categories, we edit them
-                if same_categories:
-                    add = False
-                    text = 'Comma separated categories: '
-                    init = ', '.join(list(cats))
+                # Shared categories
+                shared_categories = set.intersection(
+                    *[set(c['categories']) for c in channels])
 
-                # If not, we add categories
-                else:
-                    add = True
-                    text = 'Comma separated new categories: '
-                    init = ''
+                text = 'Comma separated shared categories: '
+                init = ', '.join(list(shared_categories))
+
+                if init:
+                    init += ', '
 
                 category_str = self.status_area.run_command(text, init=init)
-                categories = category_str.split(', ')
-                self.item_list.channel_set_categories('ui', sel, categories,
-                                                      add=add)
+                categories = category_str.split(',')
+                categories = set([c.strip() for c in categories if c.strip()])
+
+                add_categories = categories-shared_categories
+                remove_categories = shared_categories-categories
+
+                self.item_list.channel_set_categories(
+                    'ui', sel, add_categories, remove_categories)
 
             else:
                 self.print_infos('Unknown action "%s"' % action)
