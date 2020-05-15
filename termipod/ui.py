@@ -21,8 +21,10 @@ import os
 import re
 import shlex
 from bisect import bisect
-from threading import Lock
+from threading import Lock, Thread
 from sys import stderr
+from queue import Queue
+from time import sleep
 
 from termipod.utils import duration_to_str, ts_to_date, print_log, \
                            format_string, printable_str
@@ -1163,6 +1165,12 @@ class TitleArea:
 class StatusArea:
     def __init__(self, screen):
         self.screen = screen
+
+        self.messages = Queue()
+        message_handler = Thread(target=self.handle_queue)
+        message_handler.daemon = True
+        message_handler.start()
+
         self.init_win()
 
     def init_win(self):
@@ -1173,6 +1181,22 @@ class StatusArea:
         self.win.bkgd(curses.color_pair(3))
         self.win.keypad(1)
         self.print('')
+
+    def handle_queue(self):
+        """This is the worker thread function. It processes items in the queue one
+        after another.  These daemon threads go into an infinite loop, and only
+        exit when the main thread ends."""
+        while True:
+            message = self.messages.get()
+            try:
+                self.win.move(0, 0)
+                self.win.clrtoeol()
+                self.win.addstr(0, 0, str(message))
+                self.win.refresh()
+                self.messages.task_done()
+            except curses.error:
+                pass
+            sleep(1)
 
     def print(self, value):
         string = str(value)
@@ -1185,13 +1209,7 @@ class StatusArea:
         else:
             short_string = string
 
-        try:
-            self.win.move(0, 0)
-            self.win.clrtoeol()
-            self.win.addstr(0, 0, str(short_string))
-            self.win.refresh()
-        except curses.error:
-            pass
+        self.messages.put(short_string)
 
     def run_command(self, prefix, init=''):
         self.print(prefix+init)
