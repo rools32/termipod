@@ -141,7 +141,12 @@ class ItemList():
         media = []
         for idx in indices:
             medium = self.media[idx]
-            self.download_manager.add(medium)
+            if medium['location'] == 'remote':
+                self.download_manager.add(medium)
+            elif medium['location'] == 'download':
+                self.download_manager.cancel_download(medium)
+            else:
+                self.remove(medium=medium, mark_as_read=False)
             media.append(medium)
 
     def play(self, indices):
@@ -204,7 +209,7 @@ class ItemList():
             'Update media done' +
             f' ({nfailed} failed)' if nfailed else '')
 
-    def remove(self, idx=None, medium=None, unlink=True):
+    def remove(self, idx=None, medium=None, unlink=True, mark_as_read=True):
         if idx:
             medium = self.media[idx]
 
@@ -226,10 +231,12 @@ class ItemList():
                 self.print_infos('File "%s" is absent' % medium['filename'])
 
         self.print_infos('Mark "%s" as local and read' % medium['title'])
-        medium['state'] = 'read'
+        if mark_as_read:
+            medium['state'] = 'read'
         medium['location'] = 'remote'
-        self.db.update_medium(medium)
+        medium['filename'] = ''
 
+        self.db.update_medium(medium)
         self.update_medium_areas(modified_media=[medium])
 
     def new_channel(self, url, sopts=None):

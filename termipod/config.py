@@ -77,7 +77,6 @@ default_keymaps = [
     ('media', 'l', 'medium_play'),
     ('media', 'a', 'medium_playadd'),
     ('media', 'h', 'medium_stop'),
-    ('media', 'd', 'medium_remove'),
     ('media', 'r', 'medium_read'),
     ('media', 'R', 'medium_skip'),
     ('media', 'U', 'medium_update'),
@@ -90,6 +89,11 @@ default_keymaps = [
     ('media_remote', '\n', 'medium_download'),
 
     ('media_local', '\n', 'medium_playadd'),
+    ('media_local', 'd', 'medium_download'),
+    ('media_local', 'D', 'medium_remove'),
+
+    ('media_download', 'd', 'medium_download'),
+
 
     ('channels', 'a', 'channel_auto'),
     ('channels', 'A', 'channel_auto_custom'),

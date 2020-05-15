@@ -121,7 +121,7 @@ descriptions = {
         'medium_play': 'Play media',
         'medium_playadd': 'Enqueue media',
         'medium_stop': 'Stop playing',
-        'medium_remove': 'Remove media',
+        'medium_remove': 'Mark as read and remove local file',
         'medium_read': 'Mark as read/unread',
         'medium_skip': 'Mark/Unmark as skipped',
         'medium_update': 'Update media',
@@ -132,7 +132,7 @@ descriptions = {
         'infos': 'Show information',
         'description': 'Show description',
 
-        'medium_download': 'Download media',
+        'medium_download': 'Download / Cancel downloading / Remove file',
 
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',

@@ -21,7 +21,9 @@ import shlex
 from time import sleep
 from queue import Queue
 from threading import Thread
+import multiprocessing
 import subprocess
+import time
 import re
 
 import os.path
@@ -29,6 +31,10 @@ import os.path
 import termipod.rss as rss
 import termipod.yt as yt
 from termipod.utils import ts_to_date, str_to_filename
+
+
+class DownloadError(Exception):
+    pass
 
 
 def get_all_data(url, opts, print_infos=print):
@@ -107,6 +113,7 @@ class DownloadManager():
         self.queue = Queue()
         self.wait = wait
         self.max_retries = 3
+        self.cancel_requests = {}
 
         # Set up some threads to fetch the items to download
         for i in range(self.nthreads):
@@ -125,11 +132,17 @@ class DownloadManager():
         after another.  These daemon threads go into an infinite loop, and only
         exit when the main thread ends."""
         q = self.queue
+
+        # Wait for UI to be ready
+        if not self.wait:
+            time.sleep(2)
+
         while True:
             medium = q.get()
-            ret = self.download(medium)
-            q.task_done()
-            if ret is None:
+            try:
+                self.download(medium)
+                q.task_done()
+            except DownloadError:
                 if not medium['link'] in self.handle_queue.retries:
                     self.handle_queue.retries[medium['link']] = 1
 
@@ -148,6 +161,10 @@ class DownloadManager():
             medium['location'] = 'download'
             self.item_list.db.update_medium(medium)
             self.item_list.update_medium_areas(modified_media=[medium])
+
+        if medium['link'] in self.cancel_requests:
+            del self.cancel_requests[medium['link']]
+
         self.queue.put(medium)
 
     def wait_done(self):
@@ -156,6 +173,9 @@ class DownloadManager():
     def download(self, medium):
         link = medium['link']
         channel = medium['channel']
+
+        if link in self.cancel_requests:  # If download was cancelled
+            return
 
         # Set filename # TODO handle collision
         path = str_to_filename(channel['title'])
@@ -169,28 +189,56 @@ class DownloadManager():
             filename = "%s/%s_%s.%s" % (
                     path, ts_to_date(medium['date']),
                     str_to_filename(medium['title']), ext)
-            ret = rss.download(link, filename, self.print_infos)
+            dl_func = yt.rss
 
         elif 'youtube' == channel['type']:
             filename = "%s/%s_%s.%s" % (path, ts_to_date(medium['date']),
                                         str_to_filename(medium['title']),
                                         'mp4')
-            ret = yt.download(link, filename, self.print_infos)
+            dl_func = yt.download
 
-        if 0 != ret:  # Download did not happen
-            self.print_infos('Download failed %s' % link)
-            return
+        ret = multiprocessing.Queue()
+        # Download needs to be done as a new process to be able to cancel it
+        p = multiprocessing.Process(
+            target=self.download_task,
+            args=(ret, (dl_func, link, filename, self.print_infos)))
+        p.daemon = True
+        p.start()
 
-        self.print_infos('Downloaded (%s)' % medium['title'])
+        # While download is running, check if needs to be cancelled
+        while p.is_alive():
+            time.sleep(1)
+            if link in self.cancel_requests:
+                p.kill()
+                del self.cancel_requests[link]
+        p.join()
 
-        # Change location and filename
-        medium['filename'] = filename
-        medium['location'] = 'local'
+        if not p.exitcode:
+            if ret.get_nowait():  # Download failed
+                self.print_infos('Download failed %s' % link)
+                raise(DownloadError)
+            else:
+                self.print_infos('Downloaded (%s)' % medium['title'])
+                # Change location and filename
+                medium['filename'] = filename
+                medium['location'] = 'local'
 
-        if 0 == medium['duration']:
-            medium['duration'] = get_duration(medium)
+                if 0 == medium['duration']:
+                    medium['duration'] = get_duration(medium)
+
+        else:
+            self.print_infos('Download cancelled %s' % link)
 
         self.item_list.db.update_medium(medium)
         self.item_list.update_medium_areas(modified_media=[medium])
 
         return 0
+
+    def download_task(self, ret, args):
+        ret.put(args[0](*args[1:]))
+
+    def cancel_download(self, medium):
+        self.cancel_requests[medium['link']] = True
+        medium['location'] = 'remote'
+        self.item_list.db.update_medium(medium)
+        self.item_list.update_medium_areas(modified_media=[medium])
