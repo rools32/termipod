@@ -20,10 +20,12 @@
 import argparse
 import sys
 import os
+from sys import stderr
 
 from termipod.itemlist import ItemList
 from termipod.ui import UI
 from termipod.config import Config
+from termipod.database import DataBaseVersionException
 
 
 def main():
@@ -76,7 +78,11 @@ def main():
 
     else:
         updatedb = True if args.updatedb else False
-        item_list = ItemList(config, wait=True, updatedb=updatedb)
+        try:
+            item_list = ItemList(config, wait=True, updatedb=updatedb)
+        except DataBaseVersionException as e:
+            print(e, file=stderr)
+            exit(1)
 
         if args.add:
             ret = item_list.new_channel(args.add, args.add_opts)

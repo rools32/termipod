@@ -21,11 +21,13 @@ import re
 import shlex
 from bisect import bisect
 from threading import Lock
+from sys import stderr
 
 from termipod.utils import duration_to_str, ts_to_date, print_log, \
                            format_string
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
+from termipod.database import DataBaseVersionException
 
 
 class UI():
@@ -46,7 +48,12 @@ class UI():
         self.keymap = Keymap(config)
 
         self.status_area = StatusArea(screen)
-        self.item_list = ItemList(config, print_infos=self.print_infos)
+        try:
+            self.item_list = ItemList(config, print_infos=self.print_infos)
+        except DataBaseVersionException as e:
+            curses.endwin()
+            print(e, file=stderr)
+            exit(1)
 
         tabs = Tabs(screen, self.item_list, self.print_infos)
 

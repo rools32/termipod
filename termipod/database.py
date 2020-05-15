@@ -23,6 +23,10 @@ from multiprocessing import Lock
 from termipod.database_update import update_version, get_user_version
 
 
+class DataBaseVersionException(Exception):
+    pass
+
+
 class DataBase:
     def __init__(self, name, updatedb=False, print_infos=print):
         self.mutex = Lock()
@@ -73,16 +77,16 @@ class DataBase:
         else:
             if self.version != get_user_version(self.conn):
                 if not updatedb:
-                    self.print_infos(
-                        'We need to update your database, please make a '
-                        'backup and rerun with "--updatedb"')
-                    exit(1)
+                    raise DataBaseVersionException(
+                        'Your database needs to be updated, please backup it '
+                        'manually and rerun with "--updatedb"'
+                    )
                 if update_version(self.conn, self.version):
                     self.print_infos('Database migrated!')
                 else:
-                    self.print_infos(
-                        'Database migration failed, please report the issue.')
-                    exit(1)
+                    raise DataBaseVersionException(
+                        'Database migration failed, please report the issue.'
+                    )
 
     def select_media(self):
         cursor = self.conn.execute("""SELECT * FROM media
