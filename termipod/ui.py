@@ -25,7 +25,7 @@ from threading import Lock
 from sys import stderr
 
 from termipod.utils import duration_to_str, ts_to_date, print_log, \
-                           format_string
+                           format_string, printable_str
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
 from termipod.database import DataBaseVersionException
@@ -1177,6 +1177,9 @@ class StatusArea:
     def print(self, value):
         string = str(value)
         print_log(string)
+
+        string = printable_str(string)
+
         if len(string)+1 > self.width:
             short_string = string[:self.width-4]+'.'*3
         else:

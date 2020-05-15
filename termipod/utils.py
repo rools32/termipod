@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime, timedelta
+import re
 import shlex
 import unicodedata
 
@@ -25,6 +26,10 @@ def printable_str(string):
     new_str = ''
 
     for c in string:
+        # Remove ANSI escape sequences
+        ansi_escape = re.compile(r'\x1B(?:[@-Z\\-_]|\[[0-?]*[ -/]*[@-~])')
+        c = ansi_escape.sub('', c)
+
         # For zero-width characters
         if unicodedata.category(c)[0] in ('M', 'C'):
             continue
