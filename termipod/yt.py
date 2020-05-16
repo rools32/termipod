@@ -336,6 +336,9 @@ def update_medium(medium, print_infos=print):
 
 
 def get_clean_url(url):
+    # Rename playlists with video link
+    url = re.sub(r'watch\?v=.*&list=', 'playlist?list=', url)
+
     ydl_opts = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False, process=False)
