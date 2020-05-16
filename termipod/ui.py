@@ -1190,6 +1190,7 @@ class StatusArea:
         while True:
             message = self.messages.get()
             self.print_raw(message)
+            self.messages.task_done()
             sleep(1)
 
     def print_raw(self, string, mutex=True):
@@ -1200,7 +1201,6 @@ class StatusArea:
             self.win.clrtoeol()
             self.win.addstr(0, 0, str(string))
             self.win.refresh()
-            self.messages.task_done()
         except curses.error:
             pass
         finally:
