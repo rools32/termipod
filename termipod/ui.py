@@ -51,7 +51,7 @@ class UI():
 
         self.keymap = Keymap(config)
 
-        self.status_area = StatusArea(screen)
+        self.status_area = StatusArea(screen, print_popup=self.print_popup)
         try:
             self.item_list = ItemList(config, print_infos=self.print_infos)
         except DataBaseVersionException as e:
@@ -60,6 +60,7 @@ class UI():
             exit(1)
 
         tabs = Tabs(screen, self.item_list, self.print_infos)
+        self.tabs = tabs
 
         # New tabs
         tabs.add_media('remote', 'Remote media')
@@ -118,7 +119,8 @@ class UI():
 
             elif 'refresh' == action:
                 area.init_win()
-                self.status_area = StatusArea(screen)
+                self.status_area = StatusArea(screen,
+                                              print_popup=self.print_popup)
                 area.reset_contents()
                 tabs.show_tab()
                 self.status_area.print('')
@@ -380,6 +382,10 @@ class UI():
 
     def print_infos(self, string):
         self.status_area.print(string)
+
+    def print_popup(self, string, position='bottom'):
+        area = self.tabs.get_current_area()
+        area.print_popup(string, position)
 
 
 class Tabs:
@@ -1222,8 +1228,9 @@ class TitleArea:
 
 
 class StatusArea:
-    def __init__(self, screen):
+    def __init__(self, screen, print_popup):
         self.screen = screen
+        self.print_popup = print_popup
 
         self.mutex = Lock()
         self.messages = Queue()
@@ -1283,16 +1290,17 @@ class StatusArea:
             self.messages.put(short_string)
 
     def run_command(self, prefix, init='', completer=None):
-        with Textbox(self.win, self.mutex, self.print) as tb:
+        with Textbox(self.win, self.mutex, self.print, self.print_popup) as tb:
             return tb.run(prefix, init, completer)
 
 
 class Textbox:
-    def __init__(self, win, mutex, printf):
+    def __init__(self, win, mutex, printf, popupf):
         self.win = win
         self.mutex = mutex
         self.print = printf
-        self.lastkey = None
+        self.popup = popupf
+        self.completion = False
         self.mutex.acquire()
 
     def __enter__(self):
@@ -1337,33 +1345,48 @@ class Textbox:
                 return None
             key = curses.KEY_BACKSPACE
 
-        elif curses.keyname(key) == b'^I':
+        # Tab or Shitf-Tab
+        elif curses.keyname(key) == b'^I' or key == 353:
             if self.completer is None:
                 return None
 
+            if curses.keyname(key) == b'^I':
+                way = 1
+            else:
+                way = -1
+
             # First tab press
-            if self.lastkey != key:
+            if not self.completion:
                 y, x = self.win.getyx()
                 inputstr = self.win.instr(y, 0, x).decode('utf8')
                 self.win.move(y, x)
 
                 inputstr = inputstr[len(self.prefix):]
 
-                self.lastword, self.compls, self.desc = (
-                    self.completer.complete(inputstr))
+                completions = self.completer.complete(inputstr)
+                self.lastword = completions['replaced_token']
+                self.compls = completions['candidates']
+                self.desc = completions['helplines']
+
                 self.userlastword = self.lastword
                 self.complidx = -1
                 # If only one result force completion
                 if len(self.compls) == 1:
-                    self.lastkey = key
+                    self.completion = True
+                else:
+                    self.popup(self.desc)
 
             # Direct next tab press
-            if self.lastkey == key and self.compls:
+            if self.completion and self.compls:
                 y, x = self.win.getyx()
 
-                self.complidx += 1
+                self.complidx += way
                 if self.complidx == len(self.compls):
                     self.complidx = -1
+                elif self.complidx == -2:
+                    self.complidx = len(self.compls)-1
+
+                if self.complidx == -1:
                     compl = self.userlastword
                 else:
                     compl = self.compls[self.complidx]
@@ -1371,11 +1394,17 @@ class Textbox:
                 try:
                     self.win.addstr(y, x-len(self.lastword), compl)
                     self.win.clrtoeol()
+                    self.win.refresh()
                     self.lastword = compl
                 except curses.error:
                     pass
 
-            self.lastkey = key
+                if len(self.compls) != 1:
+                    lines = [v if i != self.complidx else '> '+v
+                             for i, v in enumerate(self.desc)]
+                    self.popup(lines)
+
+            self.completion = True
             return None
 
         elif curses.keyname(key) == b'^[':
@@ -1386,7 +1415,7 @@ class Textbox:
             # Return Ctrl-g to confirm
             return 7
 
-        self.lastkey = key
+        self.completion = False
         self.complidx = -1
         return key
 
@@ -1396,10 +1425,12 @@ class Completer:
         self.mode = mode
         self.values = values
 
-    def complete(self, string):
+    def complete(self, string, selected=''):
         if self.mode == 'commalist':
             values = commastr_to_list(string, remove_emtpy=False)
+            begin = values[:-1]
             lastword = values[-1]
-            candidates = [v for v in self.values if v.startswith(lastword)]
-            helpstr = list_to_commastr(candidates)
-            return (lastword, candidates, helpstr)
+            candidates = [v for v in self.values if v.startswith(lastword) and v not in begin]
+            return {'replaced_token': lastword,
+                    'candidates': candidates,
+                    'helplines': candidates}
