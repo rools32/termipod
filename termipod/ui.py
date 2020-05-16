@@ -153,7 +153,7 @@ class UI():
 
                 elif command[0] in ('add',):
                     if len(command) == 1:
-                        area.show_command_help('add')
+                        area.show_command_help('add', error=True)
                     else:
                         url = command[1]
                         opts = string[4:].lstrip()[len(url)+1:].lstrip()
@@ -161,7 +161,7 @@ class UI():
 
                 elif command[0] in ('channelDisable',):
                     if len(command) != 1:
-                        area.show_command_help('channelDisable')
+                        area.show_command_help('channelDisable', error=True)
                     elif area.key_class != 'channels':
                         self.print_infos('Not in channel area')
 
@@ -173,7 +173,7 @@ class UI():
 
                 elif command[0] in ('channelRemove',):
                     if len(command) != 1:
-                        area.show_command_help('channelRemove')
+                        area.show_command_help('channelRemove', error=True)
                     elif area.key_class != 'channels':
                         self.print_infos('Not in channel area')
                     else:
@@ -761,12 +761,11 @@ class ItemArea:
         lines.append("============================")
         lines.append("?      Show new commands")
 
-        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
-                  print_infos=self.print_infos)
-        self.display(redraw=True)
+        self.print_popup(lines, 'cursor')
 
-    def show_command_help(self, cmd=None):
-        self.print_infos('Invalid syntax!')
+    def show_command_help(self, cmd=None, error=False):
+        if error:
+            self.print_infos('Invalid syntax!')
         # TODO commands as parameter (dynamic depending in area)
         commands = {
             'add': (
@@ -799,25 +798,67 @@ class ItemArea:
             lines.append(f'{cmd} - {desc[0]}')
             lines.append(f'  Usage: {desc[1]}')
 
-        PopupArea(self.screen, (self.height, self.width), lines, self.height,
-                  print_infos=self.print_infos)
+        self.print_popup(lines, 'bottom')
+
+    def print_popup(self, raw_lines, position, margin=5):
+        if position == 'cursor':
+            base = self.cursor
+        elif position == 'bottom':
+            base = self.height
+        else:
+            raise(ValueError('Bad position'))
+
+        outer_margin = margin
+        inner_margin = 2
+        width = self.width-outer_margin*2
+        text_width = width-inner_margin*2
+
+        lines = []
+        for l in raw_lines:
+            lines.extend(format_string(l, text_width, truncate=False))
+
+        height = len(lines)+2  # for border
+
+        # Compute first line position
+        if height > self.height:
+            lines = lines[:self.height-2]
+            lines[-1] = lines[-1][:-1]+'…'
+            self.print_infos('Truncated, too many lines!')
+            height = len(lines)+2
+
+        start = max(1, base-int(len(lines)/2))
+        if start+height-1 > self.height:
+            start = max(1, self.height+1-height)
+
+        win = curses.newwin(height, width, start, outer_margin)
+        win.bkgd(curses.color_pair(3))
+        win.keypad(1)
+        win.border('|', '|', '-', '-', '+', '+', '+', '+')
+
+        try:
+            for line in range(len(lines)):
+                win.move(line+1, inner_margin)
+                win.addstr(line+1, inner_margin, str(lines[line]))
+            win.refresh()
+        except curses.error:
+            pass
+
+        key = self.screen.getch()
+        curses.ungetch(key)
+
         self.display(redraw=True)
 
     def show_infos(self):
         item = self.get_current_item()
         lines = self.item_to_string(item, multi_lines=True)
 
-        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
-                  print_infos=self.print_infos)
-        self.display(redraw=True)
+        self.print_popup(lines, 'cursor')
 
     def show_description(self):
         item = self.get_current_item()
         lines = item['description'].split('\n')
 
-        PopupArea(self.screen, (self.height, self.width), lines, self.cursor,
-                  print_infos=self.print_infos)
-        self.display(redraw=True)
+        self.print_popup(lines, 'cursor')
 
     def position_to_idx(self, first_line, cursor):
         return first_line+cursor
@@ -1362,48 +1403,3 @@ class Completer:
             candidates = [v for v in self.values if v.startswith(lastword)]
             helpstr = list_to_commastr(candidates)
             return (lastword, candidates, helpstr)
-
-
-class PopupArea:
-    def __init__(self, screen, area_size, raw_lines, base, margin=5,
-                 print_infos=print):
-        screen_height, screen_width = area_size
-
-        self.outer_margin = margin
-        self.inner_margin = 2
-        self.width = screen_width-self.outer_margin*2
-        self.text_width = self.width-self.inner_margin*2
-
-        lines = []
-        for l in raw_lines:
-            lines.extend(format_string(l, self.text_width, truncate=False))
-
-        self.height = len(lines)+2  # for border
-
-        # Compute first line position
-        if self.height > screen_height:
-            lines = lines[:screen_height-2]
-            lines[-1] = lines[-1][:-1]+'…'
-            print_infos('Truncated, too many lines!')
-            self.height = len(lines)+2
-
-        start = max(1, base-int(len(lines)/2))
-        if start+self.height-1 > screen_height:
-            start = max(1, screen_height+1-self.height)
-
-        self.win = curses.newwin(self.height, self.width, start,
-                                 self.outer_margin)
-        self.win.bkgd(curses.color_pair(3))
-        self.win.keypad(1)
-        self.win.border('|', '|', '-', '-', '+', '+', '+', '+')
-
-        try:
-            for line in range(len(lines)):
-                self.win.move(line+1, self.inner_margin)
-                self.win.addstr(line+1, self.inner_margin, str(lines[line]))
-            self.win.refresh()
-        except curses.error:
-            pass
-
-        key = screen.getch()
-        curses.ungetch(key)
