@@ -26,8 +26,9 @@ from sys import stderr
 from queue import Queue
 from time import sleep
 
-from termipod.utils import duration_to_str, ts_to_date, print_log, \
-                           format_string, printable_str
+from termipod.utils import (duration_to_str, ts_to_date, print_log,
+                            format_string, printable_str,
+                            commastr_to_list, list_to_commastr)
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
 from termipod.database import DataBaseVersionException
@@ -130,7 +131,9 @@ class UI():
 
             elif 'command_get' == action:
                 string = self.status_area.run_command(':')
-                string = string.strip()
+                if string is None:
+                    continue
+
                 try:
                     command = shlex.split(string)
                 except ValueError as e:
@@ -185,6 +188,9 @@ class UI():
 
             elif 'search_get' == action:
                 search_string = self.status_area.run_command('/')
+                if search_string is None:
+                    continue
+
                 if not search_string:
                     self.print_infos('No search pattern provided')
                     continue
@@ -248,12 +254,17 @@ class UI():
                 else:
                     init = ''
 
-                category_str = self.status_area.run_command('categories: ',
-                                                            init=init)
+                all_categories = self.item_list.channel_get_categories()
+                completer = Completer('commalist', all_categories)
+                category_str = self.status_area.run_command(
+                    'categories: ', init=init, completer=completer)
+
+                if category_str is None:
+                    continue
                 if not category_str:
                     categories = None
                 else:
-                    categories = category_str.split(', ')
+                    categories = commastr_to_list(category_str)
 
                 tabs.filter_by_categories(categories=categories)
 
@@ -313,6 +324,8 @@ class UI():
             elif 'channel_auto_custom' == action:
                 sel = self.get_user_selection(idx, area)
                 auto = self.status_area.run_command('auto: ')
+                if auto is None:
+                    continue
                 self.item_list.channel_set_auto('ui', sel, auto)
 
             elif 'channel_show_media' == action:
@@ -336,9 +349,14 @@ class UI():
                 if init:
                     init += ', '
 
-                category_str = self.status_area.run_command(text, init=init)
-                categories = category_str.split(',')
-                categories = set([c.strip() for c in categories if c.strip()])
+                all_categories = self.item_list.channel_get_categories()
+                completer = Completer('commalist', all_categories)
+                category_str = (
+                    self.status_area.run_command(text, init=init,
+                                                 completer=completer))
+                if category_str is None:
+                    continue
+                categories = set(commastr_to_list(category_str))
 
                 add_categories = categories-shared_categories
                 remove_categories = shared_categories-categories
@@ -1223,35 +1241,127 @@ class StatusArea:
         else:
             self.messages.put(short_string)
 
-    def run_command(self, prefix, init=''):
+    def run_command(self, prefix, init='', completer=None):
+        with Textbox(self.win, self.mutex, self.print) as tb:
+            return tb.run(prefix, init, completer)
+
+
+class Textbox:
+    def __init__(self, win, mutex, printf):
+        self.win = win
+        self.mutex = mutex
+        self.print = printf
+        self.lastkey = None
         self.mutex.acquire()
-        self.print(prefix+init, direct=True, mutex=False)
-        y, x = curses.getsyx()
-        start = x-len(init)
+
+    def __enter__(self):
+        return self
+
+    def __del__(self):
+        self.mutex.release()
+
+    def __exit__(self, exc_type, exc_value, traceback):
+        pass
+
+    def run(self, prefix, init, completer):
+        self.prefix = prefix
+        self.print(self.prefix+init, direct=True, mutex=False)
+        y, x = self.win.getyx()
+        self.start = x-len(init)
 
         curses.curs_set(1)  # enable cursor
         tb = curses.textpad.Textbox(self.win, insert_mode=True)
-        tb.stripspaces = True
+        tb.stripspaces = False
 
-        string = tb.edit(
-            lambda k: self.run_command_intercept_key(k, start))
-        if string.startswith(prefix):
-            string = string[len(prefix):]  # remove prefix
-        string = string.strip()  # remove last char
+        self.completer = completer
+        string = tb.edit(self.handle_key)
+
+        if string.startswith(self.prefix):
+            string = string[len(self.prefix):]  # remove prefix
+            string = string.strip()  # remove last char
+            ret = string
+
+        else:  # If was cancelled by pressing escape key
+            ret = None
+
         curses.curs_set(0)  # disable cursor
-        self.mutex.release()
-        return string
+        return ret
 
-    def run_command_intercept_key(self, key, start):
+    def handle_key(self, key):
+        start = self.start
+
         if curses.keyname(key) == b'^?':
-            y, x = curses.getsyx()
+            y, x = self.win.getyx()
             if x == start:
                 return None
             key = curses.KEY_BACKSPACE
+
         elif curses.keyname(key) == b'^I':
-            # TODO handle completion
+            if self.completer is None:
+                return None
+
+            # First tab press
+            if self.lastkey != key:
+                y, x = self.win.getyx()
+                inputstr = self.win.instr(y, 0, x).decode('utf8')
+                self.win.move(y, x)
+
+                inputstr = inputstr[len(self.prefix):]
+
+                self.lastword, self.compls, self.desc = (
+                    self.completer.complete(inputstr))
+                self.userlastword = self.lastword
+                self.complidx = -1
+                # If only one result force completion
+                if len(self.compls) == 1:
+                    self.lastkey = key
+
+            # Direct next tab press
+            if self.lastkey == key and self.compls:
+                y, x = self.win.getyx()
+
+                self.complidx += 1
+                if self.complidx == len(self.compls):
+                    self.complidx = -1
+                    compl = self.userlastword
+                else:
+                    compl = self.compls[self.complidx]
+
+                try:
+                    self.win.addstr(y, x-len(self.lastword), compl)
+                    self.win.clrtoeol()
+                    self.lastword = compl
+                except curses.error:
+                    pass
+
+            self.lastkey = key
             return None
+
+        elif curses.keyname(key) == b'^[':
+            y, x = self.win.getyx()
+            self.win.move(y, 0)
+            self.win.clrtoeol()
+            self.win.refresh()
+            # Return Ctrl-g to confirm
+            return 7
+
+        self.lastkey = key
+        self.complidx = -1
         return key
+
+
+class Completer:
+    def __init__(self, mode, values):
+        self.mode = mode
+        self.values = values
+
+    def complete(self, string):
+        if self.mode == 'commalist':
+            values = commastr_to_list(string, remove_emtpy=False)
+            lastword = values[-1]
+            candidates = [v for v in self.values if v.startswith(lastword)]
+            helpstr = list_to_commastr(candidates)
+            return (lastword, candidates, helpstr)
 
 
 class PopupArea:

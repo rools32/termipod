@@ -61,6 +61,12 @@ class ItemList():
         for i, channel in enumerate(self.channels):
             channel['index'] = i
 
+    def channel_get_categories(self):
+        categories = set()
+        for channel in self.channels:
+            categories |= set(channel['categories'])
+        return categories
+
     def add_channels(self, channels=None):
         if channels is None:
             channels = self.db.select_channels()

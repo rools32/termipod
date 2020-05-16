@@ -129,3 +129,16 @@ def options_string_to_dict(string, keys):
             raise ValueError(f'Unknown options: {optstr}')
 
     return options
+
+
+def list_to_commastr(commalist):
+    return ', '.join(commalist)
+
+
+def commastr_to_list(string, remove_emtpy=True):
+    values = string.split(',')
+    values = [v.strip() for v in values]
+    if remove_emtpy:
+        return [v for v in values if v]
+    else:
+        return values
