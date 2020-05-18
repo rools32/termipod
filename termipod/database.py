@@ -264,20 +264,21 @@ class DataBase:
             if new_entries:
                 channel['id'] = cid
                 channel['updated'] = feed_date
+                params = ','.join('?'*len(new_entries[0]))
+                sql = 'INSERT INTO media VALUES (%s)' % params
+                if mutex:
+                    self.mutex.acquire()
                 try:
-                    params = ','.join('?'*len(new_entries[0]))
-                    sql = 'INSERT INTO media VALUES (%s)' % params
-                    if mutex:
-                        self.mutex.acquire()
                     with self.conn:
                         self.conn.executemany(sql, new_entries)
                         self.update_channel(channel, mutex=False)
-                    if mutex:
-                        self.mutex.release()
                 except sqlite3.IntegrityError as e:
                     self.print_infos(
                         f'Cannot add media from {channel["title"]}: '+str(e))
                     return None
+                finally:
+                    if mutex:
+                        self.mutex.release()
 
         return new_media
 
