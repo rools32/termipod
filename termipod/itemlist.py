@@ -18,7 +18,8 @@
 import re
 import operator
 import os
-from threading import Thread
+import time
+from threading import Thread, Lock
 
 import os.path
 
@@ -39,6 +40,8 @@ class ItemList():
         self.channel_areas = []
         self.media = []
         self.channels = []
+        self.lastupdate = 0  # time of last channel update
+        self.update_mutex = Lock()
 
         self.add_channels()
         self.add_media()
@@ -402,21 +405,29 @@ class ItemList():
 
         self.update_channel_areas()
 
-    def update_channels(self, origin, channel_ids=None):
-        self.print_infos('Update...')
+    def update_channels(self, origin, channel_ids=None, wait=False):
         if channel_ids is None:
             channels = self.db.select_channels()
             channels = [c for c in channels if not c['disabled']]
         else:
             channels = self.channel_ids_to_objects(origin, channel_ids)
 
-        thread = Thread(target=self.update_task, args=(channels, ))
-        thread.daemon = True
-        thread.start()
-        if self.wait:
-            thread.join()
+        if wait or self.wait:
+            self.update_task(channels)
+        else:
+            thread = Thread(target=self.update_task, args=(channels, ))
+            thread.daemon = True
+            thread.start()
 
     def update_task(self, channels):
+        ready = self.update_mutex.acquire(blocking=False)
+        if not ready:
+            # To prevent auto update from calling it again right away
+            self.lastupdate = time.time()
+            return False
+
+        self.print_infos('Update...')
+
         all_new_media = []
 
         need_to_wait = False
@@ -446,6 +457,9 @@ class ItemList():
 
         all_new_media.sort(key=operator.itemgetter('date'), reverse=True)
         self.add_media(all_new_media)
+
+        self.lastupdate = time.time()
+        self.update_mutex.release()
 
         if self.wait and need_to_wait:
             self.print_infos('Wait for downloads to complete...')

@@ -34,6 +34,7 @@ default_params = {
     'log_path': '%s/%s.log' % (default_cache_dir, appname),
     'db_path': '%s/%s.db' % (default_config_dir, appname),
     'media_path': expanduser("~")+'/'+appname,
+    'update_minutes': "30",
 }
 
 default_keymaps = [

@@ -69,6 +69,12 @@ class UI():
         tabs.add_channels('channels', 'Channels')
         tabs.show_tab(0)
 
+        # Run update thread
+        self.update_minutes = int(config.update_minutes)
+        thread = Thread(target=self.update_channels_task)
+        thread.daemon = True
+        thread.start()
+
         while True:
             # Wait for key
             key_name = get_key_name(screen)
@@ -386,6 +392,16 @@ class UI():
     def print_popup(self, string, position='bottom'):
         area = self.tabs.get_current_area()
         area.print_popup(string, position)
+
+    def update_channels_task(self):
+        while True:
+            if self.update_minutes:
+                if (time.time()-self.item_list.lastupdate >
+                        self.update_minutes*60):
+                    self.item_list.update_channels('ui')
+
+            # Check frequently in case update_minutes changes
+            time.sleep(30)
 
 
 class Tabs:
