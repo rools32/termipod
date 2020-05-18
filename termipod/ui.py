@@ -19,16 +19,20 @@ import curses
 import curses.textpad
 import os
 import re
+import time
 import shlex
 from bisect import bisect
 from threading import Lock, Thread
 from sys import stderr
 from queue import Queue
 from time import sleep
+from datetime import datetime
+from collections import deque
 
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
-                            commastr_to_list, list_to_commastr)
+                            commastr_to_list, list_to_commastr,
+                            screen_reset)
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
 from termipod.database import DataBaseVersionException
@@ -37,6 +41,7 @@ from termipod.database import DataBaseVersionException
 class UI():
     def __init__(self, config):
         screen = curses.initscr()
+        self.screen = screen
         screen.keypad(1)  # to handle special keys as one key
         screen.immedok(True)
         curses.start_color()
@@ -51,7 +56,8 @@ class UI():
 
         self.keymap = Keymap(config)
 
-        self.status_area = StatusArea(screen, print_popup=self.print_popup)
+        self.status_area = StatusArea(screen, print_popup=self.print_popup,
+                                      print_terminal=self.print_terminal)
         try:
             self.item_list = ItemList(config, print_infos=self.print_infos)
         except DataBaseVersionException as e:
@@ -119,17 +125,8 @@ class UI():
             elif 'help' == action:
                 area.show_help(self.keymap)
 
-            elif 'redraw' == action:
-                tabs.show_tab()
-                self.status_area.print('')
-
             elif 'refresh' == action:
-                area.init_win()
-                self.status_area = StatusArea(screen,
-                                              print_popup=self.print_popup)
-                area.reset_contents()
-                tabs.show_tab()
-                self.status_area.print('')
+                self.refresh()
 
             elif 'infos' == action:
                 area.show_infos()
@@ -145,11 +142,11 @@ class UI():
                 try:
                     command = shlex.split(string)
                 except ValueError as e:
-                    self.print_infos(f'Error in command: {e}')
+                    self.print_infos(f'Error in command: {e}', mode='error')
                     continue
 
                 if not command:
-                    self.print_infos('No command to run')
+                    self.print_infos('No command to run', mode='direct')
                     continue
 
                 if command[0] in ('q', 'quit'):
@@ -158,6 +155,20 @@ class UI():
 
                 elif command[0] in ('h', 'help'):
                     area.show_command_help()
+
+                elif command[0] in ('errors', ):
+                    if len(command) == 2:
+                        file = command[1]
+                    else:
+                        file = None
+                    self.status_area.print_errors(file)
+
+                elif command[0] in ('messages', ):
+                    if len(command) == 2:
+                        file = command[1]
+                    else:
+                        file = None
+                    self.status_area.print_all_messages(file)
 
                 elif command[0] in ('add',):
                     if len(command) == 1:
@@ -192,7 +203,8 @@ class UI():
                         self.item_list.update_medium_areas()
 
                 else:
-                    self.print_infos('Command "%s" not found' % command[0])
+                    self.print_infos('Command "%s" not found' % command[0],
+                                     mode='error')
 
             elif 'search_get' == action:
                 search_string = self.status_area.run_command('/')
@@ -373,7 +385,7 @@ class UI():
                     'ui', sel, add_categories, remove_categories)
 
             else:
-                self.print_infos('Unknown action "%s"' % action)
+                self.print_infos('Unknown action "%s"' % action, mode='error')
 
         curses.endwin()
 
@@ -386,8 +398,8 @@ class UI():
             sel = area.user_selection
         return sel
 
-    def print_infos(self, string):
-        self.status_area.print(string)
+    def print_infos(self, *args, **kwargs):
+        self.status_area.print(*args, **kwargs)
 
     def print_popup(self, string, position='bottom'):
         area = self.tabs.get_current_area()
@@ -402,6 +414,30 @@ class UI():
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
+
+    def refresh(self):
+        self.screen.clear()
+        area = self.tabs.get_current_area()
+        area.init_win()
+        area.reset_contents()
+        self.tabs.show_tab()
+        self.status_area.init_win()
+
+    def print_terminal(self, message, mutex=None):
+        if not isinstance(message, str):
+            message = '\n'.join(message)
+
+        if mutex is not None:
+            mutex.acquire()
+        curses.endwin()
+        screen_reset()
+        print(message)
+        input("-- Press Enter to continue --")
+        screen = curses.initscr()
+        self.screen = screen
+        self.refresh()
+        if mutex is not None:
+            mutex.release()
 
 
 class Tabs:
@@ -787,7 +823,11 @@ class ItemArea:
 
     def show_command_help(self, cmd=None, error=False):
         if error:
-            self.print_infos('Invalid syntax!')
+            if cmd is not None:
+                self.print_infos(f'Invalid syntax for {cmd}!', mode='error')
+            else:
+                self.print_infos('Invalid syntax!', mode='error')
+
         # TODO commands as parameter (dynamic depending in area)
         commands = {
             'add': (
@@ -796,6 +836,10 @@ class ItemArea:
                 '[auto[=<regex>]] [mask=<regex>] '
                 '[categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
+            ),
+            'errors': (
+                'Print last errors',
+                'errors [outputfile]'
             ),
             'channelDisable': (
                 'Disable selected channels',
@@ -807,7 +851,7 @@ class ItemArea:
             'quit': (
                 'Quit',
                 'q[uit]'
-            )
+            ),
         }
 
         lines = []
@@ -1244,12 +1288,17 @@ class TitleArea:
 
 
 class StatusArea:
-    def __init__(self, screen, print_popup):
+    def __init__(self, screen, print_popup, print_terminal):
         self.screen = screen
         self.print_popup = print_popup
+        self.print_terminal = print_terminal
 
         self.mutex = Lock()
         self.messages = Queue()
+        self.max_messages = 5000
+        self.errors = deque(maxlen=self.max_messages)
+        self.all_messages = deque(maxlen=self.max_messages)
+        self.need_to_wait = False
         message_handler = Thread(target=self.handle_queue)
         message_handler.daemon = True
         message_handler.start()
@@ -1271,14 +1320,26 @@ class StatusArea:
         exit when the main thread ends."""
         while True:
             message = self.messages.get()
-            self.print_raw(message)
+            self.print_raw_task(message)
             self.messages.task_done()
-            sleep(1)
+            sleep(.1)
 
-    def print_raw(self, string, mutex=True):
+    def print_raw_task(self, string, mutex=True, need_to_wait=False):
+        self.all_messages.append(string)
         try:
             if mutex:
                 self.mutex.acquire()
+
+            # If error happened wait before showing new message
+            if self.need_to_wait:
+                wait_time = 1-(time.time()-self.need_to_wait)
+                self.need_to_wait = 0
+                if wait_time > 0:
+                    sleep(wait_time)
+
+            if need_to_wait:
+                self.need_to_wait = time.time()
+
             self.win.move(0, 0)
             self.win.clrtoeol()
             self.win.addstr(0, 0, str(string))
@@ -1289,7 +1350,18 @@ class StatusArea:
             if mutex:
                 self.mutex.release()
 
-    def print(self, value, direct=False, mutex=True):
+    def print_raw(self, string, mutex=True, need_to_wait=False):
+        print_handler = Thread(target=self.print_raw_task,
+                               args=(string, ),
+                               kwargs={'mutex': mutex,
+                                       'need_to_wait': need_to_wait})
+        print_handler.daemon = True
+        print_handler.start()
+
+    def print(self, value, mode=None, mutex=True):
+        if mode not in (None, 'direct', 'error', 'prompt'):
+            raise ValueError('Wrong print mode')
+
         string = str(value)
         print_log(string)
 
@@ -1300,22 +1372,46 @@ class StatusArea:
         else:
             short_string = string
 
-        if direct:
-            self.print_raw(short_string, mutex=mutex)
+        if mode in ('direct', 'error', 'prompt'):
+            if mode == 'prompt':
+                need_to_wait = False
+            else:
+                need_to_wait = True
+            self.print_raw(short_string, mutex=mutex,
+                           need_to_wait=need_to_wait)
         else:
             self.messages.put(short_string)
 
+        if mode == 'error':
+            now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.errors.append(f'[{now}] {string}')
+
+    def print_errors(self, file=None):
+        self.print_messages(self.errors, file)
+
+    def print_all_messages(self, file=None):
+        self.print_messages(self.all_messages, file)
+
+    def print_messages(self, messages, file=None):
+        if file is not None:
+            with open(file, 'w') as f:
+                print('\n'.join(messages), f)
+        else:
+            self.print_terminal(messages, mutex=self.mutex)
+
     def run_command(self, prefix, init='', completer=None):
-        with Textbox(self.win, self.mutex, self.print, self.print_popup) as tb:
+        with Textbox(self.win, self.mutex, self.print, self.print_popup,
+                     self.print_terminal) as tb:
             return tb.run(prefix, init, completer)
 
 
 class Textbox:
-    def __init__(self, win, mutex, printf, popupf):
+    def __init__(self, win, mutex, printf, popupf, terminalf):
         self.win = win
         self.mutex = mutex
         self.print = printf
         self.popup = popupf
+        self.terminal = terminalf
         self.completion = False
         self.mutex.acquire()
 
@@ -1330,7 +1426,7 @@ class Textbox:
 
     def run(self, prefix, init, completer):
         self.prefix = prefix
-        self.print(self.prefix+init, direct=True, mutex=False)
+        self.print(self.prefix+init, mode='prompt', mutex=False)
         y, x = self.win.getyx()
         self.start = x-len(init)
 

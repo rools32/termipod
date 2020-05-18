@@ -56,7 +56,6 @@ default_keymaps = [
     ('*', 'KEY_BTAB', 'tab_prev'),  # shift-tab
     ('*', '?', 'help'),
 
-    ('*', '^R', 'redraw'),
     ('*', '^L', 'refresh'),
     ('*', '^G', 'screen_infos'),
 

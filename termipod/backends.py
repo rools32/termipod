@@ -37,7 +37,7 @@ class DownloadError(Exception):
     pass
 
 
-def get_all_data(url, opts, print_infos=print):
+def get_all_data(url, opts, print_infos):
     if 'youtube' in url:
         data = yt.get_all_data(url, opts, print_infos)
 
@@ -53,7 +53,7 @@ def get_all_data(url, opts, print_infos=print):
     return data
 
 
-def get_new_data(channel, opts, print_infos=print):
+def get_new_data(channel, opts, print_infos):
     if 'mask' not in opts:
         opts['mask'] = channel['mask']
 
@@ -72,7 +72,7 @@ def get_new_data(channel, opts, print_infos=print):
     return data
 
 
-def update_medium(medium, print_infos=print):
+def update_medium(medium, print_infos):
     channel_type = medium['channel']['type']
     if channel_type == 'youtube':
         updated = yt.update_medium(medium, print_infos)
@@ -120,7 +120,7 @@ def get_duration(medium):
 
 
 class DownloadManager():
-    def __init__(self, item_list, wait=False, print_infos=print):
+    def __init__(self, item_list, print_infos, wait=False):
         self.nthreads = 2
         self.item_list = item_list
         self.print_infos = print_infos

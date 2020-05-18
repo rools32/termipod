@@ -23,7 +23,7 @@ from termipod.utils import print_log
 
 
 class Player():
-    def __init__(self, item_list, print_infos=print):
+    def __init__(self, item_list, print_infos):
         self.item_list = item_list
         self.print_infos = print_infos
         self.player = None

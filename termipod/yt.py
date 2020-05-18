@@ -95,7 +95,7 @@ class MediumDataLogger(object):
         self.print_infos('[YTDL error] %s' % msg)
 
 
-def download(url, filename, print_infos=print):
+def download(url, filename, print_infos):
     ydl_opts = {'logger': DownloadLogger(print_infos, url),
                 'outtmpl': filename, 'format': 'mp4'}
     with ytdl.YoutubeDL(ydl_opts) as ydl:
@@ -126,7 +126,7 @@ def get_feed_url(url):
     return feed_url
 
 
-def get_data(source, opts, print_infos=print):
+def get_data(source, opts, print_infos):
     new = 'update' not in opts or not opts['update']
 
     mask = False
@@ -293,11 +293,11 @@ def get_data(source, opts, print_infos=print):
     return data
 
 
-def get_all_data(url, opts, print_infos=print):
+def get_all_data(url, opts, print_infos):
     return get_data(url, opts, print_infos)
 
 
-def get_new_data(channel, opts, print_infos=print):
+def get_new_data(channel, opts, print_infos):
     opts['update'] = True
     if 'update_method' not in opts:
         opts['update_method'] = 'rss'
@@ -317,7 +317,7 @@ def medium_from_ytdl(data):
     return medium
 
 
-def get_medium_data(url, title, print_infos=print):
+def get_medium_data(url, title, print_infos):
     ydl_opts = {'logger': MediumDataLogger(print_infos, title),
                 'ignoreerrors': True}
     with ytdl.YoutubeDL(ydl_opts) as ydl:
@@ -325,7 +325,7 @@ def get_medium_data(url, title, print_infos=print):
     return data
 
 
-def update_medium(medium, print_infos=print):
+def update_medium(medium, print_infos):
     data = get_medium_data(medium['link'], medium['title'], print_infos)
     if data is None:
         return False

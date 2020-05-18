@@ -30,11 +30,10 @@ from termipod.utils import options_string_to_dict
 
 
 class ItemList():
-    def __init__(self, config, print_infos=print, wait=False, updatedb=False):
+    def __init__(self, config, print_infos, wait=False, updatedb=False):
         self.db_name = config.db_path
         self.wait = wait
-        self.db = DataBase(
-            self.db_name, updatedb=updatedb, print_infos=print_infos)
+        self.db = DataBase(self.db_name, print_infos, updatedb=updatedb)
         self.print_infos = print_infos
         self.medium_areas = []
         self.channel_areas = []
@@ -48,7 +47,7 @@ class ItemList():
 
         self.player = player.Player(self, self.print_infos)
         self.download_manager = \
-            backends.DownloadManager(self, self.wait, self.print_infos)
+            backends.DownloadManager(self, self.print_infos, wait=self.wait)
 
         # Mark removed files as read
         for medium in self.media:
@@ -194,7 +193,7 @@ class ItemList():
                 self.db.update_medium(medium)
                 media.append(medium)
             except DataBaseUpdateException:
-                self.print_infos('Update media failed!')
+                self.print_infos('Update media failed!', mode='error')
 
         self.update_medium_areas(modified_media=media)
 

@@ -33,7 +33,7 @@ class DataBaseUpdateException(Exception):
 
 
 class DataBase:
-    def __init__(self, name, updatedb=False, print_infos=print):
+    def __init__(self, name, print_infos, updatedb=False):
         self.mutex = Lock()
         self.print_infos = print_infos
         self.version = 7
@@ -274,7 +274,8 @@ class DataBase:
                         self.update_channel(channel, mutex=False)
                 except sqlite3.IntegrityError as e:
                     self.print_infos(
-                        f'Cannot add media from {channel["title"]}: '+str(e))
+                        f'Cannot add media from {channel["title"]}: '+str(e),
+                        mode='error')
                     return None
                 finally:
                     if mutex:

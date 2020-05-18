@@ -23,16 +23,16 @@ import feedparser as fp
 from termipod.utils import printable_str
 
 
-def get_all_data(url, opts, print_infos=print):
+def get_all_data(url, opts, print_infos):
     return get_data(url, print_infos)
 
 
-def get_new_data(channel, opts, print_infos=print):
+def get_new_data(channel, opts, print_infos):
     url = channel['url']
     return get_data(url, print_infos)
 
 
-def get_data(url, print_infos=print):
+def get_data(url, print_infos):
     # to avoid using request_headers in fp.parse
     # we use urlopen
     rawpage = urllib.request.urlopen(url).read()
@@ -82,7 +82,7 @@ def get_data(url, print_infos=print):
     return data
 
 
-def download(url, filename, print_infos=print):
+def download(url, filename, print_infos):
     try:
         urllib.request.urlretrieve(url, filename)
     except urllib.error.URLError:

@@ -99,7 +99,6 @@ descriptions = {
         'tab_prev': 'Go previous tab',
         'help': 'Show help',
 
-        'redraw': 'Redraw screen',
         'refresh': 'Reset screen',
 
         'screen_infos': 'Show screen information',

@@ -79,7 +79,7 @@ def main():
     else:
         updatedb = True if args.updatedb else False
         try:
-            item_list = ItemList(config, wait=True, updatedb=updatedb)
+            item_list = ItemList(config, print_infos, wait=True, updatedb=updatedb)
         except DataBaseVersionException as e:
             print(e, file=stderr)
             exit(1)
@@ -111,6 +111,10 @@ def main():
                 print(channels)
             else:
                 print(channels, file=open(args.export_channels, 'w'))
+
+
+def print_infos(message, *args, **kwargs):
+    print(message)
 
 
 if __name__ == "__main__":

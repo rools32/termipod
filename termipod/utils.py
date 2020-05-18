@@ -20,6 +20,7 @@ from datetime import datetime, timedelta
 import re
 import shlex
 import unicodedata
+from os import system, name
 
 
 def printable_str(string):
@@ -142,3 +143,12 @@ def commastr_to_list(string, remove_emtpy=True):
         return [v for v in values if v]
     else:
         return values
+
+
+def screen_reset():
+    # For Windows
+    if name == 'nt':
+        system('cls')
+    # For better OSs
+    else:
+        system('reset')
