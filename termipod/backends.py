@@ -46,9 +46,7 @@ def get_all_data(url, opts, print_infos):
         data['addcount'] = -1
 
     if 'mask' in opts and len(opts['mask']):
-        regex = re.compile(opts['mask'])
-        data['items'] = [medium for medium in data['items']
-                         if regex.match(medium['title'])]
+        apply_mask(data, re.compile(opts['mask']))
 
     return data
 
@@ -65,10 +63,15 @@ def get_new_data(channel, opts, print_infos):
         data['addcount'] = -1
 
     if len(channel['mask']):
-        regex = re.compile(channel['mask'])
-        data = [medium for medium in data
-                if regex.match(medium['title'])]
+        apply_mask(data, channel['mask'])
 
+    return data
+
+
+def apply_mask(data, mask):
+    regex = re.compile(mask)
+    data['items'] = [medium for medium in data['items']
+                     if regex.match(medium['title'])]
     return data
 
 
