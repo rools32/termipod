@@ -20,6 +20,7 @@
 import argparse
 import sys
 import os
+import fcntl
 from sys import stderr
 
 from termipod.itemlist import ItemList
@@ -73,13 +74,22 @@ def main():
     config = Config(**config_params)
     os.chdir(config.media_path)
 
+    # Ensure only one instance is running
+    instance_file = open('/tmp/termipod.lock', 'w')
+    try:
+        fcntl.lockf(instance_file, fcntl.LOCK_EX | fcntl.LOCK_NB)
+    except IOError:
+        print('Termipod already running!')
+        exit(1)
+
     if len(sys.argv) == 1 or (len(sys.argv) == 3 and args.f):
         UI(config)
 
     else:
         updatedb = True if args.updatedb else False
         try:
-            item_list = ItemList(config, print_infos, wait=True, updatedb=updatedb)
+            item_list = ItemList(config, print_infos, wait=True,
+                                 updatedb=updatedb)
         except DataBaseVersionException as e:
             print(e, file=stderr)
             exit(1)
