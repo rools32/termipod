@@ -1426,6 +1426,7 @@ class Textbox:
 
     def run(self, prefix, init, completer):
         self.prefix = prefix
+        self.win.move(0, 0)
         self.print(self.prefix+init, mode='prompt', mutex=False)
         y, x = self.win.getyx()
         self.start = x-len(init)
