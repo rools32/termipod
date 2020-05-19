@@ -387,6 +387,7 @@ class UI():
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')
 
+        self.item_list.player.stop()  # To prevent segfault in some cases
         curses.endwin()
 
     def get_user_selection(self, idx, area):
