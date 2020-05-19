@@ -88,25 +88,28 @@ class ItemList():
         cids = [c['id'] for c in channels]
         self.db.channel_remove(cids)
 
-        # Count how many objects will be removed
-        num_channel = len(cids)
-        num_media = 0
+        if origin == 'ui':
+            # Count how many objects will be removed
+            num_channel = len(cids)
+            num_media = 0
 
-        # Update channels and media
-        for channel in channels:
-            channel_idx = self.channels.index(channel)
-            del self.channels[channel_idx]
-            mi_to_remove = [i for i, m in enumerate(self.media)
-                            if m['channel']['id'] == channel['id']]
-            mi_to_remove.sort(reverse=True)
-            num_media += len(mi_to_remove)
-            for mi in mi_to_remove:
-                del self.media[mi]
+            # Update channels and media
+            for channel in channels:
+                channel_idx = self.channels.index(channel)
+                del self.channels[channel_idx]
+                mi_to_remove = [i for i, m in enumerate(self.media)
+                                if m['channel']['id'] == channel['id']]
+                mi_to_remove.sort(reverse=True)
+                num_media += len(mi_to_remove)
+                for mi in mi_to_remove:
+                    del self.media[mi]
 
-        self.media_update_index()
-        self.channel_update_index()
-        self.print_infos('%d channel(s) and %d media removed' %
-                         (num_channel, num_media))
+            self.media_update_index()
+            self.channel_update_index()
+            self.print_infos('%d channel(s) and %d media removed' %
+                             (num_channel, num_media))
+        else:
+            self.print_infos(f'{len(cids)} channel(s) removed')
 
     def add_medium_area(self, area):
         self.medium_areas.append(area)
@@ -351,18 +354,33 @@ class ItemList():
     def channel_id_to_object(self, origin, channel_id):  # TODO XXX oops
         if origin == 'ui':
             channel = self.channels[channel_id]
+
         elif isinstance(channel_id, int):  # db cid
             channel = self.db.get_channel(channel_id)
             if channel is None:
-                self.print_infos('Channel "%s" not found' % channel_id)
+                raise ValueError(f'Channel {channel_id} not found')
+
         elif isinstance(channel_id, dict):  # channel object
             channel = channel_id
+
+        elif isinstance(channel_id, str):
+            channel = self.db.find_channels(channel_id)
+            if channel is None:
+                raise ValueError(f'Channel {channel_id} not found')
+
         else:  # error
-            channel = None
+            raise ValueError('Bad channel id')
+
         return channel
 
     def channel_ids_to_objects(self, origin, channel_ids):
-        channels = [self.channel_id_to_object(origin, c) for c in channel_ids]
+        channels = []
+        for c in channel_ids:
+            found = self.channel_id_to_object(origin, c)
+            if isinstance(found, list):
+                channels.extend(found)
+            else:
+                channels.append(found)
         return [c for c in channels if c is not None]
 
     def channel_set_auto(self, origin, channel_ids, auto=None):
