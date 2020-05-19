@@ -26,7 +26,7 @@ import os.path
 import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase, DataBaseUpdateException
-from termipod.utils import options_string_to_dict
+from termipod.utils import options_string_to_dict, commastr_to_list
 
 
 class ItemList():
@@ -275,15 +275,18 @@ class ItemList():
             if 'count' in uopts:
                 uopts['count'] = int(uopts['count'])
             if 'strict' in uopts:
-                uopts['strict'] = \
-                    1 if not uopts['strict'] else  \
-                    int(uopts['strict'])
+                uopts['strict'] = (
+                    1 if not uopts['strict'] else
+                    int(uopts['strict']))
             if 'auto' in uopts and not len(uopts['auto']):
                 uopts['auto'] = '.*'
             if 'force' in uopts:
-                uopts['force'] = \
-                    1 if not uopts['force'] else  \
-                    int(uopts['force'])
+                uopts['force'] = (
+                    1 if not uopts['force'] else
+                    int(uopts['force']))
+            if 'categories' in uopts:
+                uopts['categories'] = (
+                    commastr_to_list(uopts['categories']))
 
             # Merge options
             opts.update(uopts)
