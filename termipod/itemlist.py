@@ -75,7 +75,7 @@ class ItemList():
 
         self.channels[0:0] = channels
         self.channel_update_index()
-        self.update_channel_areas()  # TODO smart
+        self.update_channel_areas(new_channels=channels)
 
     def disable_channels(self, origin, channel_ids):
         channels = self.channel_ids_to_objects(origin, channel_ids)
@@ -137,9 +137,15 @@ class ItemList():
                 if modified_media is not None:
                     area.update_contents(modified_media)
 
-    def update_channel_areas(self):
+    def update_channel_areas(self, new_channels=None, modified_channels=None):
         for area in self.channel_areas:
-            area.reset_contents()
+            if new_channels is None and modified_channels is None:
+                area.reset_contents()
+            else:
+                if new_channels is not None:
+                    area.add_contents(new_channels)
+                if modified_channels is not None:
+                    area.update_contents(modified_channels)
 
     def add(self, medium):
         self.media.append(medium)
@@ -386,8 +392,10 @@ class ItemList():
     def channel_set_auto(self, origin, channel_ids, auto=None):
         """ Switch auto value or set it to a value if argument auto is
         provided """
+        channels = []
         for channel_id in channel_ids:
             channel = self.channel_id_to_object(origin, channel_id)
+            channels.append(channel)
             title = channel['title']
 
             if auto is None:
@@ -403,12 +411,14 @@ class ItemList():
 
             self.db.update_channel(channel)
 
-        self.update_channel_areas()
+        self.update_channel_areas(modified_channels=channels)
 
     def channel_set_categories(self, origin, channel_ids, add_categories,
                                remove_categories):
+        channels = []
         for channel_id in channel_ids:
             channel = self.channel_id_to_object(origin, channel_id)
+            channels.append(channel)
 
             add_category_str = ', '.join(list(add_categories))
             remove_category_str = ', '.join(list(remove_categories))
@@ -423,7 +433,7 @@ class ItemList():
         self.print_infos(f'Categories: add "{add_category_str}" '
                          f'remove "{remove_category_str}"')
 
-        self.update_channel_areas()
+        self.update_channel_areas(modified_channels=channels)
 
     def update_channels(self, origin, channel_ids=None, wait=False):
         if channel_ids is None:

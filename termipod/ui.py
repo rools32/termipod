@@ -416,11 +416,12 @@ class UI():
             # Check frequently in case update_minutes changes
             time.sleep(30)
 
-    def refresh(self):
+    def refresh(self, reset=False):
         self.screen.clear()
         area = self.tabs.get_current_area()
         area.init_win()
-        area.reset_contents()
+        if reset:
+            area.reset_contents()
         self.tabs.show_tab()
         self.status_area.init_win()
 
@@ -1544,7 +1545,8 @@ class Completer:
             values = commastr_to_list(string, remove_emtpy=False)
             begin = values[:-1]
             lastword = values[-1]
-            candidates = [v for v in self.values if v.startswith(lastword) and v not in begin]
+            candidates = [v for v in self.values
+                          if v.startswith(lastword) and v not in begin]
             return {'replaced_token': lastword,
                     'candidates': candidates,
                     'helplines': candidates}
