@@ -42,7 +42,7 @@ def get_all_data(url, opts, print_infos):
         data = yt.get_all_data(url, opts, print_infos)
 
     else:
-        data = rss.get_all_data(url, print_infos)
+        data = rss.get_all_data(url, opts, print_infos)
         data['addcount'] = -1
 
     if 'mask' in opts and len(opts['mask']):
@@ -59,7 +59,7 @@ def get_new_data(channel, opts, print_infos):
         data = yt.get_new_data(channel, opts, print_infos)
 
     else:  # rss
-        data = rss.get_new_data(channel, print_infos)
+        data = rss.get_new_data(channel, opts, print_infos)
         data['addcount'] = -1
 
     if len(channel['mask']):
