@@ -73,6 +73,8 @@ default_keymaps = [
     ('*', '$', 'select_until'),
     ('*', '^', 'select_clear'),
 
+    ('*', 'e', 'category_filter'),
+
     ('media', '*', 'search_channel'),
     ('media', 'l', 'medium_play'),
     ('media', 'a', 'medium_playadd'),
@@ -82,7 +84,6 @@ default_keymaps = [
     ('media', 'U', 'medium_update'),
     ('media', 's', 'medium_sort'),
     ('media', 'c', 'channel_filter'),
-    ('media', 'e', 'category_filter'),
     ('media', 'f', 'state_filter'),
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
 

@@ -264,8 +264,12 @@ class UI():
 
             elif 'category_filter' == action:
                 sel = self.get_user_selection(idx, area)
-                media = self.item_list.medium_idx_to_objects(sel)
-                channels = [medium['channel'] for medium in media]
+                if isinstance(tabs.get_current_area(), MediumArea):
+                    media = self.item_list.medium_idx_to_objects(sel)
+                    channels = [medium['channel'] for medium in media]
+                else:
+                    channels = self.item_list.channel_ids_to_objects('ui', sel)
+
                 if channels:
                     categories = set(channels[0]['categories'])
                     for c in channels[1:]:
