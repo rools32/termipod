@@ -81,6 +81,13 @@ class UI():
         thread.daemon = True
         thread.start()
 
+        # Run download maæger
+        self.item_list.download_manager_init(cb=tabs.update_areas,
+                                             dl_marked=False)
+
+        # Init player
+        self.item_list.player_init(cb=tabs.update_areas)
+
         while True:
             # Wait for key
             key_name = get_key_name(screen)
@@ -176,7 +183,8 @@ class UI():
                     else:
                         url = command[1]
                         opts = string[4:].lstrip()[len(url)+1:].lstrip()
-                        self.item_list.new_channel(url, opts)
+                        callback = tabs.update_areas
+                        self.item_list.new_channel(url, opts, callback)
 
                 elif command[0] in ('channelDisable',):
                     if len(command) != 1:
@@ -186,9 +194,9 @@ class UI():
 
                     else:
                         sel = self.get_user_selection(idx, area)
-                        self.item_list.disable_channels('ui', sel)
-                        # Remove channels from item_list
-                        self.item_list.update_channel_areas()
+                        channels = self.item_list.disable_channels('ui', sel)
+                        tabs.update_areas('channel', 'remove', channels,
+                                          only=True)
 
                 elif command[0] in ('channelRemove',):
                     if len(command) != 1:
@@ -197,10 +205,8 @@ class UI():
                         self.print_infos('Not in channel area')
                     else:
                         sel = self.get_user_selection(idx, area)
-                        self.item_list.remove_channels('ui', sel)
-                        # Remove channels and media from item_list
-                        self.item_list.update_channel_areas()
-                        self.item_list.update_medium_areas()
+                        channels = self.item_list.remove_channels('ui', sel)
+                        tabs.update_areas('channel', 'removed', channels)
 
                 else:
                     self.print_infos('Command "%s" not found' % command[0],
@@ -255,9 +261,10 @@ class UI():
 
             elif 'medium_remove' == action:
                 # TODO if is being played: self.item_list.stop()
-                if idx is None:
-                    continue
-                self.item_list.remove(idx)
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.remove(sel)
+                tabs.update_areas('medium', 'removed', media)
+                area.user_selection = deque()
 
             elif 'channel_filter' == action:
                 tabs.filter_by_channels()
@@ -305,21 +312,24 @@ class UI():
                     skip = False
 
                 sel = self.get_user_selection(idx, area)
-                self.item_list.switch_read(sel, skip)
-                area.user_selection = []
+                media = self.item_list.switch_read(sel, skip)
+                tabs.update_areas('medium', 'modified', media)
+                area.user_selection = deque()
 
             elif 'medium_update' == action:
                 sel = self.get_user_selection(idx, area)
-                self.item_list.update_media(sel)
-                area.user_selection = []
+                media = self.item_list.update_media(sel)
+                tabs.update_areas('medium', 'modified', media)
+                area.user_selection = deque()
 
             ###################################################################
             # Remote medium commands
             ###################################################################
             elif 'medium_download' == action:
                 sel = self.get_user_selection(idx, area)
-                self.item_list.download(sel)
-                area.user_selection = []
+                media = self.item_list.download(sel)
+                tabs.update_areas('medium', 'modified', media)
+                area.user_selection = deque()
 
             elif 'channel_update' == action:
                 # If in channel tab we update only user_selection
@@ -328,7 +338,8 @@ class UI():
                 # We update all channels
                 else:
                     sel = None
-                self.item_list.update_channels('ui', sel)
+                self.item_list.update_channels('ui', channel_ids=sel,
+                                               cb=tabs.update_areas)
 
             ###################################################################
             # Local medium commands
@@ -343,14 +354,16 @@ class UI():
             ###################################################################
             elif 'channel_auto' == action:
                 sel = self.get_user_selection(idx, area)
-                self.item_list.channel_set_auto('ui', sel)
+                channels = self.item_list.channel_set_auto('ui', sel)
+                tabs.update_areas('channel', 'modified', channels, only=True)
 
             elif 'channel_auto_custom' == action:
                 sel = self.get_user_selection(idx, area)
                 auto = self.status_area.run_command('auto: ')
                 if auto is None:
                     continue
-                self.item_list.channel_set_auto('ui', sel, auto)
+                channels = self.item_list.channel_set_auto('ui', sel, auto)
+                tabs.update_areas('channel', 'modified', channels, only=True)
 
             elif 'channel_show_media' == action:
                 sel = self.get_user_selection(idx, area)
@@ -385,8 +398,9 @@ class UI():
                 add_categories = categories-shared_categories
                 remove_categories = shared_categories-categories
 
-                self.item_list.channel_set_categories(
+                channels = self.item_list.channel_set_categories(
                     'ui', sel, add_categories, remove_categories)
+                tabs.update_areas('channel', 'modified', channels, only=True)
 
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')
@@ -415,7 +429,8 @@ class UI():
             if self.update_minutes:
                 if (time.time()-self.item_list.lastupdate >
                         self.update_minutes*60):
-                    self.item_list.update_channels('ui')
+                    self.item_list.update_channels(
+                        'ui', cb=self.tabs.update_areas)
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
@@ -465,14 +480,12 @@ class Tabs:
         area = MediumArea(self.screen, location, self.item_list.media, name,
                           self.title_area, self.print_infos)
         self.areas.append(area)
-        self.item_list.add_medium_area(area)
 
     def add_channels(self, name, display_name):
         area = ChannelArea(self.screen, self.item_list.channels, name,
                            display_name, self.title_area, self.print_infos,
                            self.item_list.db)
         self.areas.append(area)
-        self.item_list.add_channel_area(area)
 
     def get_current_area(self):
         return self.get_area(self.current_idx)
@@ -555,6 +568,67 @@ class Tabs:
         area = self.get_current_area()
         return area.get_current_line()
 
+    def get_medium_areas(self):
+        return [a for a in self.areas if isinstance(a, MediumArea)]
+
+    def get_channel_areas(self):
+        return [a for a in self.areas if isinstance(a, ChannelArea)]
+
+    def update_areas(self, item_type, state, items=None, only=False):
+        if items is None:
+            for area in self.areas:
+                area.reset_contents()
+
+        else:
+            if item_type == 'channel':
+                self.update_channel_areas(items, state)
+                if not only:
+                    media = [m for c in items for m in c['media']]
+                    self.update_medium_areas(media, state)
+            elif item_type == 'medium':
+                self.update_medium_areas(items, state)
+                if not only:
+                    # Channels without duplicates
+                    channels = {m['channel']['id']: m['channel']
+                                for m in items}.values()
+                    self.update_channel_areas(channels, 'modified')
+            else:
+                raise(ValueError(f'Bad item_type ({item_type})'))
+
+    def update_medium_areas(self, items, state):
+        if state == 'new':
+            for area in self.get_medium_areas():
+                area.add_contents(items)
+
+        elif state == 'modified':
+            for area in self.get_medium_areas():
+                area.update_contents(items)
+
+        elif state == 'removed':
+            for area in self.get_medium_areas():
+                # TODO add remove_contents function
+                area.reset_contents()
+
+        else:
+            raise(ValueError(f'Bad state ({state})'))
+
+    def update_channel_areas(self, items, state):
+        if state == 'new':
+            for area in self.get_channel_areas():
+                area.add_contents(items)
+
+        elif state == 'modified':
+            for area in self.get_channel_areas():
+                area.update_contents(items)
+
+        elif state == 'removed':
+            for area in self.get_channel_areas():
+                # TODO add remove_contents function
+                area.reset_contents()
+
+        else:
+            raise(ValueError(f'Bad action ({action})'))
+
 
 class ItemArea:
     def __init__(self, screen, items, name, display_name, title_area,
@@ -575,8 +649,8 @@ class ItemArea:
         self.contents = None
         self.shown = False
         self.items = items
-        self.selection = []
-        self.user_selection = []
+        self.selection = deque()
+        self.user_selection = deque()
         self.sort = None
 
         self.init_win()
@@ -593,22 +667,23 @@ class ItemArea:
         if idx is None:
             idx = self.get_idx()
 
-        if idx in self.user_selection:
+        try:
             self.user_selection.remove(idx)
-        else:
+        except ValueError:
             self.user_selection.append(idx)
 
     def add_until_to_user_selection(self):
         idx = self.get_idx()
         if idx is None:
             return
-        if idx < self.user_selection[-1]:
-            step = -1
-        else:
-            step = 1
 
         start = self.selection.index(self.user_selection[-1])
         end = self.selection.index(idx)
+
+        if start < end:
+            step = 1
+        else:
+            step = -1
 
         for i in range(start, end, step):
             sel = self.selection[i+step]
@@ -631,21 +706,21 @@ class ItemArea:
         self.mutex.acquire()
 
         if self.contents is None:
-            self.contents = []
+            self.contents = deque()
 
         if items is None:
             items = self.items
-            self.contents = []
-            self.selection = []
-            self.user_selection = []
+            self.contents = deque()
+            self.selection = deque()
+            self.user_selection = deque()
         else:
             shift = len(items)
-            self.selection = [s+shift for s in self.selection]
-            self.user_selection = [s+shift for s in self.user_selection]
+            self.selection = deque([s+shift for s in self.selection])
+            self.user_selection = deque([s+shift for s in self.user_selection])
 
         items = self.filter(items)[0]
-        self.selection[0:0] = [item['index'] for item in items]
-        self.contents[0:0] = self.items_to_string(items)
+        self.selection.extendleft([item['index'] for item in items])
+        self.contents.extendleft(self.items_to_string(items))
 
         self.mutex.release()
 
@@ -665,7 +740,7 @@ class ItemArea:
         self.mutex.acquire()
 
         if self.contents is None:
-            self.contents = []
+            self.contents = deque()
 
         for item in shown_items:
             try:
@@ -703,8 +778,8 @@ class ItemArea:
             permutation = sorted(
                 idtt, key=lambda i: self.items[self.selection[i]][col])
 
-        self.selection = [self.selection[p] for p in permutation]
-        self.contents = [self.contents[p] for p in permutation]
+        self.selection = deque([self.selection[p] for p in permutation])
+        self.contents = deque([self.contents[p] for p in permutation])
 
     def switch_sort(self):
         if self.sort is None:
@@ -1211,23 +1286,66 @@ class ChannelArea(ItemArea):
                  print_infos, data_base):
         self.key_class = 'channels'
         self.data_base = data_base
+        self.filters = {
+            'categories': None,
+        }
+
         super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
 
     def get_title_name(self):
         return self.display_name
 
-    def filter(self, channels):
-        # Do not show media from disabled channels
-        channels = [c for c in channels if not c['disabled']]
-        disabled_channels = [c for c in channels if c['disabled']]
-        return channels, disabled_channels
+    def filter(self, new_items):
+        matching_items = []
+        other_items = []
+        for item in new_items:
+            match = True
+            if self.filters['categories'] is not None and \
+                    set(self.filters['categories']) - \
+                    set(item['categories']):
+                match = False
+
+            elif item['disabled']:
+                match = False
+
+            if match:
+                matching_items.append(item)
+            else:
+                other_items.append(item)
+
+        return (matching_items, other_items)
+
+    def filter_by_categories(self, categories=None):
+        if categories is None and self.filters['categories']:
+            self.filters['categories'] = None
+        else:
+            if categories is None:
+                if not self.user_selection:
+                    channel = self.get_current_item()
+                    channel_categories = \
+                        channel['categories']
+
+                else:
+                    channels = [self.items[i] for i in self.user_selection]
+                    channel_categories = [c['categories'] for c in channels]
+
+                self.filters['categories'] = list(set(channel_categories))
+
+            else:
+                self.filters['categories'] = categories
+
+        # Update screen
+        self.reset_contents()
 
     def item_to_string(self, channel, multi_lines=False, width=None):
-        cid = channel['id']
-        date = ts_to_date(channel['updated'])
-        unread_elements = self.data_base.channel_get_unread_media(cid)
-        total_elements = self.data_base.channel_get_all_media(cid)
+        nunread_elements = len([m for m in channel['media']
+                               if m['state'] == 'unread'])
+        ntotal_elements = len(channel['media'])
+
+        updated_date = ts_to_date(channel['updated'])
+        last_medium_date = ts_to_date(channel['media'][-1]['date'])
+
         separator = u" \u2022 "
 
         if not multi_lines:
@@ -1236,19 +1354,19 @@ class ChannelArea(ItemArea):
             string += separator
             string += channel['type']
             string += separator
-            string += '%d/%d' % (len(unread_elements), len(total_elements))
+            string += f'{nunread_elements}/{ntotal_elements}'
             string += separator
             string += ', '.join(channel['categories'])
             string += separator
             string += channel['auto']
             string += separator
-            string += date
+            string += f'{last_medium_date} ({updated_date})'
 
         else:
             formatted_item = dict(channel)
-            formatted_item['updated'] = date
-            formatted_item['unread'] = len(unread_elements)
-            formatted_item['total'] = len(total_elements)
+            formatted_item['updated'] = updated_date
+            formatted_item['unread'] = nunread_elements
+            formatted_item['total'] = ntotal_elements
             formatted_item['categories'] = \
                 ', '.join(formatted_item['categories'])
             if channel['addcount'] == -1:
@@ -1524,6 +1642,10 @@ class Textbox:
                     self.popup(lines)
 
             self.completion = True
+            return None
+
+        elif curses.keyname(key) == b'^L':
+            # TODO refresh
             return None
 
         elif curses.keyname(key) == b'^[':

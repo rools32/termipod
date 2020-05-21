@@ -19,6 +19,7 @@ import re
 import operator
 import os
 import time
+from collections import deque
 from threading import Thread, Lock
 
 import os.path
@@ -35,19 +36,16 @@ class ItemList():
         self.wait = wait
         self.db = DataBase(self.db_name, print_infos, updatedb=updatedb)
         self.print_infos = print_infos
-        self.medium_areas = []
-        self.channel_areas = []
-        self.media = []
-        self.channels = []
+        self.media = deque()
+        self.channels = deque()
         self.lastupdate = 0  # time of last channel update
         self.update_mutex = Lock()
+        self.download_manager = None
+        self.player = None
 
         self.add_channels()
         self.add_media()
 
-        self.player = player.Player(self, self.print_infos)
-        self.download_manager = \
-            backends.DownloadManager(self, self.print_infos, wait=self.wait)
 
         # Mark removed files as read
         for medium in self.media:
@@ -73,15 +71,19 @@ class ItemList():
         if channels is None:
             channels = self.db.select_channels()
 
-        self.channels[0:0] = channels
+        self.channels.extendleft(channels)
+        for c in channels:
+            c['media'] = deque()
         self.channel_update_index()
-        self.update_channel_areas(new_channels=channels)
+
+        return channels
 
     def disable_channels(self, origin, channel_ids):
         channels = self.channel_ids_to_objects(origin, channel_ids)
         for channel in channels:
             channel['disabled'] = True
             self.db.update_channel(channel)
+        return channels
 
     def remove_channels(self, origin, channel_ids):
         channels = self.channel_ids_to_objects(origin, channel_ids)
@@ -111,47 +113,47 @@ class ItemList():
         else:
             self.print_infos(f'{len(cids)} channel(s) removed')
 
-    def add_medium_area(self, area):
-        self.medium_areas.append(area)
-
-    def add_channel_area(self, area):
-        self.channel_areas.append(area)
+        return channels
 
     def add_media(self, media=None):
         if media is None:
-            self.media = []
+            self.media = deque()
+            for c in self.channels:
+                c['media'] = deque()
             media = self.db.select_media()
 
-        self.media[0:0] = media
+        self.media.extendleft(media)
         self.media_update_index()
 
-        self.update_medium_areas(new_media=media)
+        for m in media:
+            m['channel']['media'].appendleft(m)
 
-    def update_medium_areas(self, new_media=None, modified_media=None):
-        for area in self.medium_areas:
-            if new_media is None and modified_media is None:
-                area.reset_contents()
-            else:
-                if new_media is not None:
-                    area.add_contents(new_media)
-                if modified_media is not None:
-                    area.update_contents(modified_media)
-
-    def update_channel_areas(self, new_channels=None, modified_channels=None):
-        for area in self.channel_areas:
-            if new_channels is None and modified_channels is None:
-                area.reset_contents()
-            else:
-                if new_channels is not None:
-                    area.add_contents(new_channels)
-                if modified_channels is not None:
-                    area.update_contents(modified_channels)
+        return media
 
     def add(self, medium):
         self.media.append(medium)
+        medium['channel']['media'].append(medium)
         self.update_strings()
 
-    def download(self, indices):
+    def download_manager_init(self, dl_marked=False, cb=None):
+        if self.download_manager is None:
+            self.download_manager = backends.DownloadManager(
+                self.db, self.print_infos, wait=self.wait, cb=cb)
+
+        if dl_marked:
+            self.download_marked()
+
+    def download_marked(self, cb=None):
+        for medium in self.media:
+            if 'download' == medium['location']:
+                self.download_manager.add(medium, update=False)
+        if self.wait:
+            self.wait_done()
+
+    def download(self, indices, cb=None):
+        if self.download_manager is None:
+            self.download_manager_init(cb=cb)
+
         if isinstance(indices, int):
             indices = [indices]
 
@@ -165,6 +167,10 @@ class ItemList():
             else:
                 self.remove(medium=medium, mark_as_read=False)
             media.append(medium)
+        return media
+
+    def player_init(self, cb=None):
+        self.player = player.Player(self, self.print_infos, cb=cb)
 
     def play(self, indices):
         if not len(indices):
@@ -174,7 +180,9 @@ class ItemList():
         medium = self.media[idx]
         self.player.play(medium)
         # Enqueue next items
-        self.playadd(indices[1:])
+        if len(indices) > 1:
+            next_elems = [indices[i] for i in range(1, len(indices))]
+            self.playadd(next_elems)
 
     def playadd(self, indices):
         for idx in indices:
@@ -204,7 +212,7 @@ class ItemList():
             except DataBaseUpdateException:
                 self.print_infos('Update media failed!', mode='error')
 
-        self.update_medium_areas(modified_media=media)
+        return media
 
     def update_media(self, indices, skip=False):
         if isinstance(indices, int):
@@ -225,45 +233,67 @@ class ItemList():
                     except DataBaseUpdateException:
                         nfailed += 1
 
-        self.update_medium_areas(modified_media=media)
         self.print_infos(
             'Update media done' +
             f' ({nfailed} failed)' if nfailed else '')
+        return media
 
-    def remove(self, idx=None, medium=None, unlink=True, mark_as_read=True):
-        if idx:
-            medium = self.media[idx]
+    def remove(self, indices=None, medium=None, unlink=True, mark_as_read=True):
+        media = None
+        if indices is not None:
+            media = [self.media[idx] for idx in indices]
+        if medium is not None:
+            media = [medium]
 
-        if not medium:
+        if not media:
             return
 
-        if unlink:
-            if '' == medium['filename']:
-                self.print_infos('Filename is empty')
+        updated_media = []
 
-            elif os.path.isfile(medium['filename']):
-                try:
-                    os.unlink(medium['filename'])
-                except FileNotFoundError:
-                    self.print_infos('Cannot remove "%s"' % medium['filename'])
+        for medium in media:
+            if unlink:
+                if '' == medium['filename']:
+                    self.print_infos('Filename is empty')
+
+                elif os.path.isfile(medium['filename']):
+                    try:
+                        os.unlink(medium['filename'])
+                    except FileNotFoundError:
+                        self.print_infos(
+                            f'Cannot remove {medium["filename"]}',
+                            mode='error')
+                    else:
+                        self.print_infos(
+                            f'File "{medium["filename"]}" removed',
+                            mode='error')
                 else:
-                    self.print_infos('File "%s" removed' % medium['filename'])
-            else:
-                self.print_infos('File "%s" is absent' % medium['filename'])
+                    self.print_infos(
+                        f'File "{medium["filename"]}" is absent',
+                        mode='error')
 
-        self.print_infos('Mark "%s" as local and read' % medium['title'])
-        if mark_as_read:
-            medium['state'] = 'read'
-        medium['location'] = 'remote'
-        medium['filename'] = ''
+            if mark_as_read:
+                medium['state'] = 'read'
+            medium['location'] = 'remote'
+            medium['filename'] = ''
 
-        try:
-            self.db.update_medium(medium)
-            self.update_medium_areas(modified_media=[medium])
-        except DataBaseUpdateException:
-            self.print_infos('Update media failed!')
+            string = f'"{medium["title"]}" '
+            if unlink:
+                string += 'removed, '
+            if mark_as_read:
+                string += 'marked as read, '
+            string += 'marked as remote.'
 
-    def new_channel(self, url, sopts=None):
+            try:
+                self.db.update_medium(medium)
+                self.print_infos(string)
+                updated_media.append(medium)
+            except DataBaseUpdateException:
+                self.print_infos(f'Update media "{media["title"]}" failed!',
+                                 mode='error')
+
+        return updated_media
+
+    def new_channel(self, url, sopts=None, cb=None):
         opts = {
             'count': -1,
             'strict': 0,
@@ -320,13 +350,14 @@ class ItemList():
 
         self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
 
-        thread = Thread(target=self.new_channel_task, args=(cleanurl, opts))
+        thread = Thread(target=self.new_channel_task,
+                        rgs=(cleanurl, opts, cb))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def new_channel_task(self, url, opts):
+    def new_channel_task(self, url, opts, cb):
         # Retrieve url feed
         data = backends.get_all_data(url, opts, self.print_infos)
 
@@ -336,7 +367,7 @@ class ItemList():
         data['categories'] = opts['categories']
         data['auto'] = opts['auto']
         data['mask'] = opts['mask']
-        data['disabled'] = 0
+        data['disabled'] = False
         if opts['name']:
             data['title'] = opts['name']
 
@@ -349,6 +380,8 @@ class ItemList():
         self.add_media(media)
 
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
+        if cb is not None:
+            cb('channels', 'new', [data])
 
     def medium_idx_to_object(self, idx):
         return self.media[idx]
@@ -411,7 +444,7 @@ class ItemList():
 
             self.db.update_channel(channel)
 
-        self.update_channel_areas(modified_channels=channels)
+        return channels
 
     def channel_set_categories(self, origin, channel_ids, add_categories,
                                remove_categories):
@@ -433,9 +466,10 @@ class ItemList():
         self.print_infos(f'Categories: add "{add_category_str}" '
                          f'remove "{remove_category_str}"')
 
-        self.update_channel_areas(modified_channels=channels)
+        return channels
 
-    def update_channels(self, origin, channel_ids=None, wait=False):
+    def update_channels(self, origin, channel_ids=None, wait=False,
+                        cb=None):
         if channel_ids is None:
             channels = self.db.select_channels()
             channels = [c for c in channels if not c['disabled']]
@@ -443,13 +477,13 @@ class ItemList():
             channels = self.channel_ids_to_objects(origin, channel_ids)
 
         if wait or self.wait:
-            self.update_task(channels)
+            self.update_task(channels, cb)
         else:
-            thread = Thread(target=self.update_task, args=(channels, ))
+            thread = Thread(target=self.update_task, args=(channels, cb))
             thread.daemon = True
             thread.start()
 
-    def update_task(self, channels):
+    def update_task(self, channels, cb):
         ready = self.update_mutex.acquire(blocking=False)
         if not ready:
             # To prevent auto update from calling it again right away
@@ -459,6 +493,7 @@ class ItemList():
         self.print_infos('Update...')
 
         all_new_media = []
+        updated_channels = []
 
         need_to_wait = False
         for i, channel in enumerate(channels):
@@ -474,19 +509,25 @@ class ItemList():
                 continue
 
             all_new_media = new_media+all_new_media
+            updated_channels.append(channel)
 
             # Automatic download
             if not '' == channel['auto']:
                 regex = re.compile(channel['auto'])
                 sub_media = [medium for medium in new_media
                              if regex.match(medium['title'])]
-                for s in sub_media:
-                    self.download_manager.add(s, channel)
-                    need_to_wait = True
+                if sub_media:
+                    self.download_manager_init(cb=cb)
+                    for s in sub_media:
+                        self.download_manager.add(s)
+                        need_to_wait = True
+                    cb('medium', 'modified', sub_media, only=True)
         self.print_infos('Update channels done!')
 
         all_new_media.sort(key=operator.itemgetter('date'), reverse=True)
         self.add_media(all_new_media)
+        cb('channel', 'modified', updated_channels, only=True)
+        cb('medium', 'new', all_new_media, only=True)
 
         self.lastupdate = time.time()
         self.update_mutex.release()

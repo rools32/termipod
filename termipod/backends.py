@@ -123,12 +123,13 @@ def get_duration(medium):
 
 
 class DownloadManager():
-    def __init__(self, item_list, print_infos, wait=False):
+    def __init__(self, db, print_infos, wait=False, cb=None):
         self.nthreads = 2
-        self.item_list = item_list
         self.print_infos = print_infos
         self.queue = Queue()
         self.wait = wait
+        self.db = db
+        self.cb = cb
         self.max_retries = 3
         self.cancel_requests = {}
 
@@ -137,12 +138,6 @@ class DownloadManager():
             worker = Thread(target=self.handle_queue)
             worker.daemon = True
             worker.start()
-
-        for medium in self.item_list.media:
-            if 'download' == medium['location']:
-                self.add(medium, update=False)
-        if self.wait:
-            self.wait_done()
 
     def handle_queue(self):
         """This is the worker thread function. It processes items in the queue one
@@ -176,8 +171,7 @@ class DownloadManager():
         if update:
             self.print_infos('Add to download: %s' % medium['title'])
             medium['location'] = 'download'
-            self.item_list.db.update_medium(medium)
-            self.item_list.update_medium_areas(modified_media=[medium])
+            self.db.update_medium(medium)
 
         if medium['link'] in self.cancel_requests:
             del self.cancel_requests[medium['link']]
@@ -246,10 +240,9 @@ class DownloadManager():
         else:
             self.print_infos('Download cancelled %s' % link)
 
-        self.item_list.db.update_medium(medium)
-        self.item_list.update_medium_areas(modified_media=[medium])
-
-        return 0
+        self.db.update_medium(medium)
+        if self.cb is not None:
+            self.cb('medium', 'modified', [medium])
 
     def download_task(self, ret, args):
         ret.put(args[0](*args[1:]))
@@ -257,5 +250,4 @@ class DownloadManager():
     def cancel_download(self, medium):
         self.cancel_requests[medium['link']] = True
         medium['location'] = 'remote'
-        self.item_list.db.update_medium(medium)
-        self.item_list.update_medium_areas(modified_media=[medium])
+        self.db.update_medium(medium)

@@ -23,9 +23,10 @@ from termipod.utils import print_log
 
 
 class Player():
-    def __init__(self, item_list, print_infos):
+    def __init__(self, item_list, print_infos, cb=None):
         self.item_list = item_list
         self.print_infos = print_infos
+        self.cb = cb
         self.player = None
         self.current_filename = None
         self.playlist = {}
@@ -101,7 +102,8 @@ class Player():
             medium['location'] = 'remote'
 
         db.update_medium(medium)
-        self.item_list.update_medium_areas(modified_media=[medium])
+        if self.cb is not None:
+            self.cb('medium', 'modified', [medium])
 
     def play(self, medium, now=True):
         if now:
