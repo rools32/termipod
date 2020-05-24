@@ -351,7 +351,7 @@ class ItemList():
         self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
 
         thread = Thread(target=self.new_channel_task,
-                        rgs=(cleanurl, opts, cb))
+                        args=(cleanurl, opts, cb))
         thread.daemon = True
         thread.start()
         if self.wait:
@@ -381,7 +381,7 @@ class ItemList():
 
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
         if cb is not None:
-            cb('channels', 'new', [data])
+            cb('channel', 'new', [data])
 
     def medium_idx_to_object(self, idx):
         return self.media[idx]
@@ -524,7 +524,7 @@ class ItemList():
                     cb('medium', 'modified', sub_media, only=True)
         self.print_infos('Update channels done!')
 
-        all_new_media.sort(key=operator.itemgetter('date'), reverse=True)
+        all_new_media.sort(key=operator.itemgetter('date'), reverse=False)
         self.add_media(all_new_media)
         cb('channel', 'modified', updated_channels, only=True)
         cb('medium', 'new', all_new_media, only=True)

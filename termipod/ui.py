@@ -1344,7 +1344,10 @@ class ChannelArea(ItemArea):
         ntotal_elements = len(channel['media'])
 
         updated_date = ts_to_date(channel['updated'])
-        last_medium_date = ts_to_date(channel['media'][-1]['date'])
+        try:
+            last_medium_date = ts_to_date(channel['media'][-1]['date'])
+        except IndexError:
+            last_medium_date = ts_to_date(0)
 
         separator = u" \u2022 "
 
