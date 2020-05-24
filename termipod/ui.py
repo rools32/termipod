@@ -48,10 +48,10 @@ class UI():
         curses.curs_set(0)  # disable cursor
         curses.cbreak()  # no need to press enter to react to keys
         curses.noecho()  # do not show pressed keys
-        curses.init_pair(1, curses.COLOR_GREEN, curses.COLOR_BLACK)
-        curses.init_pair(2, curses.COLOR_WHITE, curses.COLOR_BLACK)
-        curses.init_pair(3, curses.COLOR_BLACK, curses.COLOR_WHITE)
-        curses.init_pair(4, curses.COLOR_RED, curses.COLOR_BLACK)
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_GREEN, -1)
+        curses.init_pair(2, -1, -1)
+        curses.init_pair(3, curses.COLOR_RED, -1)
         screen.refresh()
 
         self.keymap = Keymap(config)
@@ -852,8 +852,8 @@ class ItemArea:
     def print_line(self, line, string, bold=False):
         normal_style = curses.color_pair(2)
         bold_style = curses.color_pair(1)
-        select_style = curses.color_pair(3)
-        highlight_style = curses.color_pair(4)
+        select_style = curses.color_pair(2) | curses.A_REVERSE
+        highlight_style = curses.color_pair(3)
         try:
             self.win.move(line, 0)
             self.win.clrtoeol()
@@ -978,7 +978,7 @@ class ItemArea:
             start = max(1, self.height+1-height)
 
         win = curses.newwin(height, width, start, outer_margin)
-        win.bkgd(curses.color_pair(3))
+        win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
         win.keypad(1)
         win.border('|', '|', '-', '-', '+', '+', '+', '+')
 
@@ -1398,7 +1398,7 @@ class TitleArea:
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, 0, 0)
-        self.win.bkgd(curses.color_pair(3))
+        self.win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
         self.win.keypad(1)
 
         self.print(format_string(self.title, self.width-1))
@@ -1437,7 +1437,7 @@ class StatusArea:
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, height-1, 0)
-        self.win.bkgd(curses.color_pair(3))
+        self.win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
         self.win.keypad(1)
         self.print('')
 
