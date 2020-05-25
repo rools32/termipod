@@ -36,6 +36,7 @@ from termipod.utils import (duration_to_str, ts_to_date, print_log,
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
 from termipod.database import DataBaseVersionException
+from termipod.httpserver import HTTPServer
 
 
 class UI():
@@ -87,6 +88,10 @@ class UI():
 
         # Init player
         self.item_list.player_init(cb=tabs.update_areas)
+
+        # Prepare http server (do not run it)
+        self.httpserver = HTTPServer(int(config.httpserver_port),
+                                     self.print_infos)
 
         while True:
             # Wait for key
@@ -207,6 +212,23 @@ class UI():
                         sel = self.get_user_selection(idx, area)
                         channels = self.item_list.remove_channels('ui', sel)
                         tabs.update_areas('channel', 'removed', channels)
+
+                # HTTP server
+                elif command[0] in ('httpServerStart',):
+                    if len(command) == 2:
+                        port = command[1]
+                    elif len(command) == 1:
+                        port = None
+                    else:
+                        area.show_command_help('httpServerStart', error=True)
+                        continue
+                    self.httpserver.start(port)
+
+                elif command[0] in ('httpServerStop',):
+                    if len(command) != 1:
+                        area.show_command_help('httpServerStop', error=True)
+                    else:
+                        self.httpserver.stop()
 
                 else:
                     self.print_infos('Command "%s" not found' % command[0],
@@ -344,6 +366,25 @@ class UI():
             ###################################################################
             # Local medium commands
             ###################################################################
+            elif 'save_as_playlist' == action:
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.medium_idx_to_objects(sel)
+                filenames = [m['filename'] for m in media]
+
+                # Choose base name
+                text = 'Playlist name: '
+                destfile = self.status_area.run_command(text)
+                if destfile is None:
+                    continue
+                destfile += '.m3u'
+
+                try:
+                    with open(destfile, 'w') as f:
+                        for filename in filenames:
+                            f.write(f'{filename}\n')
+                except FileNotFoundError as e:
+                    self.print_infos(e, mode='error')
+                    continue
 
             ###################################################################
             # Downloading medium commands
@@ -402,6 +443,7 @@ class UI():
                     'ui', sel, add_categories, remove_categories)
                 tabs.update_areas('channel', 'modified', channels, only=True)
 
+           # Action not recognized
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')
 
@@ -928,6 +970,14 @@ class ItemArea:
             'channelRemove': (
                 'Remove selected channels (and all associated media)',
                 'channelRemove'
+            ),
+            'httpserverStart': (
+                'Start local file streaming server',
+                'httpserverStart'
+            ),
+            'httpserverStop': (
+                'Stop streaming server',
+                'httpserverStop'
             ),
             'quit': (
                 'Quit',

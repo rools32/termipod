@@ -210,6 +210,7 @@ class DownloadManager():
 
         ret = multiprocessing.Queue()
         # Download needs to be done as a new process to be able to cancel it
+        # XXX FIXME problem with print_infos in distributed memory!
         p = multiprocessing.Process(
             target=self.download_task,
             args=(ret, (dl_func, link, filename, self.print_infos)))

@@ -35,6 +35,7 @@ default_params = {
     'db_path': '%s/%s.db' % (default_config_dir, appname),
     'media_path': expanduser("~")+'/'+appname,
     'update_minutes': "30",
+    'httpserver_port': "8195",
 }
 
 default_keymaps = [
@@ -92,6 +93,7 @@ default_keymaps = [
     ('media_local', '\n', 'medium_playadd'),
     ('media_local', 'd', 'medium_download'),
     ('media_local', 'D', 'medium_remove'),
+    ('media_local', 'p', 'save_as_playlist'),
 
     ('media_download', 'd', 'medium_download'),
 
