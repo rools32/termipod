@@ -933,14 +933,20 @@ class ItemArea:
 
     def show_help(self, keymap):
         lines = []
-        lines.append('In termipod')
-        lines.append('===========')
+        lines.append('In main area')
+        lines.append('============')
         lines.extend(keymap.map_to_help(self.key_class))
 
         lines.append('')
-        lines.append("In mpv (launched by termipod")
-        lines.append("============================")
+        lines.append("In mpv (launched from termipod")
+        lines.append("==============================")
         lines.append("?      Show new commands")
+
+        lines.append('')
+        lines.append("In command line")
+        lines.append("===============")
+        lines.append("^L      Redraw line")
+        lines.append("^U      Clear line")
 
         self.print_popup(lines, 'cursor')
 
@@ -959,6 +965,10 @@ class ItemArea:
                 '[auto[=<regex>]] [mask=<regex>] '
                 '[categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
+            ),
+            'messages': (
+                'Print last messages',
+                'messages [outputfile]'
             ),
             'errors': (
                 'Print last errors',
@@ -1697,7 +1707,19 @@ class Textbox:
             return None
 
         elif curses.keyname(key) == b'^L':
-            # TODO refresh
+            y, x = self.win.getyx()
+            inputstr = self.win.instr(y, 0, x).decode('utf8')
+            self.win.clear()
+            self.win.refresh()
+            self.win.addstr(0, 0, inputstr)
+            self.win.refresh()
+            return None
+
+        elif curses.keyname(key) == b'^U':
+            self.win.move(0, 0)
+            self.win.clrtoeol()
+            self.win.addstr(0, 0, str(self.prefix))
+            self.win.refresh()
             return None
 
         elif curses.keyname(key) == b'^[':
