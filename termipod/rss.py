@@ -69,9 +69,8 @@ def get_data(url, print_infos):
 
         if 'itunes_duration' in entry:
             sduration = entry['itunes_duration']
-            medium['duration'] = \
-                sum([int(x)*60**i for (i, x) in
-                    enumerate(sduration.split(':')[::-1])])
+            medium['duration'] = sum([int(x)*60**i for (i, x) in
+                                      enumerate(sduration.split(':')[::-1])])
         data['items'].append(medium)
 
     if 'updated_parsed' in feed:

@@ -32,8 +32,8 @@ class DownloadLogger(object):
         self.step = 0
 
     def debug(self, msg):
-        regex = '.*\[download\] *([0-9.]*)% of *[0-9.]*.i_b ' \
-                'at *[0-9.]*.i_b/s ETA ([0-9:]*)'
+        regex = ('.*\[download\] *([0-9.]*)% of *[0-9.]*.i_b '
+                 'at *[0-9.]*.i_b/s ETA ([0-9:]*)')
         match = re.match(regex, msg)
         if match is not None:
             percentage = int(float(match.groups()[0]))
@@ -130,7 +130,7 @@ def get_data(source, opts, print_infos):
     new = 'update' not in opts or not opts['update']
 
     mask = False
-    if 'mask' in opts and len(opts['mask']):
+    if 'mask' in opts and opts['mask']:
         mask = opts['mask']
 
     if new:

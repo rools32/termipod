@@ -162,8 +162,8 @@ class DataBase:
         data['url'] = channel_list[1]
         data['title'] = channel_list[2]
         data['type'] = channel_list[3]
-        data['categories'] = \
-            channel_list[4].split(', ') if channel_list[4] else []
+        data['categories'] = (
+            channel_list[4].split(', ') if channel_list[4] else [])
         data['auto'] = channel_list[5]
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])

@@ -67,8 +67,8 @@ def ts_to_date(ts):
 
 
 def str_to_filename(string):
-    return unicodedata.normalize('NFKD', string).encode('ascii', 'ignore')\
-            .decode('ascii').replace(' ', '-').replace('/', '-')
+    return (unicodedata.normalize('NFKD', string).encode('ascii', 'ignore')
+            .decode('ascii').replace(' ', '-').replace('/', '-'))
 
 
 def duration_to_str(duration):

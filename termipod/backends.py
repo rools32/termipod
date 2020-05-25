@@ -45,7 +45,7 @@ def get_all_data(url, opts, print_infos):
         data = rss.get_all_data(url, opts, print_infos)
         data['addcount'] = -1
 
-    if 'mask' in opts and len(opts['mask']):
+    if 'mask' in opts and opts['mask']:
         apply_mask(data, re.compile(opts['mask']))
 
     return data
@@ -62,7 +62,7 @@ def get_new_data(channel, opts, print_infos):
         data = rss.get_new_data(channel, opts, print_infos)
         data['addcount'] = -1
 
-    if len(channel['mask']):
+    if channel['mask']:
         apply_mask(data, channel['mask'])
 
     return data
@@ -111,8 +111,8 @@ def shrink_link(channel, link):
 
 def get_duration(medium):
     filename = os.path.abspath(medium['filename']).replace('"', '\\"')
-    commandline = 'ffprobe -i "%s" -show_entries ' \
-                  'format=duration -v quiet -of csv="p=0"' % filename
+    commandline = ('ffprobe -i "%s" -show_entries '
+                   'format=duration -v quiet -of csv="p=0"' % filename)
     args = shlex.split(commandline)
     result = subprocess.Popen(
             args,
@@ -158,8 +158,8 @@ class DownloadManager():
                 if not medium['link'] in self.handle_queue.retries:
                     self.handle_queue.retries[medium['link']] = 1
 
-                if self.max_retries <= \
-                        self.handle_queue.retries[medium['link']]:
+                if (self.max_retries
+                        <= self.handle_queue.retries[medium['link']]):
                     continue
 
                 self.handle_queue.retries[medium['link']] += 1

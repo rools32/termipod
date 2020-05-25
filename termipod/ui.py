@@ -1219,8 +1219,8 @@ class MediumArea(ItemArea):
                 self.filters['channels'] = list(set(channel_titles))
 
             else:
-                self.filters['channels'] = \
-                    list(set([c['title'] for c in channels]))
+                self.filters['channels'] = list(
+                    set([c['title'] for c in channels]))
 
         # Update screen
         self.reset_contents()
@@ -1232,8 +1232,7 @@ class MediumArea(ItemArea):
             if categories is None:
                 if not self.user_selection:
                     medium = self.get_current_item()
-                    channel_categories = \
-                        medium['channel']['categories']
+                    channel_categories = medium['channel']['categories']
 
                 else:
                     media = [self.items[i] for i in self.user_selection]
@@ -1262,17 +1261,18 @@ class MediumArea(ItemArea):
         other_items = []
         for item in new_items:
             match = True
-            if self.filters['channels'] is not None and \
-                    item['channel']['title'] not in self.filters['channels']:
+            if (self.filters['channels'] is not None
+                    and item['channel']['title']
+                    not in self.filters['channels']):
                 match = False
 
-            elif self.filters['categories'] is not None and \
-                    set(self.filters['categories']) - \
-                    set(item['channel']['categories']):
+            elif (self.filters['categories'] is not None
+                  and (set(self.filters['categories'])
+                       - set(item['channel']['categories']))):
                 match = False
 
-            elif self.filters['tags'] is not None and \
-                    item['tags'] not in self.filters['tags']:
+            elif (self.filters['tags'] is not None
+                  and item['tags'] not in self.filters['tags']):
                 match = False
 
             elif self.location != item['location']:
@@ -1351,9 +1351,9 @@ class ChannelArea(ItemArea):
         other_items = []
         for item in new_items:
             match = True
-            if self.filters['categories'] is not None and \
-                    set(self.filters['categories']) - \
-                    set(item['categories']):
+            if (self.filters['categories'] is not None
+                    and (set(self.filters['categories'])
+                         - set(item['categories']))):
                 match = False
 
             elif item['disabled']:
@@ -1373,8 +1373,7 @@ class ChannelArea(ItemArea):
             if categories is None:
                 if not self.user_selection:
                     channel = self.get_current_item()
-                    channel_categories = \
-                        channel['categories']
+                    channel_categories = channel['categories']
 
                 else:
                     channels = [self.items[i] for i in self.user_selection]
@@ -1420,13 +1419,13 @@ class ChannelArea(ItemArea):
             formatted_item['updated'] = updated_date
             formatted_item['unread'] = nunread_elements
             formatted_item['total'] = ntotal_elements
-            formatted_item['categories'] = \
-                ', '.join(formatted_item['categories'])
+            formatted_item['categories'] = (
+                ', '.join(formatted_item['categories']))
             if channel['addcount'] == -1:
                 formatted_item['added items at creation'] = 'all'
             else:
-                formatted_item['added items at creation'] = \
-                    f'{channel["addcount"]} (incomplete)'
+                formatted_item['added items at creation'] = (
+                    f'{channel["addcount"]} (incomplete)')
             fields = ['title', 'type', 'updated', 'url', 'categories',
                       'auto', 'added items at creation', 'unread', 'total']
             string = []

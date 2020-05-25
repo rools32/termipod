@@ -32,10 +32,13 @@ class Player():
         self.playlist = {}
 
     def start(self):
-        self.player = \
-            mpv.MPV(log_handler=self.mpv_log, ytdl=True,
-                    input_default_bindings=True, input_vo_keyboard=True,
-                    osc=True, config=True)
+        self.player = mpv.MPV(
+            log_handler=self.mpv_log,
+            ytdl=True,
+            input_default_bindings=True,
+            input_vo_keyboard=True,
+            osc=True, config=True
+        )
         self.player.force_window = True
         self.player.keep_open = 'always'
         self.player.keep_open_pause = False  # To continue after next file
@@ -53,8 +56,8 @@ class Player():
             help_msg += '\n'
             help_msg += separator+"File auto marked as read if fully read"
             help_msg += '\n'
-            help_msg += \
-                separator+"'>' to go to next file without marking as read"
+            help_msg += (
+                separator+"'>' to go to next file without marking as read")
 
             # If help is not shown we show it
             if help_msg != self.player.osd_msg1:
@@ -96,7 +99,7 @@ class Player():
         medium['state'] = 'read'
         self.print_infos('Mark as read %s' % medium['filename'])
 
-        if unlink and len(medium['filename']):
+        if unlink and medium['filename']:
             self.print_infos('Remove %s' % medium['filename'])
             os.unlink(medium['filename'])
             medium['location'] = 'remote'
@@ -117,8 +120,8 @@ class Player():
         if 'local' == medium['location'] and '' != medium['filename']:
             target = medium['filename']
         else:
-            if medium['channel']['type'] == 'youtube' \
-                    and 'youtube' not in medium['link']:
+            if (medium['channel']['type'] == 'youtube'
+                    and 'youtube' not in medium['link']):
                 target = 'ytdl://'+medium['link']
             else:
                 target = medium['link']

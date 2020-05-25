@@ -46,11 +46,10 @@ class ItemList():
         self.add_channels()
         self.add_media()
 
-
         # Mark removed files as read
         for medium in self.media:
-            if 'local' == medium['location'] and \
-                    not os.path.isfile(medium['filename']):
+            if ('local' == medium['location'] and
+                    not os.path.isfile(medium['filename'])):
                 self.remove(medium=medium, unlink=False)
 
     def media_update_index(self):
@@ -173,7 +172,7 @@ class ItemList():
         self.player = player.Player(self, self.print_infos, cb=cb)
 
     def play(self, indices):
-        if not len(indices):
+        if not indices:
             return
         # Play first item
         idx = indices[0]
@@ -234,7 +233,7 @@ class ItemList():
                         nfailed += 1
 
         self.print_infos(
-            'Update media done' +
+            'Update media done'
             f' ({nfailed} failed)' if nfailed else '')
         return media
 
@@ -304,7 +303,7 @@ class ItemList():
             'name': ''
         }
 
-        if sopts is not None and len(sopts):
+        if sopts:
             try:
                 uopts = options_string_to_dict(sopts, opts.keys())
             except ValueError as e:
@@ -317,7 +316,7 @@ class ItemList():
                 uopts['strict'] = (
                     1 if not uopts['strict'] else
                     int(uopts['strict']))
-            if 'auto' in uopts and not len(uopts['auto']):
+            if 'auto' in uopts and not uopts['auto']:
                 uopts['auto'] = '.*'
             if 'force' in uopts:
                 uopts['force'] = (
@@ -339,9 +338,9 @@ class ItemList():
         channels = self.db.find_channels(cleanurl)
         channel_titles = [c['title'] for c in channels]
         if channels:
-            if not opts['force'] \
-                    or not len(opts['name']) \
-                    or opts['name'] in channel_titles:
+            if (not opts['force']
+                    or not len(opts['name'])
+                    or opts['name'] in channel_titles):
                 channel = channels[0]
                 self.print_infos(f'\"{channel["url"]}\" already present '
                                  f'({channel["title"]}). '
