@@ -147,7 +147,62 @@ class UI():
                 area.show_description()
 
             elif 'command_get' == action:
-                string = self.status_area.run_command(':')
+                completer = CommandCompleter()
+
+                completer.add_command('add', 'Add a channel')
+                completer.add_option(
+                    ['add'], 'url', '', '[^ ]+', 'URL', position=0)
+                completer.add_option(
+                    ['add'], 'count', 'count=', 'count=[-0-9]+',
+                    'Maximal number of elements to retrieve info')
+                completer.add_option(
+                    ['add'], 'force', 'force', 'force',
+                    'Force creation if already exists')
+                completer.add_option(
+                    ['add'], 'strict', 'strict', 'strict',
+                    'Do no retrieve list of files after count')
+                completer.add_option(
+                    ['add'], 'auto', 'auto=', 'auto=[^ ]+',
+                    'Regex for files to download automatically')
+                completer.add_option(
+                    ['add'], 'categories', 'categories=', 'categories=[^ ]+',
+                    'Comma separated list of categories (use quotes)')
+                completer.add_option(
+                    ['add'], 'name', 'name=', 'name=[^ ]+',
+                    'Alternative name of the channel (needed with force)')
+
+                completer.add_command(
+                    'channelRemove',
+                    'Remove selected channels (and all associated media)')
+
+                completer.add_command('channelDisable',
+                                      'Disable selected channels')
+
+                completer.add_command('help', 'Show help')
+
+                completer.add_command('messages', 'Print last messages')
+                completer.add_option(
+                    ['messages'], 'file', '', '.*', 'Output file')
+
+                completer.add_command('errors', 'Print last errors')
+                completer.add_option(
+                    ['errors'], 'file', '', '.*', 'Output file')
+
+                completer.add_command(
+                    'httpServerStart',
+                    'Start http streaming server')
+                completer.add_option(
+                    ['httpServerStart'], 'port', '', '[0-9]+', 'Port')
+
+                completer.add_command('httpServerStop', 'Stop the server')
+
+                completer.add_command('httpServerStatus',
+                                      'Get streaming server status')
+
+                completer.add_command('quit', 'Quit termipod')
+
+                # TODO generate help for show_command_help from completer
+                string = self.status_area.run_command(':', completer=completer)
                 if string is None:
                     continue
 
@@ -314,7 +369,7 @@ class UI():
                     init = ''
 
                 all_categories = self.item_list.channel_get_categories()
-                completer = Completer('commalist', all_categories)
+                completer = CommaListCompleter(all_categories)
                 category_str = self.status_area.run_command(
                     'categories: ', init=init, completer=completer)
 
@@ -434,7 +489,7 @@ class UI():
                     init += ', '
 
                 all_categories = self.item_list.channel_get_categories()
-                completer = Completer('commalist', all_categories)
+                completer = CommaListCompleter(all_categories)
                 category_str = (
                     self.status_area.run_command(text, init=init,
                                                  completer=completer))
@@ -1679,10 +1734,12 @@ class Textbox:
 
                 self.userlastword = self.lastword
                 self.complidx = -1
-                # If only one result force completion
+                # If only one result (not empty) force completion
                 if len(self.compls) == 1:
                     self.completion = True
                 else:
+                    if not self.desc:
+                        self.desc = ['Nothing to complete!']
                     self.popup(self.desc)
 
             # Direct next tab press
@@ -1699,6 +1756,9 @@ class Textbox:
                     compl = self.userlastword
                 else:
                     compl = self.compls[self.complidx]
+                    if len(compl) <= len(self.userlastword):
+                        compl = self.userlastword
+                        self.complidx = -1
 
                 try:
                     self.win.addstr(y, x-len(self.lastword), compl)
@@ -1708,10 +1768,12 @@ class Textbox:
                 except curses.error:
                     pass
 
-                if len(self.compls) != 1:
-                    lines = [v if i != self.complidx else '> '+v
-                             for i, v in enumerate(self.desc)]
-                    self.popup(lines)
+                lines = [v if i != self.complidx else '> '+v
+                         for i, v in enumerate(self.desc)]
+                self.popup(lines)
+
+            if self.completion and not self.compls:
+                self.popup(self.desc)
 
             self.completion = True
             return None
@@ -1746,17 +1808,155 @@ class Textbox:
 
 
 class Completer:
-    def __init__(self, mode, values):
-        self.mode = mode
+    def __init__(self, values):
         self.values = values
 
+
+class CommaListCompleter(Completer):
     def complete(self, string, selected=''):
-        if self.mode == 'commalist':
-            values = commastr_to_list(string, remove_emtpy=False)
-            begin = values[:-1]
-            lastword = values[-1]
-            candidates = [v for v in self.values
-                          if v.startswith(lastword) and v not in begin]
+        values = commastr_to_list(string, remove_emtpy=False)
+        begin = values[:-1]
+        lastword = values[-1]
+        candidates = [v for v in self.values
+                      if v.startswith(lastword) and v not in begin]
+        return {'replaced_token': lastword,
+                'candidates': candidates,
+                'helplines': candidates}
+
+
+class CommandCompleter(Completer):
+    def __init__(self):
+        self.values = []
+
+    def _find_location(self, path, start=None, get_seen_options=False):
+        if start is None:
+            location = self.values
+        else:
+            location = start
+
+        # Empty values
+        if not location:
+            return location
+
+        seen_options = []
+        position = 0
+        for p in path:
+            new_locations = []
+            for l in location:
+                # If start as option, we avoid it being matched with matchall
+                # option
+                if l['value'].endswith('=') and p.startswith(l['value']):
+                    if re.match('^'+l['regex']+'$', p) is None:
+                        return None
+
+                else:
+                    if re.match('^'+l['regex']+'$', p) is None:
+                        if (l['position'] is not None
+                                and l['position'] != position):
+                            return None
+                        continue
+                    else:
+                        if (l['position'] is not None
+                                and l['position'] != position):
+                            continue
+                new_locations.append(l)
+
+            if len(new_locations) != 1:
+                return None
+            new_location = new_locations[0]
+
+            # If it is command (else: it is an option, we ignore it)
+            if 'next' in new_location:
+                location = new_location['next']
+                seen_options = []
+                position = 0
+            else:
+                if not l['repeat']:
+                    seen_options.append(new_location['name'])
+                position += 1
+
+        if get_seen_options:
+            return (location, seen_options, position)
+        else:
+            return location
+
+    def add_command(self, name, description):
+        return self.add_subcommand([], name, description)
+
+    def add_subcommand(self, path, name, description):
+        location = self._find_location(path)
+        location.append({
+            'name': name,
+            'value': name,
+            'regex': name,
+            'position': None,
+            'description': description,
+            'next': [],
+        })
+
+    def add_option(self, path, name, value, regex, description,
+                   position=None, repeat=False):
+        location = self._find_location(path)
+        location.append({
+            'name': name,
+            'value': value,
+            'regex': regex,
+            'description': description,
+            'position': position,
+            'repeat': repeat,
+        })
+
+    def complete(self, string, selected=''):
+        tokens = shlex.split(string)
+        if string and string[-1] == ' ':
+            tokens.append('')
+        path = tokens[:-1]
+        try:
+            lastword = tokens[-1]
+        except IndexError:
+            lastword = ''
+
+        ret = self._find_location(path, get_seen_options=True)
+        if ret is not None:
+            location, seen_options, position = ret
+        else:
+            location = None
+
+        # Does not match
+        if location is None:
             return {'replaced_token': lastword,
-                    'candidates': candidates,
-                    'helplines': candidates}
+                    'candidates': [],
+                    'helplines': ['Syntax error!']}
+
+        # Determine if we have a mandatory parameter at current position
+        fixed_position = False
+        for l in location:
+            if l['position'] == position:
+                fixed_position = True
+                break
+
+        # Find candidates
+        # Remove seen options
+        candidates = [
+            l for l in location
+            if (l['value'].startswith(lastword) or not l['value']
+                or (l['value'][-1] == '=' and lastword.startswith(l['value'])))
+            and l['name'] not in seen_options
+        ]
+
+        # Remove options at other positions
+        if fixed_position:
+            candidates = [c for c in candidates if c['position'] == position]
+        else:
+            candidates = [c for c in candidates if c['position'] is None]
+
+        values = [c['value'] for c in candidates]
+        descriptions = [
+            c['value']+' -  '+c['description'] if c['value']
+            else c['description']
+            for c in candidates
+        ]
+
+        return {'replaced_token': lastword,
+                'candidates': values,
+                'helplines': descriptions}
