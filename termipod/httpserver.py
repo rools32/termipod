@@ -90,6 +90,8 @@ class HTTPServer():
 
         if port is None:
             port = self.port
+        else:
+            self.port = port
         p = multiprocessing.Process(target=self.run, args=(port,))
         p.daemon = True
         self.print_infos(f'Server started on port {port}', mode='direct')
@@ -102,6 +104,14 @@ class HTTPServer():
             return
 
         self.server_process = p
+
+    def status(self):
+        if (self.server_process is not None
+                and self.server_process.is_alive()):
+            self.print_infos(f'Server is running on port {self.port}',
+                             mode='direct')
+        else:
+            self.print_infos('Server is stopped', mode='direct')
 
     def stop(self):
         if (self.server_process is not None

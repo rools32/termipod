@@ -230,6 +230,12 @@ class UI():
                     else:
                         self.httpserver.stop()
 
+                elif command[0] in ('httpServerStatus',):
+                    if len(command) != 1:
+                        area.show_command_help('httpServerStatus', error=True)
+                    else:
+                        self.httpserver.status()
+
                 else:
                     self.print_infos('Command "%s" not found' % command[0],
                                      mode='error')
@@ -981,13 +987,17 @@ class ItemArea:
                 'Remove selected channels (and all associated media)',
                 'channelRemove'
             ),
-            'httpserverStart': (
+            'httpServerStart': (
                 'Start local file streaming server',
-                'httpserverStart'
+                'httpServerStart'
             ),
-            'httpserverStop': (
+            'httpsErverStop': (
                 'Stop streaming server',
                 'httpserverStop'
+            ),
+            'httpServerStatus': (
+                'Get streaming server status',
+                'httpServerStatus'
             ),
             'quit': (
                 'Quit',
