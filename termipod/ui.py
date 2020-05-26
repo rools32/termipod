@@ -255,7 +255,7 @@ class UI():
                     else:
                         sel = self.get_user_selection(idx, area)
                         channels = self.item_list.disable_channels('ui', sel)
-                        tabs.update_areas('channel', 'remove', channels,
+                        tabs.update_areas('channel', 'removed', channels,
                                           only=True)
 
                 elif command[0] in ('channelRemove',):
@@ -589,7 +589,7 @@ class UI():
                 if (time.time()-self.item_list.lastupdate >
                         self.update_minutes*60):
                     self.item_list.update_channels(
-                        'ui', cb=self.tabs.update_areas)
+                        'ui', wait=True, cb=self.tabs.update_areas)
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
