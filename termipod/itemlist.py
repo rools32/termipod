@@ -77,10 +77,13 @@ class ItemList():
 
         return channels
 
-    def disable_channels(self, origin, channel_ids):
+    def disable_channels(self, origin, channel_ids, enable=False):
         channels = self.channel_ids_to_objects(origin, channel_ids)
         for channel in channels:
-            channel['disabled'] = True
+            if enable:
+                channel['disabled'] = False
+            else:
+                channel['disabled'] = True
             self.db.update_channel(channel)
         return channels
 

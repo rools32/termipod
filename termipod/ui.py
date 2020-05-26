@@ -53,6 +53,10 @@ class UI():
         curses.init_pair(1, curses.COLOR_GREEN, -1)
         curses.init_pair(2, -1, -1)
         curses.init_pair(3, curses.COLOR_RED, -1)
+        try:
+            curses.init_pair(4, 8, -1)  # Grey
+        except curses.error:
+            curses.init_pair(4, -1, -1)
         screen.refresh()
 
         self.keymap = Keymap(config)
@@ -178,6 +182,9 @@ class UI():
                 completer.add_command('channelDisable',
                                       'Disable selected channels')
 
+                completer.add_command('channelEnable',
+                                      'Enable selected channels')
+
                 completer.add_command('help', 'Show help')
 
                 completer.add_command('messages', 'Print last messages')
@@ -255,6 +262,19 @@ class UI():
                     else:
                         sel = self.get_user_selection(idx, area)
                         channels = self.item_list.disable_channels('ui', sel)
+                        tabs.update_areas('channel', 'removed', channels,
+                                          only=True)
+
+                elif command[0] in ('channelEnable',):
+                    if len(command) != 1:
+                        area.show_command_help('channelEnable', error=True)
+                    elif area.key_class != 'channels':
+                        self.print_infos('Not in channel area')
+
+                    else:
+                        sel = self.get_user_selection(idx, area)
+                        channels = self.item_list.disable_channels('ui', sel,
+                                                                   enable=True)
                         tabs.update_areas('channel', 'removed', channels,
                                           only=True)
 
@@ -1012,11 +1032,23 @@ class ItemArea:
     def move_cursor(self, item_idx):
         self.move_screen('line', 'down', item_idx-self.cursor-self.first_line)
 
-    def print_line(self, line, string, bold=False):
+    def print_line(self, line, string, style=None):
         normal_style = curses.color_pair(2)
         bold_style = curses.color_pair(1)
         select_style = curses.color_pair(2) | curses.A_REVERSE
         highlight_style = curses.color_pair(3)
+        greyedout_style = curses.color_pair(4)
+
+        # Style can be embedded in string with :<b,g>:
+        if len(string) > 3 and string[0] == ':' and string[2] == ':':
+            if style is not None:
+                pass
+            elif string[1] == 'b':
+                style = 'bold'
+            elif string[1] == 'g':
+                style = 'greyedout'
+            string = string[3:]
+
         try:
             self.win.move(line, 0)
             self.win.clrtoeol()
@@ -1025,7 +1057,7 @@ class ItemArea:
                 self.win.refresh()
                 return
 
-            if bold:
+            if style == 'bold':
                 self.win.addstr(line, 0, string, bold_style)
             else:
                 # If line is in user selection
@@ -1045,6 +1077,8 @@ class ItemArea:
                         self.win.addstr(line, written, part, styles[style_idx])
                         written += len(part)
                         style_idx = (style_idx+1) % 2
+                elif style == 'greyedout':
+                    self.win.addstr(line, 0, string, greyedout_style)
                 else:
                     self.win.addstr(line, 0, string, normal_style)
 
@@ -1098,6 +1132,9 @@ class ItemArea:
             'channelDisable': (
                 'Disable selected channels',
                 'channelDisable'),
+            'channelEnable': (
+                'Enable selected channels',
+                'channelEnable'),
             'channelRemove': (
                 'Remove selected channels (and all associated media)',
                 'channelRemove'
@@ -1291,7 +1328,7 @@ class ItemArea:
                     line = self.contents[self.first_line+line_number]
                     # Line where cursor is, bold
                     if line_number == self.cursor:
-                        self.print_line(line_number, line, True)
+                        self.print_line(line_number, line, style='bold')
                     else:
                         self.print_line(line_number, line)
 
@@ -1303,7 +1340,8 @@ class ItemArea:
             self.print_line(self.old_cursor,
                             self.contents[self.first_line+self.old_cursor])
             self.print_line(self.cursor,
-                            self.contents[self.first_line+self.cursor], True)
+                            self.contents[self.first_line+self.cursor],
+                            style='bold')
 
         self.mutex.release()
 
@@ -1513,9 +1551,6 @@ class ChannelArea(ItemArea):
                          - set(item['categories']))):
                 match = False
 
-            elif item['disabled']:
-                match = False
-
             if match:
                 matching_items.append(item)
             else:
@@ -1559,7 +1594,8 @@ class ChannelArea(ItemArea):
 
         if not multi_lines:
             # TODO format and align
-            string = channel['title']
+            string = ':g:' if channel['disabled'] else ''
+            string += channel['title']
             string += separator
             string += channel['type']
             string += separator
