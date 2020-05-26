@@ -31,7 +31,7 @@ from collections import deque
 
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
-                            commastr_to_list, list_to_commastr,
+                            commastr_to_list,
                             screen_reset)
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
@@ -405,6 +405,62 @@ class UI():
                 tabs.update_areas('medium', 'modified', media)
                 area.user_selection = deque()
 
+            elif 'medium_tag' == action:
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.medium_idx_to_objects(sel)
+
+                # Shared tags
+                shared_tags = set.intersection(
+                    *[set(c['tags']) for c in media])
+
+                text = 'Comma separated shared tags: '
+                init = ', '.join(list(shared_tags))
+
+                if init:
+                    init += ', '
+
+                all_tags = self.item_list.medium_get_tags()
+                completer = CommaListCompleter(all_tags)
+                tag_str = (
+                    self.status_area.run_command(text, init=init,
+                                                 completer=completer))
+                if tag_str is None:
+                    continue
+                tags = set(commastr_to_list(tag_str))
+
+                add_tags = tags-shared_tags
+                remove_tags = shared_tags-tags
+
+                media = self.item_list.medium_set_tags(
+                    'ui', sel, add_tags, remove_tags)
+                tabs.update_areas('medium', 'modified', media, only=True)
+
+            elif 'tag_filter' == action:
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.medium_idx_to_objects(sel)
+
+                if media:
+                    tags = set(media[0]['tags'])
+                    for c in media[1:]:
+                        tags &= set(c['tags'])
+                    init = ', '.join(list(tags))
+                else:
+                    init = ''
+
+                all_tags = self.item_list.medium_get_tags()
+                completer = CommaListCompleter(all_tags)
+                tag_str = self.status_area.run_command(
+                    'tags: ', init=init, completer=completer)
+
+                if tag_str is None:
+                    continue
+                if not tag_str:
+                    tags = None
+                else:
+                    tags = commastr_to_list(tag_str)
+
+                tabs.filter_by_tags(tags=tags)
+
             ###################################################################
             # Remote medium commands
             ###################################################################
@@ -504,7 +560,7 @@ class UI():
                     'ui', sel, add_categories, remove_categories)
                 tabs.update_areas('channel', 'modified', channels, only=True)
 
-           # Action not recognized
+            # Action not recognized
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')
 
@@ -639,6 +695,10 @@ class Tabs:
         area = self.get_current_area()
         area.filter_by_categories(categories)
 
+    def filter_by_tags(self, tags=None):
+        area = self.get_current_area()
+        area.filter_by_tags(tags)
+
     def sort_switch(self):
         area = self.get_current_area()
         area.switch_sort()
@@ -730,7 +790,7 @@ class Tabs:
                 area.reset_contents()
 
         else:
-            raise(ValueError(f'Bad action ({action})'))
+            raise(ValueError(f'Bad state ({state})'))
 
 
 class ItemArea:
@@ -1322,6 +1382,27 @@ class MediumArea(ItemArea):
         # Update screen
         self.reset_contents()
 
+    def filter_by_tags(self, tags=None):
+        if tags is None and self.filters['tags']:
+            self.filters['tags'] = None
+        else:
+            if tags is None:
+                if not self.user_selection:
+                    medium = self.get_current_item()
+                    medium_tags = medium['tags']
+
+                else:
+                    media = [self.items[i] for i in self.user_selection]
+                    medium_tags = [m['tags'] for m in media]
+
+                self.filters['tags'] = list(set(medium_tags))
+
+            else:
+                self.filters['tags'] = tags
+
+        # Update screen
+        self.reset_contents()
+
     def switch_state(self):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.state)
@@ -1336,7 +1417,13 @@ class MediumArea(ItemArea):
         other_items = []
         for item in new_items:
             match = True
-            if (self.filters['channels'] is not None
+            if self.location != item['location']:
+                match = False
+
+            elif 'all' != self.state and self.state != item['state']:
+                match = False
+
+            elif (self.filters['channels'] is not None
                     and item['channel']['title']
                     not in self.filters['channels']):
                 match = False
@@ -1347,13 +1434,8 @@ class MediumArea(ItemArea):
                 match = False
 
             elif (self.filters['tags'] is not None
-                  and item['tags'] not in self.filters['tags']):
-                match = False
-
-            elif self.location != item['location']:
-                match = False
-
-            elif 'all' != self.state and self.state != item['state']:
+                  and (set(self.filters['tags'])
+                       - set(item['tags']))):
                 match = False
 
             if match:

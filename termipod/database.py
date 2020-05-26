@@ -109,7 +109,8 @@ class DataBase:
         data['location'] = medium_list[5]
         data['state'] = medium_list[6]
         data['filename'] = medium_list[7]
-        data['tags'] = medium_list[8]
+        data['tags'] = (
+            medium_list[8].split(', ') if medium_list[8] else [])
         data['description'] = medium_list[9]
 
         data['cid'] = channel_id
@@ -332,7 +333,8 @@ class DataBase:
         link = backends.shrink_link(medium['channel'], medium['link'])
         args = (
             medium['duration'], medium['date'], medium['location'],
-            medium['state'], medium['filename'], medium['tags'],
+            medium['state'], medium['filename'],
+            ', '.join(medium['tags']),
             link, medium['cid']
         )
         with self.mutex, self.conn:

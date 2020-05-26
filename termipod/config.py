@@ -87,6 +87,8 @@ default_keymaps = [
     ('media', 'c', 'channel_filter'),
     ('media', 'f', 'state_filter'),
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
+    ('media', 'T', 'medium_tag'),
+    ('media', 't', 'tag_filter'),
 
     ('media_remote', '\n', 'medium_download'),
 
@@ -101,7 +103,7 @@ default_keymaps = [
     ('channels', 'a', 'channel_auto'),
     ('channels', 'A', 'channel_auto_custom'),
     ('channels', '\n', 'channel_show_media'),
-    ('channels', 't', 'channel_category'),
+    ('channels', 'E', 'channel_category'),
 ]
 
 

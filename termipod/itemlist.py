@@ -543,3 +543,31 @@ class ItemList():
                 export = '# '+export
             exports .append(export)
         return '\n'.join(exports)
+
+    def medium_get_tags(self):
+        tags = set()
+        for medium in self.media:
+            tags |= set(medium['tags'])
+        return tags
+
+    def medium_set_tags(self, origin, medium_ids, add_tags,
+                        remove_tags):
+        media = []
+        for medium_id in medium_ids:
+            medium = self.medium_idx_to_object(medium_id)
+            media.append(medium)
+
+            add_tag_str = ', '.join(list(add_tags))
+            remove_tag_str = ', '.join(list(remove_tags))
+
+            medium['tags'] = set(medium['tags'])
+            medium['tags'] -= remove_tags
+            medium['tags'] |= add_tags
+            medium['tags'] = list(medium['tags'])
+
+            self.db.update_medium(medium)
+
+        self.print_infos(f'tags: add "{add_tag_str}" '
+                         f'remove "{remove_tag_str}"')
+
+        return media
