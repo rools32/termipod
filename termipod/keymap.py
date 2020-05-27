@@ -18,8 +18,24 @@
 import curses
 
 
-def get_key_name(screen):
+keycodes = {}
+keynames = {}
+lastkey = None
+keymap = None
+
+
+def get_key(screen):
+    global lastkey
     key = screen.getch()
+    lastkey = key
+    return key
+
+
+def get_last_key():
+    return lastkey
+
+
+def keycode_to_keyname(screen, key):
     key_name = curses.keyname(key).decode()
     if ' ' == key_name:
         key_name = 'KEY_SPACE'
@@ -30,16 +46,48 @@ def get_key_name(screen):
     return key_name
 
 
+def init_key_tables(screen):
+    # for i in range(0x110000):
+    for i in range(500):
+        keyname = keycode_to_keyname(screen, i)
+        if keyname != '':
+            keycodes[keyname] = i
+            keynames[i] = keyname
+
+
+def get_key_code(key_name):
+    return keycodes[key_name]
+
+
+def get_key_name(key_code):
+    return keynames[key_code]
+
+
+def get_keymap():
+    return keymap
+
+
 class Keymap():
     def __init__(self, config):
         self.keymaps = self.load_keymap(config.keys)
 
         self.keys = {}
+        self.actions = {}
         for m in self.keymaps:
             self.add_key(*m)
+        global keymap
+        keymap = self
 
     def add_key(self, area_type, key, action):
+        if key not in keycodes:
+            raise ValueError(f'Key {key} is not handled')
         self.keys[(area_type, key)] = action
+        if action not in self.actions:
+            self.actions[action] = []
+        self.actions[action].append(key)
+
+    def list_keys(self):
+        return [k[1] for k in self.keys.keys()]
 
     def get_action(self, area_type, key_name):
         sub_type = area_type.split('_')[0]
@@ -47,6 +95,9 @@ class Keymap():
             if (t, key_name) in self.keys:
                 return self.keys[(t, key_name)]
         return None
+
+    def get_keys(self, action):
+        return tuple(self.actions[action])
 
     def map_to_help(self, area_type):
         max_len = 0

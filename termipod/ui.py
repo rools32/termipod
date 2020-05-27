@@ -34,7 +34,8 @@ from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             commastr_to_list, list_to_commastr,
                             screen_reset)
 from termipod.itemlist import ItemList
-from termipod.keymap import Keymap, get_key_name
+from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
+                             get_last_key, init_key_tables, get_keymap)
 from termipod.database import DataBaseVersionException
 from termipod.httpserver import HTTPServer
 
@@ -59,6 +60,7 @@ class UI():
             curses.init_pair(4, -1, -1)
         screen.refresh()
 
+        init_key_tables(screen)
         self.keymap = Keymap(config)
 
         self.status_area = StatusArea(screen, print_popup=self.print_popup,
@@ -99,7 +101,8 @@ class UI():
 
         while True:
             # Wait for key
-            key_name = get_key_name(screen)
+            key_code = get_key(screen)
+            key_name = get_key_name(key_code)
             area = tabs.get_current_area()
 
             area_key_class = area.get_key_class()
@@ -1822,18 +1825,18 @@ class Textbox:
     def handle_key(self, key):
         start = self.start
 
-        if curses.keyname(key) == b'^?':
+        if get_key_name(key) == '^?':
             y, x = self.win.getyx()
             if x == start:
                 return None
             key = curses.KEY_BACKSPACE
 
         # Tab or Shitf-Tab
-        elif curses.keyname(key) == b'^I' or key == 353:
+        elif get_key_name(key) == '\t' or get_key_name(key) == 'KEY_BTAB':
             if self.completer is None:
                 return None
 
-            if curses.keyname(key) == b'^I':
+            if get_key_name(key) == '\t':
                 way = 1
             else:
                 way = -1
@@ -1897,7 +1900,7 @@ class Textbox:
             self.completion = True
             return None
 
-        elif curses.keyname(key) == b'^L':
+        elif get_key_name(key) == '^L':
             y, x = self.win.getyx()
             inputstr = self.win.instr(y, 0, x).decode('utf8')
             self.win.clear()
@@ -1906,20 +1909,20 @@ class Textbox:
             self.win.refresh()
             return None
 
-        elif curses.keyname(key) == b'^U':
+        elif get_key_name(key) == '^U':
             self.win.move(0, 0)
             self.win.clrtoeol()
             self.win.addstr(0, 0, str(self.prefix))
             self.win.refresh()
             return None
 
-        elif curses.keyname(key) == b'^[':
+        elif get_key_name(key) == '^[':
             y, x = self.win.getyx()
             self.win.move(y, 0)
             self.win.clrtoeol()
             self.win.refresh()
             # Return Ctrl-g to confirm
-            return 7
+            return get_key_code('^G')
 
         self.completion = False
         self.complidx = -1
