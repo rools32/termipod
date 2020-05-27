@@ -554,7 +554,7 @@ class ItemList():
         channel = self.channel_id_to_object(origin, channel_id)
         channel['mask'] = mask
         self.db.update_channel(channel)
-        self.print_infos(f'Mask updated')
+        self.print_infos('Mask updated')
 
         return channel
 

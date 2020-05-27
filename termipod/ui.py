@@ -1298,21 +1298,27 @@ class ItemArea:
 
         keymap = get_keymap()
         this_popup_key = get_last_key()
-        popup_keys = {
+        move_keys = {
             get_key_code(k)
-            for a in ['infos', 'description']
+            for a in [
+                'line_down',
+                'line_up',
+                'page_down',
+                'page_up',
+                'top',
+                'bottom',
+                'search_next',
+                'search_prev',
+            ]
             for k in keymap.get_keys(a)
         }
-        other_popup_keys = popup_keys-{this_popup_key}
 
         key = get_key(self.screen)
 
         if sticky:
             if key == this_popup_key:
                 pass
-            elif key in other_popup_keys:
-                curses.ungetch(key)
-            elif key == get_key_code(':'):
+            elif key not in move_keys:
                 curses.ungetch(key)
             else:
                 curses.ungetch(this_popup_key)
