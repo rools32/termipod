@@ -774,7 +774,7 @@ class Tabs:
 
     def state_switch(self):
         area = self.get_current_area()
-        area.switch_state()
+        area.filter_next_state()
 
     def screen_infos(self):
         area = self.get_current_area()
@@ -894,6 +894,16 @@ class ItemArea:
         self.width = width-1
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(curses.color_pair(2))
+
+    def get_title_name(self):
+        filters = [
+            f'{k}: {list_to_commastr(self.filters[k])}'
+            for k in self.filters
+            if self.filters[k]
+        ]
+        if not filters:
+            filters = ['All shown']
+        return f'{self.display_name} - {"; ".join(filters)}'
 
     def add_to_user_selection(self, idx=None):
         if idx is None:
@@ -1370,6 +1380,7 @@ class ItemArea:
         if self.contents is None:
             redraw = True
             self.add_contents()
+            self.title_area.print(self.get_title_name())
             return
 
         self.mutex.acquire()
@@ -1437,9 +1448,9 @@ class ItemArea:
 class MediumArea(ItemArea):
     def __init__(self, screen, location, items, name, title_area, print_infos):
         self.location = location
-        self.state = 'unread'
         self.key_class = 'media_'+location
         self.filters = {
+            'state': 'unread',
             'channels': None,
             'categories': None,
             'tags': None,
@@ -1447,9 +1458,6 @@ class MediumArea(ItemArea):
 
         super().__init__(screen, items, location, name, title_area,
                          print_infos)
-
-    def get_title_name(self):
-        return '%s (%s)' % (self.display_name, self.state)
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")
@@ -1526,12 +1534,11 @@ class MediumArea(ItemArea):
         # Update screen
         self.reset_contents()
 
-    def switch_state(self):
+    def filter_next_state(self):
         states = ['all', 'unread', 'read', 'skipped']
-        idx = states.index(self.state)
-        self.state = states[(idx+1) % len(states)]
-        self.print_infos('Show %s media' % self.state)
-        self.title_area.print(self.get_title_name())
+        idx = states.index(self.filters['state'])
+        self.filters['state'] = states[(idx+1) % len(states)]
+        self.print_infos('Show %s media' % self.filters['state'])
         self.reset_contents()
 
     # if new_items update selection (do not replace)
@@ -1543,7 +1550,8 @@ class MediumArea(ItemArea):
             if self.location != item['location']:
                 match = False
 
-            elif 'all' != self.state and self.state != item['state']:
+            elif ('all' != self.filters['state']
+                  and self.filters['state'] != item['state']):
                 match = False
 
             elif (self.filters['channels'] is not None
@@ -1624,9 +1632,6 @@ class ChannelArea(ItemArea):
 
         super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
-
-    def get_title_name(self):
-        return self.display_name
 
     def filter(self, new_items):
         matching_items = []

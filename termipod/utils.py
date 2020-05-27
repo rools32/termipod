@@ -133,7 +133,10 @@ def options_string_to_dict(string, keys):
 
 
 def list_to_commastr(commalist):
-    return ', '.join(list(commalist))
+    if isinstance(commalist, str):
+        return commalist
+    strlist = [str(e) for e in commalist]
+    return ', '.join(strlist)
 
 
 def commastr_to_list(string, remove_emtpy=True):
