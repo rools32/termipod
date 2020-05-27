@@ -22,6 +22,7 @@ from multiprocessing import Lock
 
 from termipod.database_update import update_version, get_user_version
 import termipod.backends as backends
+from termipod.utils import commastr_to_list, list_to_commastr
 
 
 class DataBaseVersionException(Exception):
@@ -110,7 +111,7 @@ class DataBase:
         data['state'] = medium_list[6]
         data['filename'] = medium_list[7]
         data['tags'] = (
-            medium_list[8].split(', ') if medium_list[8] else [])
+            commastr_to_list(medium_list[8]) if medium_list[8] else [])
         data['description'] = medium_list[9]
 
         data['cid'] = channel_id
@@ -164,7 +165,7 @@ class DataBase:
         data['title'] = channel_list[2]
         data['type'] = channel_list[3]
         data['categories'] = (
-            channel_list[4].split(', ') if channel_list[4] else [])
+            commastr_to_list(channel_list[4]) if channel_list[4] else [])
         data['auto'] = channel_list[5]
         data['updated'] = channel_list[6]
         data['addcount'] = int(channel_list[7])
@@ -180,7 +181,7 @@ class DataBase:
         return data
 
     def channel_to_list(self, channel):
-        category_str = ', '.join(channel['categories'])
+        category_str = list_to_commastr(channel['categories'])
         return (channel['url'], channel['title'],
                 channel['type'], category_str, channel['auto'],
                 channel['updated'], int(channel['addcount']),
@@ -297,7 +298,7 @@ class DataBase:
         args = (
                 channel['title'],
                 channel['type'],
-                ', '.join(channel['categories']),
+                list_to_commastr(channel['categories']),
                 channel['auto'],
                 channel['updated'],
                 channel['addcount'],
@@ -334,7 +335,7 @@ class DataBase:
         args = (
             medium['duration'], medium['date'], medium['location'],
             medium['state'], medium['filename'],
-            ', '.join(medium['tags']),
+            list_to_commastr(medium['tags']),
             link, medium['cid']
         )
         with self.mutex, self.conn:

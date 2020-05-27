@@ -31,7 +31,7 @@ from collections import deque
 
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
-                            commastr_to_list,
+                            commastr_to_list, list_to_commastr,
                             screen_reset)
 from termipod.itemlist import ItemList
 from termipod.keymap import Keymap, get_key_name
@@ -384,14 +384,14 @@ class UI():
                     categories = set(channels[0]['categories'])
                     for c in channels[1:]:
                         categories &= set(c['categories'])
-                    init = ', '.join(list(categories))
+                    init = list_to_commastr(categories)
                 else:
                     init = ''
 
                 all_categories = self.item_list.channel_get_categories()
                 completer = CommaListCompleter(all_categories)
                 category_str = self.status_area.run_command(
-                    'categories: ', init=init, completer=completer)
+                    'category filter: ', init=init, completer=completer)
 
                 if category_str is None:
                     continue
@@ -434,7 +434,7 @@ class UI():
                     *[set(c['tags']) for c in media])
 
                 text = 'Comma separated shared tags: '
-                init = ', '.join(list(shared_tags))
+                init = list_to_commastr(shared_tags)
 
                 if init:
                     init += ', '
@@ -463,14 +463,14 @@ class UI():
                     tags = set(media[0]['tags'])
                     for c in media[1:]:
                         tags &= set(c['tags'])
-                    init = ', '.join(list(tags))
+                    init = list_to_commastr(tags)
                 else:
                     init = ''
 
                 all_tags = self.item_list.medium_get_tags()
                 completer = CommaListCompleter(all_tags)
                 tag_str = self.status_area.run_command(
-                    'tags: ', init=init, completer=completer)
+                    'tag filter: ', init=init, completer=completer)
 
                 if tag_str is None:
                     continue
@@ -559,7 +559,7 @@ class UI():
                     *[set(c['categories']) for c in channels])
 
                 text = 'Comma separated shared categories: '
-                init = ', '.join(list(shared_categories))
+                init = list_to_commastr(shared_categories)
 
                 if init:
                     init += ', '
@@ -1601,7 +1601,7 @@ class ChannelArea(ItemArea):
             string += separator
             string += f'{nunread_elements}/{ntotal_elements}'
             string += separator
-            string += ', '.join(channel['categories'])
+            string += list_to_commastr(channel['categories'])
             string += separator
             string += channel['auto']
             string += separator
@@ -1613,7 +1613,7 @@ class ChannelArea(ItemArea):
             formatted_item['unread'] = nunread_elements
             formatted_item['total'] = ntotal_elements
             formatted_item['categories'] = (
-                ', '.join(formatted_item['categories']))
+                list_to_commastr(formatted_item['categories']))
             if channel['addcount'] == -1:
                 formatted_item['added items at creation'] = 'all'
             else:
