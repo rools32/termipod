@@ -1169,7 +1169,9 @@ class ItemArea:
         lines = []
         lines.append('In main area')
         lines.append('============')
-        lines.extend(keymap.map_to_help(self.key_class))
+        helpsection = keymap.map_to_help(self.key_class)
+        helpsection.sort(key=lambda x: (x.casefold(), x.swapcase()))
+        lines.extend(helpsection)
 
         lines.append('')
         lines.append("In mpv (launched from termipod")
