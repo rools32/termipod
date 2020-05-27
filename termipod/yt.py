@@ -182,6 +182,9 @@ def get_data(source, opts, print_infos):
             c = 0
             i = 0
             for entry in info['entries']:
+                if 'strict' in opts and opts['strict'] and c == opts['count']:
+                    break
+
                 # Start from 'fromidx' element
                 if 'fromidx' in opts and i < opts['fromidx']:
                     i += 1
@@ -225,9 +228,6 @@ def get_data(source, opts, print_infos):
                 medium = medium_from_ytdl(entry)
                 medium['channel'] = title
                 data['items'].append(medium)
-
-                if 'strict' in opts and opts['strict'] and c == opts['count']:
-                    break
 
                 i += 1
 
