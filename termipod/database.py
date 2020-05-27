@@ -247,9 +247,11 @@ class DataBase:
                     if new:
                         not_found = True
                     else:
+                        link = backends.shrink_link(
+                            medium['channel'], medium['link'])
                         cur = self.conn.execute(
                             "SELECT url FROM media WHERE url = ? and cid = ?",
-                            (medium['link'], medium['cid'])
+                            (link, medium['cid'])
                         )
                         not_found = cur.fetchone() is None
 
