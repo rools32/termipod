@@ -1491,6 +1491,7 @@ class MediumArea(ItemArea):
         formatted_item['date'] = ts_to_date(medium['date'])
         formatted_item['duration'] = duration_to_str(medium['duration'])
         formatted_item['channel'] = formatted_item['channel']['title']
+        formatted_item['tags'] = list_to_commastr(medium['tags'])
         try:
             formatted_item['size'] = (
                 str(int(os.path.getsize(
@@ -1516,8 +1517,8 @@ class MediumArea(ItemArea):
             string += formatted_item['duration']
 
         else:
-            fields = ['title', 'channel', 'date', 'duration', 'filename',
-                      'size', 'link']
+            fields = ['title', 'channel', 'date', 'duration', 'tags',
+                      'filename', 'size', 'link']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
