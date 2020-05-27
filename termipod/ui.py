@@ -1172,7 +1172,7 @@ class ItemArea:
 
         self.print_popup(lines, 'bottom')
 
-    def print_popup(self, raw_lines, position, margin=5):
+    def print_popup(self, raw_lines, position, margin=5, sticky=False):
         if position == 'cursor':
             base = self.cursor
         elif position == 'bottom':
@@ -1215,22 +1215,46 @@ class ItemArea:
         except curses.error:
             pass
 
-        key = self.screen.getch()
-        curses.ungetch(key)
+        keymap = get_keymap()
+        this_popup_key = get_last_key()
+        popup_keys = {
+            get_key_code(k)
+            for a in ['infos', 'description']
+            for k in keymap.get_keys(a)
+        }
+        other_popup_keys = popup_keys-{this_popup_key}
+
+        key = get_key(self.screen)
+
+        if sticky:
+            if key == this_popup_key:
+                pass
+            elif key in other_popup_keys:
+                curses.ungetch(key)
+            elif key == get_key_code(':'):
+                curses.ungetch(key)
+            else:
+                curses.ungetch(this_popup_key)
+                curses.ungetch(key)
+        else:
+            curses.ungetch(key)
 
         self.display(redraw=True)
 
     def show_infos(self):
         item = self.get_current_item()
+        if item is None:
+            return
+
         lines = self.item_to_string(item, multi_lines=True)
 
-        self.print_popup(lines, 'cursor')
+        self.print_popup(lines, 'cursor', sticky=True)
 
     def show_description(self):
         item = self.get_current_item()
         lines = item['description'].split('\n')
 
-        self.print_popup(lines, 'cursor')
+        self.print_popup(lines, 'cursor', sticky=True)
 
     def position_to_idx(self, first_line, cursor):
         return first_line+cursor
