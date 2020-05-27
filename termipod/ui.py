@@ -2029,22 +2029,40 @@ class Textbox:
             return None
 
         elif get_key_name(key) == '^L':
+            # Refresh line
             y, x = self.win.getyx()
-            inputstr = self.win.instr(y, 0, x).decode('utf8')
+            inputstr = self.win.instr(y, 0)
             self.win.clear()
             self.win.refresh()
-            self.win.addstr(0, 0, inputstr)
+            self.win.addstr(0, 0, inputstr.strip())
+            self.win.move(y, x)
             self.win.refresh()
             return None
 
         elif get_key_name(key) == '^U':
+            # Clear line
             self.win.move(0, 0)
             self.win.clrtoeol()
             self.win.addstr(0, 0, str(self.prefix))
             self.win.refresh()
             return None
 
+        elif get_key_name(key) == '^A':
+            # Go to beginning of line
+            self.win.move(0, len(self.prefix))
+            return None
+
+        elif get_key_name(key) == '^E':
+            # Go to end of line
+            y, x = self.win.getyx()
+            inputstr = self.win.instr(0, 0)
+            inputstr = inputstr.strip()
+            self.win.move(0, len(inputstr))
+            return None
+
+        # Esc
         elif get_key_name(key) == '^[':
+            # Quit prompt
             y, x = self.win.getyx()
             self.win.move(y, 0)
             self.win.clrtoeol()
@@ -2052,6 +2070,17 @@ class Textbox:
             # Return Ctrl-g to confirm
             return get_key_code('^G')
 
+        # Shift end of line if editing in middle
+        elif len(curses.unctrl(key)) == 1:  # Printable char
+            y, x = self.win.getyx()
+            inputstr = self.win.instr(y, x)[:-1]
+            inputstr = inputstr.strip()
+            if inputstr:
+                self.win.addstr(y, x+1, inputstr)
+                self.win.move(y, x)
+                self.win.refresh()
+
         self.completion = False
         self.complidx = -1
+
         return key
