@@ -38,7 +38,7 @@ from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
                              get_last_key, init_key_tables, get_keymap)
 from termipod.database import DataBaseVersionException
 from termipod.httpserver import HTTPServer
-from termipod.completer import CommaListCompleter, CommandCompleter
+from termipod.completer import (CommaListSizeCompleter, CommandCompleter)
 
 
 class UI():
@@ -423,7 +423,7 @@ class UI():
                     init = ''
 
                 all_categories = self.item_list.channel_get_categories()
-                completer = CommaListCompleter(all_categories)
+                completer = CommaListSizeCompleter(all_categories)
                 category_str = self.status_area.run_command(
                     'category filter: ', init=init, completer=completer)
 
@@ -474,7 +474,7 @@ class UI():
                     init += ', '
 
                 all_tags = self.item_list.medium_get_tags()
-                completer = CommaListCompleter(all_tags)
+                completer = CommaListSizeCompleter(all_tags)
                 tag_str = (
                     self.status_area.run_command(text, init=init,
                                                  completer=completer))
@@ -502,7 +502,7 @@ class UI():
                     init = ''
 
                 all_tags = self.item_list.medium_get_tags()
-                completer = CommaListCompleter(all_tags)
+                completer = CommaListSizeCompleter(all_tags)
                 tag_str = self.status_area.run_command(
                     'tag filter: ', init=init, completer=completer)
 
@@ -607,7 +607,7 @@ class UI():
                     init += ', '
 
                 all_categories = self.item_list.channel_get_categories()
-                completer = CommaListCompleter(all_categories)
+                completer = CommaListSizeCompleter(all_categories)
                 category_str = (
                     self.status_area.run_command(text, init=init,
                                                  completer=completer))

@@ -61,9 +61,13 @@ class ItemList():
             channel['index'] = i
 
     def channel_get_categories(self):
-        categories = set()
+        categories = {}
         for channel in self.channels:
-            categories |= set(channel['categories'])
+            for category in channel['categories']:
+                try:
+                    categories[category] += 1
+                except KeyError:
+                    categories[category] = 1
         return categories
 
     def add_channels(self, channels=None):
@@ -636,9 +640,13 @@ class ItemList():
         return '\n'.join(exports)
 
     def medium_get_tags(self):
-        tags = set()
+        tags = {}
         for medium in self.media:
-            tags |= set(medium['tags'])
+            for tag in medium['tags']:
+                try:
+                    tags[tags] += 1
+                except KeyError:
+                    tags[tags] = 1
         return tags
 
     def medium_set_tags(self, origin, medium_ids, add_tags,

@@ -33,9 +33,24 @@ class CommaListCompleter(Completer):
         lastword = values[-1]
         candidates = [v for v in self.values
                       if v.startswith(lastword) and v not in begin]
+        candidates.sort()
         return {'replaced_token': lastword,
                 'candidates': candidates,
                 'helplines': candidates}
+
+
+class CommaListSizeCompleter(Completer):
+    def complete(self, string, selected=''):
+        values = commastr_to_list(string, remove_emtpy=False)
+        begin = values[:-1]
+        lastword = values[-1]
+        candidates = [v for v in self.values
+                      if v.startswith(lastword) and v not in begin]
+        candidates.sort()
+        helps = [f'{c} ({self.values[c]})' for c in candidates]
+        return {'replaced_token': lastword,
+                'candidates': candidates,
+                'helplines': helps}
 
 
 class CommandCompleter(Completer):
@@ -157,6 +172,7 @@ class CommandCompleter(Completer):
                 or (l['value'][-1] == '=' and lastword.startswith(l['value'])))
             and l['name'] not in seen_options
         ]
+        candidates.sort(key=lambda c: c['name'])
 
         # Remove options at other positions
         if fixed_position:
