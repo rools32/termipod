@@ -622,6 +622,25 @@ class UI():
                     'ui', sel, add_categories, remove_categories)
                 tabs.update_areas('channel', 'modified', channels, only=True)
 
+            elif 'channel_mask' == action:
+                sel = self.get_user_selection(idx, area)
+                channels = self.item_list.channel_ids_to_objects('ui', sel)
+                if len(channels) != 1:
+                    self.print_infos('Cannot change mask of several channels',
+                                     mode='error')
+                    continue
+
+                channel = channels[0]
+                text = 'Mask: '
+                init = channel['mask']
+
+                mask = self.status_area.run_command(text, init=init)
+                if mask is None:
+                    continue
+
+                channel = self.item_list.channel_set_mask('ui', sel, mask)
+                tabs.update_areas('channel', 'modified', [channel], only=True)
+
             # Action not recognized
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')
@@ -1726,7 +1745,8 @@ class ChannelArea(ItemArea):
                 formatted_item['added items at creation'] = (
                     f'{channel["addcount"]} (incomplete)')
             fields = ['title', 'type', 'updated', 'url', 'categories',
-                      'auto', 'added items at creation', 'unread', 'total']
+                      'auto', 'mask', 'added items at creation', 'unread',
+                      'total']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])

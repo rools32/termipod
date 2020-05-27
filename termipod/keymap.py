@@ -195,4 +195,5 @@ descriptions = {
         'channel_auto_custom': 'Set custom value for auto',
         'channel_show_media': 'Show media of channel',
         'channel_category': 'Add category to channel',
+        'channel_mask': 'Edit channel mask',
 }

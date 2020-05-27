@@ -550,6 +550,14 @@ class ItemList():
 
         return channels
 
+    def channel_set_mask(self, origin, channel_id, mask):
+        channel = self.channel_id_to_object(origin, channel_id)
+        channel['mask'] = mask
+        self.db.update_channel(channel)
+        self.print_infos(f'Mask updated')
+
+        return channel
+
     def update_channels(self, origin, channel_ids=None, wait=False,
                         cb=None):
         if channel_ids is None:
