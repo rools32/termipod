@@ -295,17 +295,7 @@ class ItemList():
 
         return updated_media
 
-    def new_channel(self, url, sopts=None, cb=None):
-        opts = {
-            'count': -1,
-            'strict': 0,
-            'auto': '',
-            'categories': '',
-            'mask': '',
-            'force': False,
-            'name': ''
-        }
-
+    def apply_user_add_options(self, opts, sopts):
         if sopts:
             try:
                 uopts = options_string_to_dict(sopts, opts.keys())
@@ -331,6 +321,18 @@ class ItemList():
 
             # Merge options
             opts.update(uopts)
+
+    def new_channel(self, url, sopts=None, cb=None):
+        opts = {
+            'count': -1,
+            'strict': 0,
+            'auto': '',
+            'categories': '',
+            'mask': '',
+            'force': False,
+            'name': ''
+        }
+        self.apply_user_add_options(opts, sopts)
 
         # Check not already present in db
         cleanurl = backends.get_clean_url(url)
@@ -384,6 +386,71 @@ class ItemList():
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
         if cb is not None:
             cb('channel', 'new', [data])
+
+    def new_video(self, url, sopts=None, cb=None):
+        opts = {
+            'categories': '',
+            'force': False,
+            'name': ''
+        }
+        self.apply_user_add_options(opts, sopts)
+        opts['auto'] = ''
+        opts['mask'] = ''
+        opts['count'] = 0
+        opts['strict'] = 1
+
+        try:
+            data = backends.get_vidoo_data_only(url, opts, self.print_infos)
+        except NotImplementedError:
+            self.print_infos(f'Unsupported address \"{url}\"')
+            return False
+
+        if opts['name']:
+            data['title'] = opts['name']
+        data['url'] = backends.get_clean_url(data['url'])
+
+        # Check not already present in db
+        channel = self.db.find_channel_by_name(data['title'])
+
+        # Channel exists, video is added if force (and if missing)
+        if channel:
+            if not opts['force']:
+                self.print_infos(f'\"{channel["title"]}\" already present. '
+                                 'Use "force=1" to update it with the video')
+                return False
+
+            else:
+                data['id'] = channel['id']
+                new_media = self.db.add_media(data, force=True)
+                if not new_media:
+                    self.print_infos(f'\"{url}\" already present. ')
+                    return False
+                else:
+                    self.add_media(new_media)
+                    self.print_infos(
+                        f'\"{channel["title"]}\" updated with video')
+                    if cb is not None:
+                        cb('channel', 'modified', [channel], only=True)
+                        cb('medium', 'new', new_media, only=True)
+
+        # We create a new disabled channel
+        else:
+            data['categories'] = opts['categories']
+            data['auto'] = opts['auto']
+            data['mask'] = opts['mask']
+            data['disabled'] = True
+
+            # Add channel to db
+            media = self.db.add_channel(data)
+            if media is None:
+                return False
+
+            self.add_channels([data])
+            self.add_media(media)
+
+            self.print_infos(f'{data["title"]} added ({len(media)} media)')
+            if cb is not None:
+                cb('channel', 'new', [data])
 
     def medium_idx_to_object(self, idx):
         return self.media[idx]

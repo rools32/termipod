@@ -178,6 +178,21 @@ class UI():
                     ['add'], 'name', 'name=', 'name=[^ ]+',
                     'Alternative name of the channel (needed with force)')
 
+                completer.add_command('addvideo',
+                                      'Add a video (to a new disabled channel)')
+                completer.add_option(
+                    ['addvideo'], 'url', '', '[^ ]+', 'URL', position=0)
+                completer.add_option(
+                    ['addvideo'], 'force', 'force', 'force',
+                    'Force creation if already exists')
+                completer.add_option(
+                    ['addvideo'], 'categories', 'categories=',
+                    'categories=[^ ]+',
+                    'Comma separated list of categories (use quotes)')
+                completer.add_option(
+                    ['addvideo'], 'name', 'name=', 'name=[^ ]+',
+                    'Alternative name of the channel')
+
                 completer.add_command(
                     'channelRemove',
                     'Remove selected channels (and all associated media)')
@@ -252,9 +267,21 @@ class UI():
                         area.show_command_help('add', error=True)
                     else:
                         url = command[1]
-                        opts = string[4:].lstrip()[len(url)+1:].lstrip()
+                        start = len(command[0])+1
+                        opts = string[start:].lstrip()[len(url)+1:].lstrip()
                         callback = tabs.update_areas
                         self.item_list.new_channel(url, opts, callback)
+
+                elif command[0] in ('addvideo',):
+                    if len(command) == 1:
+                        area.show_command_help('addvideo', error=True)
+                    else:
+                        url = command[1]
+                        start = len(command[0])+1
+                        opts = string[start:].lstrip()[len(url)+1:].lstrip()
+                        callback = tabs.update_areas
+
+                        self.item_list.new_video(url, opts, callback)
 
                 elif command[0] in ('channelDisable',):
                     if len(command) != 1:
@@ -1122,6 +1149,11 @@ class ItemArea:
                 'add <url> [count=<max items>] [strict[=<0 or 1>]] '
                 '[auto[=<regex>]] [mask=<regex>] '
                 '[categories=<category1,category2>] '
+                '[force[=<0|1]> [name=<new name>]'
+            ),
+            'addvideo': (
+                'Add video (in disabled channel)',
+                'add <url> [categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
             ),
             'messages': (

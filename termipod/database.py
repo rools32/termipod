@@ -148,6 +148,16 @@ class DataBase:
         rows = cursor.fetchall()
         return [self.list_to_channel(row) for row in rows]
 
+    def find_channel_by_name(self, name):
+        """ Get Channel by name """
+        cursor = self.conn.execute(
+            "SELECT * FROM channels WHERE title=?", (name,))
+        rows = cursor.fetchall()
+        if rows:
+            return self.list_to_channel(rows[0])
+        else:
+            return None
+
     def select_channels(self):
         # if already called
         if self.channels:
@@ -209,7 +219,7 @@ class DataBase:
 
         return media
 
-    def add_media(self, data, new=False, mutex=True):
+    def add_media(self, data, new=False, mutex=True, force=False):
         cid = data['id']
 
         channel = self.get_channel(cid)
@@ -224,7 +234,7 @@ class DataBase:
         feed_date = data['updated']
         new_media = []
         new_entries = []
-        if (feed_date > updated_date):  # new items
+        if (feed_date >= updated_date or force):  # new items
             # Filter feed to keep only new items
             media_by_key = {}
             for medium in data['items']:

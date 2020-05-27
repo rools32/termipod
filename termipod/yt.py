@@ -304,6 +304,17 @@ def get_new_data(channel, opts, print_infos):
     return get_data(channel, opts, print_infos)
 
 
+def get_vidoo_data_only(url, opts, print_infos):
+    medium_data = get_medium_data(url, url, print_infos)
+    channel_data = get_data(medium_data['uploader_url'], opts, print_infos)
+    channel_data['updated'] = 0
+
+    medium = medium_from_ytdl(medium_data)
+    channel_data['items'].append(medium)
+
+    return channel_data
+
+
 def medium_from_ytdl(data):
     medium = {
         'title': printable_str(data['title']),
@@ -314,6 +325,8 @@ def medium_from_ytdl(data):
     }
     if 'url' in data:
         medium['link'] = expand_link(data['url'])
+    elif 'webpage_url' in data:
+        medium['link'] = data['webpage_url']
     return medium
 
 
