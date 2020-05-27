@@ -80,7 +80,7 @@ class Keymap():
 
     def add_key(self, area_type, key, action):
         if key not in keycodes:
-            raise ValueError(f'Key {key} is not handled')
+            raise ValueError(f"Key '{key}' is not handled")
         self.keys[(area_type, key)] = action
         if action not in self.actions:
             self.actions[action] = []
@@ -167,6 +167,8 @@ descriptions = {
         'select_until': 'Grow selection',
         'select_clear': 'Clear selection',
 
+        'filter_clear': 'Clear filters',
+
         'search_channel': 'Highlight channel',
         'medium_play': 'Play media',
         'medium_playadd': 'Enqueue media',
@@ -183,6 +185,7 @@ descriptions = {
         'description': 'Show description',
         'medium_tag': 'Set tags for media',
         'tag_filter': 'Filter by tag',
+        'medium_show_channel': 'Jump to corresponding channel',
 
         'medium_download': 'Download / Cancel downloading / Remove file',
 

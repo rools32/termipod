@@ -459,7 +459,7 @@ class ItemList():
         medium = [self.medium_idx_to_object(c) for c in idx]
         return [c for c in medium if c is not None]
 
-    def channel_id_to_object(self, origin, channel_id):  # TODO XXX oops
+    def channel_id_to_object(self, origin, channel_id):
         if origin == 'ui':
             channel = self.channels[channel_id]
 
@@ -490,6 +490,19 @@ class ItemList():
             else:
                 channels.append(found)
         return [c for c in channels if c is not None]
+
+    def channel_object_to_id(self, channel):
+        ids = [i for i in range(len(self.channels))
+               if self.channels[i]['id'] == channel['id']]
+        if len(ids) != 1:
+            return None
+        else:
+            return ids[0]
+
+    def channel_objects_to_ids(self, channels):
+        ids = [i for i in (self.channel_object_to_id(c) for c in channels)
+               if i is not None]
+        return ids
 
     def channel_set_auto(self, origin, channel_ids, auto=None):
         """ Switch auto value or set it to a value if argument auto is

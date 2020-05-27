@@ -112,7 +112,7 @@ class UI():
             print_log(action)
 
             if action is None:
-                self.print_infos('Key %r not mapped for %s' %
+                self.print_infos("Key '%r' not mapped for %s" %
                                  (key_name, area_key_class))
 
             ###################################################################
@@ -370,6 +370,9 @@ class UI():
             elif 'select_clear' == action:
                 tabs.select_clear()
 
+            elif 'filter_clear' == action:
+                tabs.filter_clear()
+
             ###################################################################
             # Allmedia commands
             ###################################################################
@@ -510,6 +513,14 @@ class UI():
                     tags = commastr_to_list(tag_str)
 
                 tabs.filter_by_tags(tags=tags)
+
+            elif 'medium_show_channel' == action:
+                sel = self.get_user_selection(idx, area)
+                media = self.item_list.medium_idx_to_objects(sel)
+                if media:
+                    ids = [m['channel']['id'] for m in media]
+                    tabs.show_tab('channels')
+                    tabs.filter_by_ids(list(set(ids)))
 
             ###################################################################
             # Remote medium commands
@@ -748,6 +759,14 @@ class Tabs:
     def filter_by_tags(self, tags=None):
         area = self.get_current_area()
         area.filter_by_tags(tags)
+
+    def filter_by_ids(self, ids=None):
+        area = self.get_current_area()
+        area.filter_by_ids(ids)
+
+    def filter_clear(self):
+        area = self.get_current_area()
+        area.filter_clear()
 
     def sort_switch(self):
         area = self.get_current_area()
@@ -1407,6 +1426,13 @@ class ItemArea:
     def get_key_class(self):
         return self.key_class
 
+    def filter_clear(self):
+        for k in self.filters:
+            self.filters[k] = None
+
+        # Update screen
+        self.reset_contents()
+
 
 class MediumArea(ItemArea):
     def __init__(self, screen, location, items, name, title_area, print_infos):
@@ -1592,6 +1618,7 @@ class ChannelArea(ItemArea):
         self.key_class = 'channels'
         self.data_base = data_base
         self.filters = {
+            'ids': None,
             'categories': None,
         }
 
@@ -1609,6 +1636,10 @@ class ChannelArea(ItemArea):
             if (self.filters['categories'] is not None
                     and (set(self.filters['categories'])
                          - set(item['categories']))):
+                match = False
+
+            elif (self.filters['ids'] is not None
+                  and item['id'] not in self.filters['ids']):
                 match = False
 
             if match:
@@ -1635,6 +1666,15 @@ class ChannelArea(ItemArea):
 
             else:
                 self.filters['categories'] = categories
+
+        # Update screen
+        self.reset_contents()
+
+    def filter_by_ids(self, ids=None):
+        if ids is None and self.filters['ids']:
+            self.filters['ids'] = None
+        else:
+            self.filters['ids'] = ids
 
         # Update screen
         self.reset_contents()
