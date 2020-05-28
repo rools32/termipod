@@ -135,7 +135,7 @@ class Keymap():
                 key = bytes(key, "utf-8").decode("unicode_escape")
                 keymaps.append((where, key, action))
 
-        keymaps.append(('', 'KEY_RESIZE', 'refresh'))
+        keymaps.append(('', 'KEY_RESIZE', 'reset'))
         return keymaps
 
 
@@ -150,7 +150,8 @@ descriptions = {
         'tab_prev': 'Go previous tab',
         'help': 'Show help',
 
-        'refresh': 'Reset screen',
+        'refresh': 'Redraw screen',
+        'reset': 'Reset screen',
 
         'screen_infos': 'Show screen information',
 

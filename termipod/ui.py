@@ -148,6 +148,9 @@ class UI():
             elif 'refresh' == action:
                 self.refresh()
 
+            elif 'reset' == action:
+                self.reset()
+
             elif 'infos' == action:
                 area.show_infos()
 
@@ -677,12 +680,19 @@ class UI():
 
     def refresh(self, reset=False):
         self.screen.clear()
-        area = self.tabs.get_current_area()
-        area.init_win()
-        if reset:
-            area.reset_contents()
+
+        current_area = self.tabs.get_current_area()
+        areas = self.tabs.areas if reset else [current_area]
+        for area in areas:
+            area.init_win()
+            if reset:
+                area.reset_contents()
+
         self.tabs.show_tab()
         self.status_area.init_win()
+
+    def reset(self):
+        self.refresh(reset=True)
 
     def print_terminal(self, message, mutex=None):
         if not isinstance(message, str):
@@ -991,7 +1001,8 @@ class ItemArea:
 
     def update_contents(self, items):
         if self.contents is None:
-            items = self.items
+            self.add_contents()
+            return
 
         # We keep only items already in item_list
         items = [i for i in items if 'index' in i]
@@ -1000,9 +1011,6 @@ class ItemArea:
         shown_items, hidden_items = self.filter(items)
 
         self.mutex.acquire()
-
-        if self.contents is None:
-            self.contents = deque()
 
         for item in shown_items:
             try:
