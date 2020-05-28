@@ -230,14 +230,13 @@ class ItemList():
         for idx in indices:
             self.print_infos(f'Update media {i}/{len(indices)}...')
             medium = self.media[idx]
-            if medium['duration'] == 0:
-                if backends.update_medium(medium, self.print_infos):
-                    try:
-                        self.db.update_medium(medium)
-                        media.append(medium)
-                        i += 1
-                    except DataBaseUpdateException:
-                        nfailed += 1
+            if backends.update_medium(medium, self.print_infos):
+                try:
+                    self.db.update_medium(medium)
+                    media.append(medium)
+                    i += 1
+                except DataBaseUpdateException:
+                    nfailed += 1
 
         self.print_infos(
             'Update media done'
