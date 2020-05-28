@@ -71,6 +71,7 @@ default_keymaps = [
 
     ('*', 'u', 'channel_update'),
     ('*', 'i', 'infos'),
+    ('*', 'v', 'thumbnail'),
 
     ('*', 'KEY_SPACE', 'select_item'),
     ('*', '$', 'select_until'),

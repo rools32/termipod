@@ -39,6 +39,8 @@ from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
 from termipod.database import DataBaseVersionException
 from termipod.httpserver import HTTPServer
 from termipod.completer import (CommaListSizeCompleter, CommandCompleter)
+import termipod.image as termimage
+from termipod.cache import item_get_cache
 
 
 class UI():
@@ -156,6 +158,9 @@ class UI():
 
             elif 'description' == action:
                 area.show_description()
+
+            elif 'thumbnail' == action:
+                area.switch_thumbnail_mode()
 
             elif 'command_get' == action:
                 completer = CommandCompleter()
@@ -649,6 +654,7 @@ class UI():
                 self.print_infos('Unknown action "%s"' % action, mode='error')
 
         self.item_list.player.stop()  # To prevent segfault in some cases
+        termimage.clear()
         curses.endwin()
 
     def get_user_selection(self, idx, area):
@@ -663,9 +669,9 @@ class UI():
     def print_infos(self, *args, **kwargs):
         self.status_area.print(*args, **kwargs)
 
-    def print_popup(self, string, position='bottom'):
+    def print_popup(self, position, lines):
         area = self.tabs.get_current_area()
-        area.print_popup(string, position)
+        area.print_popup(position, lines)
 
     def update_channels_task(self):
         while True:
@@ -690,6 +696,7 @@ class UI():
 
         self.tabs.show_tab()
         self.status_area.init_win()
+        current_area.show_thumbnail(force_clear=True)
 
     def reset(self):
         self.refresh(reset=True)
@@ -914,6 +921,7 @@ class ItemArea:
         self.selection = deque()
         self.user_selection = deque()
         self.sort = None
+        self.thumbnail = ''
 
         self.init_win()
         self.add_contents()
@@ -1192,7 +1200,7 @@ class ItemArea:
         lines.append("^L      Redraw line")
         lines.append("^U      Clear line")
 
-        self.print_popup(lines, 'cursor')
+        self.print_popup('cursor', lines)
 
     def show_command_help(self, cmd=None, error=False):
         if error:
@@ -1261,9 +1269,10 @@ class ItemArea:
             lines.append(f'{cmd} - {desc[0]}')
             lines.append(f'  Usage: {desc[1]}')
 
-        self.print_popup(lines, 'bottom')
+        self.print_popup('bottom', lines)
 
-    def print_popup(self, raw_lines, position, margin=5, sticky=False):
+    def print_popup(self, position, lines,
+                    margin=8, sticky=False, fit=False):
         if position == 'cursor':
             base = self.cursor
         elif position == 'bottom':
@@ -1276,32 +1285,44 @@ class ItemArea:
         width = self.width-outer_margin*2
         text_width = width-inner_margin*2
 
-        lines = []
-        for l in raw_lines:
-            lines.extend(format_string(l, text_width, truncate=False))
+        flines = []
+        for l in lines:
+            flines.extend(format_string(l, text_width, truncate=False))
 
-        height = len(lines)+2  # for border
+        height = len(flines)+2  # for border
+        if fit:
+            max_text_width = max([len(l.strip()) for l in flines])
+            fit_size = max_text_width+inner_margin*2
+            if fit_size < width:
+                width = fit_size
+                text_width = max_text_width
+                flines = []
+                for l in lines:
+                    flines.extend(format_string(l, text_width, truncate=False))
 
         # Compute first line position
         if height > self.height:
-            lines = lines[:self.height-2]
-            lines[-1] = lines[-1][:-1]+'…'
+            flines = flines[:self.height-2]
+            flines[-1] = flines[-1][:-1]+'…'
             self.print_infos('Truncated, too many lines!')
-            height = len(lines)+2
 
-        start = max(1, base-int(len(lines)/2))
+        height = len(flines)+2
+        nlines = len(flines)
+
+        start = max(1, base-int(nlines/2))
         if start+height-1 > self.height:
             start = max(1, self.height+1-height)
 
-        win = curses.newwin(height, width, start, outer_margin)
-        win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
-        win.keypad(1)
-        win.border('|', '|', '-', '-', '+', '+', '+', '+')
-
+        # Show popup window
         try:
-            for line in range(len(lines)):
+            win = curses.newwin(height, width, start, outer_margin)
+            win.bkgd(curses.color_pair(2))
+            win.keypad(1)
+            win.border()
+
+            for line in range(len(flines)):
                 win.move(line+1, inner_margin)
-                win.addstr(line+1, inner_margin, str(lines[line]))
+                win.addstr(line+1, inner_margin, str(flines[line]))
             win.refresh()
         except curses.error:
             pass
@@ -1319,6 +1340,7 @@ class ItemArea:
                 'bottom',
                 'search_next',
                 'search_prev',
+                'thumbnail',
             ]
             for k in keymap.get_keys(a)
         }
@@ -1344,14 +1366,44 @@ class ItemArea:
             return
 
         lines = self.item_to_string(item, multi_lines=True)
-
-        self.print_popup(lines, 'cursor', sticky=True)
+        fit = True if self.thumbnail == 'window' else False
+        self.print_popup('cursor', lines, sticky=True, fit=fit)
 
     def show_description(self):
         item = self.get_current_item()
         lines = item['description'].split('\n')
+        self.print_popup('cursor', lines, sticky=True)
 
-        self.print_popup(lines, 'cursor', sticky=True)
+    def show_thumbnail(self, force_clear=False):
+        if not self.thumbnail:
+            termimage.clear(force=force_clear)
+
+        else:
+            item = self.get_current_item()
+            image = self.item_get_thumbnail(item)
+            if not image:
+                termimage.clear()
+                return
+
+            if self.thumbnail == 'window':
+                screen_height, screen_width = self.screen.getmaxyx()
+                termimage.draw(
+                    image, self.screen,
+                    'middle-right', (screen_height/2, screen_width-10),
+                    'width', screen_width/2-10)
+            elif self.thumbnail == 'full':
+                termimage.draw(image)
+
+    def switch_thumbnail_mode(self):
+        if not termimage.compatible(self.print_infos):
+            return
+
+        thumbnail_modes = ('', 'window', 'full')
+        mode_idx = thumbnail_modes.index(self.thumbnail)
+        # Next mode
+        self.thumbnail = thumbnail_modes[(mode_idx+1) % len(thumbnail_modes)]
+
+        self.show_thumbnail(force_clear=True)
 
     def position_to_idx(self, first_line, cursor):
         return first_line+cursor
@@ -1402,6 +1454,7 @@ class ItemArea:
         if self.selection:  # if display is not empty
             self.last_selected_item = self.items[self.selection[idx]]
         self.display(redraw)
+        self.show_thumbnail()
 
     def reset_display(self):
         self.old_cursor = 0
@@ -1409,6 +1462,7 @@ class ItemArea:
         self.first_line = 0
         self.last_selected_idx = 0
         self.display(True)
+        self.show_thumbnail(force_clear=True)
 
     def display(self, redraw=False):
         self.shown = True
@@ -1647,13 +1701,16 @@ class MediumArea(ItemArea):
 
         else:
             fields = ['title', 'channel', 'date', 'duration', 'tags',
-                      'filename', 'size', 'link']
+                      'filename', 'size', 'link', 'thumbnail']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
                 string.append(s)
 
         return string
+
+    def item_get_thumbnail(self, item):
+        return item_get_cache(item, 'thumbnail', self.print_infos)
 
 
 class ChannelArea(ItemArea):
@@ -1760,15 +1817,21 @@ class ChannelArea(ItemArea):
             else:
                 formatted_item['added items at creation'] = (
                     f'{channel["addcount"]} (incomplete)')
-            fields = ['title', 'type', 'updated', 'url', 'categories',
-                      'auto', 'mask', 'added items at creation', 'unread',
-                      'total']
+            fields = ['title', 'type', 'updated', 'url', 'thumbnail',
+                      'categories', 'auto', 'mask', 'added items at creation',
+                      'unread', 'total']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
                 string.append(s)
 
         return string
+
+    def item_get_thumbnail(self, item):
+        filemame = item_get_cache(item, 'thumbnail', self.print_infos)
+        if not filemame:
+            return item_get_cache(item['media'][-1], 'thumbnail',
+                                  self.print_infos)
 
 
 class TitleArea:

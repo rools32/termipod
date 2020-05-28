@@ -184,6 +184,7 @@ descriptions = {
         'state_filter': 'Change panel state view (read, unread, skipped...)',
         'infos': 'Show information',
         'description': 'Show description',
+        'thumbnail': 'Show/hide thumbnail (urxvt only)',
         'medium_tag': 'Set tags for media',
         'tag_filter': 'Filter by tag',
         'medium_show_channel': 'Jump to corresponding channel',

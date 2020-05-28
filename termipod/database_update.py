@@ -138,6 +138,20 @@ def update_version(conn, version):
                 """)
                 set_user_version(conn, 7)
 
+        if 7 == get_user_version(conn):
+            with conn:
+                conn.execute(
+                    "ALTER TABLE media ADD COLUMN 'thumbnail' 'TEXT' "
+                    "DEFAULT ''")
+                set_user_version(conn, 8)
+
+        if 8 == get_user_version(conn):
+            with conn:
+                conn.execute(
+                    "ALTER TABLE channels ADD COLUMN 'thumbnail' 'TEXT' "
+                    "DEFAULT ''")
+                set_user_version(conn, 9)
+
         if version != get_user_version(conn):
             print(version)
             print(get_user_version(conn))

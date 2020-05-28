@@ -211,6 +211,7 @@ def get_data(source, opts, print_infos):
                     entry['upload_date'] = vidinfo['upload_date']
                     entry['duration'] = vidinfo['duration']
                     entry['description'] = vidinfo['description']
+                    entry['thumbnail'] = vidinfo['thumbnail']
                     c += 1
 
                     # If update, check not before last update
@@ -224,6 +225,7 @@ def get_data(source, opts, print_infos):
                     entry['upload_date'] = '19700102'
                     entry['duration'] = 0
                     entry['description'] = ''
+                    entry['thumbnail'] = ''
 
                 medium = medium_from_ytdl(entry)
                 medium['channel'] = title
@@ -304,7 +306,7 @@ def get_new_data(channel, opts, print_infos):
     return get_data(channel, opts, print_infos)
 
 
-def get_vidoo_data_only(url, opts, print_infos):
+def get_video_data_only(url, opts, print_infos):
     medium_data = get_medium_data(url, url, print_infos)
     channel_data = get_data(medium_data['uploader_url'], opts, print_infos)
     channel_data['updated'] = 0
@@ -322,6 +324,7 @@ def medium_from_ytdl(data):
             data['upload_date'], "%Y%m%d").timetuple())),
         'description': data['description'],
         'duration': data['duration'],
+        'thumbnail': data['thumbnail'],
     }
     if 'url' in data:
         medium['link'] = expand_link(data['url'])

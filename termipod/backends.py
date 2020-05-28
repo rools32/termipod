@@ -68,9 +68,9 @@ def get_new_data(channel, opts, print_infos):
     return data
 
 
-def get_vidoo_data_only(url, opts, print_infos):
+def get_video_data_only(url, opts, print_infos):
     if 'youtube' in url:
-        data = yt.get_vidoo_data_only(url, opts, print_infos)
+        data = yt.get_video_data_only(url, opts, print_infos)
     else:
         raise NotImplementedError(f'{url} is not yet supported for video only')
     return data

@@ -49,6 +49,13 @@ def get_data(url, print_infos):
     data['type'] = 'rss'
 
     data['items'] = []
+
+    try:
+        url = feed['image']['href']
+        data['thumbnail'] = url
+    except KeyError:
+        data['thumbnail'] = ''
+
     entries = rss.entries
     maxtime = 0
     for entry in entries:
@@ -58,6 +65,8 @@ def get_data(url, print_infos):
         medium['title'] = printable_str(entry['title'])
         medium['date'] = int(mktime(entry['published_parsed']))
         medium['description'] = entry['summary']
+        medium['thumbnail'] = ''
+
         maxtime = max(maxtime, medium['date'])
 
         medium['link'] = None

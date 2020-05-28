@@ -37,7 +37,7 @@ class DataBase:
     def __init__(self, name, print_infos, updatedb=False):
         self.mutex = Lock()
         self.print_infos = print_infos
-        self.version = 7
+        self.version = 9
         # channels by url, useful to get the same object in media
         self.channels = {}
 
@@ -60,7 +60,8 @@ class DataBase:
                         last_update INTEGER,
                         addcount INTEGER,
                         disabled INTEGER,
-                        mask TEXT
+                        mask TEXT,
+                        thumbnail TEXT,
                     );
                 """)
                 self.conn.executescript("""
@@ -75,6 +76,7 @@ class DataBase:
                         filename TEXT,
                         tags TEXT,
                         description TEXT,
+                        thumbnail TEXT,
                         PRIMARY KEY (url, cid)
                     );
                 """)
@@ -113,6 +115,7 @@ class DataBase:
         data['tags'] = (
             commastr_to_list(medium_list[8]) if medium_list[8] else [])
         data['description'] = medium_list[9]
+        data['thumbnail'] = medium_list[10]
 
         data['cid'] = channel_id
         channel = self.get_channel(channel_id)
@@ -127,7 +130,8 @@ class DataBase:
         link = backends.shrink_link(medium['channel'], medium['link'])
         return (link, medium['cid'], medium['title'], medium['date'],
                 medium['duration'], medium['location'], medium['state'],
-                medium['filename'], medium['tags'], medium['description'])
+                medium['filename'], medium['tags'], medium['description'],
+                medium['thumbnail'])
 
     def get_channel(self, channel_id):
         try:
@@ -181,6 +185,7 @@ class DataBase:
         data['addcount'] = int(channel_list[7])
         data['disabled'] = int(channel_list[8]) == 1
         data['mask'] = '' if channel_list[9] is None else channel_list[9]
+        data['thumbnail'] = channel_list[10]
 
         # Save it in self.channels
         if not data['id'] in self.channels:
@@ -195,7 +200,8 @@ class DataBase:
         return (channel['url'], channel['title'],
                 channel['type'], category_str, channel['auto'],
                 channel['updated'], int(channel['addcount']),
-                int(channel['disabled']), channel['mask'])
+                int(channel['disabled']), channel['mask'],
+                channel['thumbnail'])
 
     def add_channel(self, data):
         channel = self.channel_to_list(data)
@@ -203,7 +209,8 @@ class DataBase:
         with self.mutex, self.conn:
             cursor = self.conn.execute(
                 'INSERT INTO channels (url, title, type, '
-                'category, auto, last_update, addcount, disabled, mask) '
+                'category, auto, last_update, addcount, disabled, mask, '
+                'thumbnail)'
                 'VALUES (%s)' % params, channel)
             cid = cursor.lastrowid
 
@@ -251,6 +258,8 @@ class DataBase:
                         medium['filename'] = ''
                     if 'tags' not in medium:
                         medium['tags'] = ''
+                    if 'thumbnail' not in medium:
+                        medium['thumbnail'] = ''
                     new_entry = self.medium_to_list(medium)
 
                     # Check medium was not already in db
@@ -305,7 +314,9 @@ class DataBase:
                         auto = ?,
                         last_update = ?,
                         addcount = ?,
-                        disabled = ?
+                        disabled = ?,
+                        mask = ?,
+                        thumbnail = ?
                     WHERE id = ?"""
         args = (
                 channel['title'],
@@ -315,6 +326,8 @@ class DataBase:
                 channel['updated'],
                 channel['addcount'],
                 channel['disabled'],
+                channel['mask'],
+                channel['thumbnail'],
                 channel['id'],
         )
         if mutex:
@@ -331,7 +344,8 @@ class DataBase:
                         location = ?,
                         state = ?,
                         filename = ?,
-                        tags = ?
+                        tags = ?,
+                        thumbnail = ?
                     WHERE url = ? and cid = ?"""
         if 'duration' not in medium:
             medium['duration'] = 0
@@ -343,11 +357,13 @@ class DataBase:
             medium['filename'] = ''
         if 'tags' not in medium:
             medium['tags'] = ''
+        if 'thumbnail' not in medium:
+            medium['thumbnail'] = ''
         link = backends.shrink_link(medium['channel'], medium['link'])
         args = (
             medium['duration'], medium['date'], medium['location'],
             medium['state'], medium['filename'],
-            list_to_commastr(medium['tags']),
+            list_to_commastr(medium['tags']), medium['thumbnail'],
             link, medium['cid']
         )
         with self.mutex, self.conn:
