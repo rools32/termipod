@@ -20,7 +20,8 @@ import sqlite3
 import sys
 from multiprocessing import Lock
 
-from termipod.database_update import update_version, get_user_version
+from termipod.database_update import (update_version, get_user_version,
+                                      set_user_version)
 import termipod.backends as backends
 from termipod.utils import commastr_to_list, list_to_commastr
 
@@ -61,7 +62,7 @@ class DataBase:
                         addcount INTEGER,
                         disabled INTEGER,
                         mask TEXT,
-                        thumbnail TEXT,
+                        thumbnail TEXT
                     );
                 """)
                 self.conn.executescript("""
@@ -80,7 +81,7 @@ class DataBase:
                         PRIMARY KEY (url, cid)
                     );
                 """)
-                self.set_user_version(self.version)
+                set_user_version(self.conn, self.version)
 
         else:
             if self.version != get_user_version(self.conn):
