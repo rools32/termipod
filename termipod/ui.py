@@ -769,6 +769,7 @@ class Tabs:
 
         self.title_area = TitleArea(self.screen, area.get_title_name())
         area.display(True)
+        area.show_thumbnail()
 
     def show_next_tab(self, reverse=False):
         if reverse:
