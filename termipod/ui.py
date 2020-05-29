@@ -106,8 +106,8 @@ class UI():
             # Wait for key
             key_code = get_key(screen)
             key_name = get_key_name(key_code)
-            area = tabs.get_current_area()
 
+            area = tabs.get_current_area()
             area_key_class = area.get_key_class()
             idx = area.get_idx()
 
@@ -416,7 +416,7 @@ class UI():
 
             elif 'category_filter' == action:
                 sel = self.get_user_selection(idx, area)
-                if isinstance(tabs.get_current_area(), MediumArea):
+                if isinstance(area, MediumArea):
                     media = self.item_list.medium_idx_to_objects(sel)
                     channels = [medium['channel'] for medium in media]
                 else:
