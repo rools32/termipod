@@ -72,7 +72,6 @@ class HTTPServer():
     def run(self, port=None):
         if port is None:
             port = self.port
-        port = 9000
         try:
             file = RemoteFile(".")
             reactor.listenTCP(port, Site(file))
