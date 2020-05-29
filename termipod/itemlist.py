@@ -644,9 +644,9 @@ class ItemList():
         for medium in self.media:
             for tag in medium['tags']:
                 try:
-                    tags[tags] += 1
+                    tags[tag] += 1
                 except KeyError:
-                    tags[tags] = 1
+                    tags[tag] = 1
         return tags
 
     def medium_set_tags(self, origin, medium_ids, add_tags,
