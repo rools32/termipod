@@ -243,7 +243,8 @@ class ItemList():
             f' ({nfailed} failed)' if nfailed else '')
         return media
 
-    def remove(self, indices=None, medium=None, unlink=True, mark_as_read=True):
+    def remove(self, indices=None, medium=None, unlink=True,
+               mark_as_read=True):
         media = None
         if indices is not None:
             media = [self.media[idx] for idx in indices]

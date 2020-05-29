@@ -37,17 +37,44 @@ class DownloadError(Exception):
     pass
 
 
+def media_add_missing_fields(data):
+    fields = (
+        ('date', 0),
+        ('duration', 0),
+        ('description', ''),
+        ('thumbnail', ''),
+    )
+
+    for f, v in fields:
+        if f not in data:
+            data[f] = v
+
+
+def channel_add_missing_fields(data):
+    fields = (
+        ('addcount', -1),
+        ('thumbnail', ''),
+    )
+
+    for f, v in fields:
+        if f not in data:
+            data[f] = v
+
+    for item in data['items']:
+        media_add_missing_fields(item)
+
+
 def get_all_data(url, opts, print_infos):
     if 'youtube' in url:
         data = yt.get_all_data(url, opts, print_infos)
 
     else:
         data = rss.get_all_data(url, opts, print_infos)
-        data['addcount'] = -1
 
     if 'mask' in opts and opts['mask']:
         apply_mask(data, re.compile(opts['mask']))
 
+    channel_add_missing_fields(data)
     return data
 
 
@@ -65,6 +92,7 @@ def get_new_data(channel, opts, print_infos):
     if channel['mask']:
         apply_mask(data, channel['mask'])
 
+    channel_add_missing_fields(data)
     return data
 
 
