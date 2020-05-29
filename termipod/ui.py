@@ -1628,6 +1628,7 @@ class MediumArea(ItemArea):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.filters['state'])
         self.filters['state'] = states[(idx+1) % len(states)]
+
         self.print_infos('Show %s media' % self.filters['state'])
         self.reset_contents()
 
@@ -1635,6 +1636,12 @@ class MediumArea(ItemArea):
     def filter(self, new_items):
         matching_items = []
         other_items = []
+
+        # Reinit state filter if cleared
+        if self.filters['state'] is None:
+            self.filters['state'] = 'unread'
+
+        # Keep matching elements
         for item in new_items:
             match = True
             if self.location != item['location']:
