@@ -669,9 +669,9 @@ class UI():
     def print_infos(self, *args, **kwargs):
         self.status_area.print(*args, **kwargs)
 
-    def print_popup(self, position, lines):
+    def print_popup(self, lines, position='bottom'):
         area = self.tabs.get_current_area()
-        area.print_popup(position, lines)
+        area.print_popup(lines, position)
 
     def update_channels_task(self):
         while True:
@@ -1200,7 +1200,7 @@ class ItemArea:
         lines.append("^L      Redraw line")
         lines.append("^U      Clear line")
 
-        self.print_popup('cursor', lines)
+        self.print_popup(lines, 'cursor')
 
     def show_command_help(self, cmd=None, error=False):
         if error:
@@ -1269,9 +1269,9 @@ class ItemArea:
             lines.append(f'{cmd} - {desc[0]}')
             lines.append(f'  Usage: {desc[1]}')
 
-        self.print_popup('bottom', lines)
+        self.print_popup(lines, 'bottom')
 
-    def print_popup(self, position, lines,
+    def print_popup(self, lines, position='bottom',
                     margin=8, sticky=False, fit=False):
         if position == 'cursor':
             base = self.cursor
@@ -1367,12 +1367,12 @@ class ItemArea:
 
         lines = self.item_to_string(item, multi_lines=True)
         fit = True if self.thumbnail == 'window' else False
-        self.print_popup('cursor', lines, sticky=True, fit=fit)
+        self.print_popup(lines, 'cursor', sticky=True, fit=fit)
 
     def show_description(self):
         item = self.get_current_item()
         lines = item['description'].split('\n')
-        self.print_popup('cursor', lines, sticky=True)
+        self.print_popup(lines, 'cursor', sticky=True)
 
     def show_thumbnail(self, force_clear=False):
         if not self.thumbnail:
