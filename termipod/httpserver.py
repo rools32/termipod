@@ -87,6 +87,11 @@ class HTTPServer():
                              mode='error')
             return
 
+        if self.status(show=False):
+            self.print_infos(f'Server already running on port {self.port}',
+                             mode='direct')
+            return
+
         if port is None:
             port = self.port
         else:
@@ -104,13 +109,17 @@ class HTTPServer():
 
         self.server_process = p
 
-    def status(self):
+    def status(self, show=True):
         if (self.server_process is not None
                 and self.server_process.is_alive()):
-            self.print_infos(f'Server is running on port {self.port}',
-                             mode='direct')
+            if show:
+                self.print_infos(f'Server is running on port {self.port}',
+                                 mode='direct')
+            return True
         else:
-            self.print_infos('Server is stopped', mode='direct')
+            if show:
+                self.print_infos('Server is stopped', mode='direct')
+            return False
 
     def stop(self):
         if (self.server_process is not None
