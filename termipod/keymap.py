@@ -60,6 +60,8 @@ def get_key_code(key_name):
 
 
 def get_key_name(key_code):
+    if key_code == -1:
+        return None
     return keynames[key_code]
 
 
@@ -135,7 +137,7 @@ class Keymap():
                 key = bytes(key, "utf-8").decode("unicode_escape")
                 keymaps.append((where, key, action))
 
-        keymaps.append(('', 'KEY_RESIZE', 'reset'))
+        keymaps.append(('', 'KEY_RESIZE', 'resize'))
         return keymaps
 
 
@@ -151,7 +153,7 @@ descriptions = {
         'help': 'Show help',
 
         'refresh': 'Redraw screen',
-        'reset': 'Reset screen',
+        'resize': 'Resize screen',
 
         'screen_infos': 'Show screen information',
 

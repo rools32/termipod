@@ -47,6 +47,7 @@ class UI():
     def __init__(self, config):
         screen = curses.initscr()
         self.screen = screen
+        self.screen_size = screen.getmaxyx()
         screen.keypad(1)  # to handle special keys as one key
         screen.immedok(True)
         curses.start_color()
@@ -106,6 +107,8 @@ class UI():
             # Wait for key
             key_code = get_key(screen)
             key_name = get_key_name(key_code)
+            if key_name is None:
+                continue
 
             area = tabs.get_current_area()
             area_key_class = area.get_key_class()
@@ -152,6 +155,9 @@ class UI():
 
             elif 'reset' == action:
                 self.reset()
+
+            elif 'resize' == action:
+                self.resize()
 
             elif 'infos' == action:
                 area.show_infos()
@@ -706,6 +712,12 @@ class UI():
 
     def reset(self):
         self.refresh(reset=True)
+
+    def resize(self):
+        screen_size = self.screen.getmaxyx()
+        if screen_size != self.screen_size:
+            self.refresh(reset=False)
+            self.screen_size = self.screen.getmaxyx()
 
     def print_terminal(self, message, mutex=None):
         if not isinstance(message, str):
