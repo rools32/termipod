@@ -36,6 +36,7 @@ default_params = {
     'media_path': expanduser("~")+'/'+appname,
     'update_minutes': "30",
     'httpserver_port': "8195",
+    'httpserver_start': "0",
 }
 
 default_keymaps = [

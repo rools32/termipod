@@ -101,6 +101,7 @@ class UI():
 
         # Prepare http server (do not run it)
         self.httpserver = HTTPServer(int(config.httpserver_port),
+                                     int(config.httpserver_start),
                                      self.print_infos)
 
         while True:

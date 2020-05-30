@@ -64,10 +64,12 @@ if _has_twisted:
 
 
 class HTTPServer():
-    def __init__(self, port, print_infos):
+    def __init__(self, port, start, print_infos):
         self.port = port
         self.print_infos = print_infos
         self.server_process = None
+        if start:
+            self.start()
 
     def run(self, port=None):
         if port is None:
