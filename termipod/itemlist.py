@@ -601,7 +601,6 @@ class ItemList():
 
             data['id'] = channel['id']
             new_media = self.db.add_media(data, force=force_all)
-            __import__('pprint').pprint(len(new_media), open('/dev/pts/15', 'w'))
             if not new_media:
                 continue
 
