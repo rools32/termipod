@@ -198,4 +198,5 @@ descriptions = {
         'channel_show_media': 'Show media of channel',
         'channel_category': 'Add category to channel',
         'channel_mask': 'Edit channel mask',
+        'channel_force_update': 'Update channels (check also for old elements)',
 }

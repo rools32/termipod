@@ -649,6 +649,12 @@ class UI():
                 channel = self.item_list.channel_set_mask('ui', sel, mask)
                 tabs.update_areas('channel', 'modified', [channel], only=True)
 
+            elif 'channel_force_update' == action:
+                sel = self.get_user_selection(idx, area)
+                self.item_list.update_channels('ui', channel_ids=sel,
+                                               force_all=True,
+                                               cb=tabs.update_areas)
+
             # Action not recognized
             else:
                 self.print_infos('Unknown action "%s"' % action, mode='error')

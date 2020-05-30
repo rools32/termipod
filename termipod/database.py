@@ -229,20 +229,19 @@ class DataBase:
 
     def add_media(self, data, new=False, mutex=True, force=False):
         cid = data['id']
-
         channel = self.get_channel(cid)
         if channel is None:
             return None
 
         # Find out if feed has updates
-        if new:
+        if new or force:
             updated_date = -1
         else:
             updated_date = channel['updated']
         feed_date = data['updated']
         new_media = []
         new_entries = []
-        if (feed_date >= updated_date or force):  # new items
+        if (feed_date >= updated_date):  # new items
             # Filter feed to keep only new items
             media_by_key = {}
             for medium in data['items']:

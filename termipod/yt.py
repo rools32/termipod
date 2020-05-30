@@ -126,7 +126,7 @@ def get_feed_url(url):
     return feed_url
 
 
-def get_data(source, opts, print_infos):
+def get_data(source, opts, print_infos, force_all=False):
     new = 'update' not in opts or not opts['update']
 
     mask = False
@@ -143,8 +143,13 @@ def get_data(source, opts, print_infos):
         # NOTE: cannot use daterange from ytdl, it won't change extract_info
         # (only for downloading)
         start_date = channel['updated']
-        method = opts['update_method']
-        opts['count'] = -1
+
+        if force_all:
+            method = 'ytdl'
+            opts['count'] = 0
+        else:
+            method = opts['update_method']
+            opts['count'] = -1
 
     if method == 'ytdl':
         title = None
@@ -218,7 +223,7 @@ def get_data(source, opts, print_infos):
                     if start_date:
                         entry_timestamp = int(mktime(datetime.strptime(
                             entry['upload_date'], "%Y%m%d").timetuple()))
-                        if entry_timestamp < start_date:
+                        if entry_timestamp < start_date and not force_all:
                             break
 
                 else:
@@ -299,11 +304,11 @@ def get_all_data(url, opts, print_infos):
     return get_data(url, opts, print_infos)
 
 
-def get_new_data(channel, opts, print_infos):
+def get_new_data(channel, opts, print_infos, force_all=False):
     opts['update'] = True
     if 'update_method' not in opts:
         opts['update_method'] = 'rss'
-    return get_data(channel, opts, print_infos)
+    return get_data(channel, opts, print_infos, force_all)
 
 
 def get_video_data_only(url, opts, print_infos):

@@ -563,7 +563,7 @@ class ItemList():
         return channel
 
     def update_channels(self, origin, channel_ids=None, wait=False,
-                        cb=None):
+                        force_all=False, cb=None):
         if channel_ids is None:
             channels = self.db.select_channels()
             channels = [c for c in channels if not c['disabled']]
@@ -571,13 +571,14 @@ class ItemList():
             channels = self.channel_ids_to_objects(origin, channel_ids)
 
         if wait or self.wait:
-            self.update_task(channels, cb)
+            self.update_task(channels, cb, force_all)
         else:
-            thread = Thread(target=self.update_task, args=(channels, cb))
+            thread = Thread(target=self.update_task,
+                            args=(channels, cb, force_all))
             thread.daemon = True
             thread.start()
 
-    def update_task(self, channels, cb):
+    def update_task(self, channels, cb, force_all=False):
         ready = self.update_mutex.acquire(blocking=False)
         if not ready:
             # To prevent auto update from calling it again right away
@@ -595,10 +596,12 @@ class ItemList():
                              f'({channel["title"]})...')
 
             opts = {}
-            data = backends.get_new_data(channel, opts, self.print_infos)
+            data = backends.get_new_data(channel, opts, self.print_infos,
+                                         force_all)
 
             data['id'] = channel['id']
-            new_media = self.db.add_media(data)
+            new_media = self.db.add_media(data, force=force_all)
+            __import__('pprint').pprint(len(new_media), open('/dev/pts/15', 'w'))
             if not new_media:
                 continue
 

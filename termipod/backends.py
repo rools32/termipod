@@ -78,12 +78,12 @@ def get_all_data(url, opts, print_infos):
     return data
 
 
-def get_new_data(channel, opts, print_infos):
+def get_new_data(channel, opts, print_infos, force_all=False):
     if 'mask' not in opts:
         opts['mask'] = channel['mask']
 
     if channel['type'] == 'youtube':
-        data = yt.get_new_data(channel, opts, print_infos)
+        data = yt.get_new_data(channel, opts, print_infos, force_all)
 
     else:  # rss
         data = rss.get_new_data(channel, opts, print_infos)

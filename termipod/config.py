@@ -109,6 +109,7 @@ default_keymaps = [
     ('channels', '\n', 'channel_show_media'),
     ('channels', 'E', 'channel_category'),
     ('channels', 'm', 'channel_mask'),
+    ('channels', 'U', 'channel_force_update'),
 ]
 
 
