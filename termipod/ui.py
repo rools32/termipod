@@ -717,7 +717,10 @@ class UI():
     def resize(self):
         screen_size = self.screen.getmaxyx()
         if screen_size != self.screen_size:
-            self.refresh(reset=False)
+            if screen_size[1] != self.screen_size[1]:
+                self.refresh(reset=True)
+            else:
+                self.refresh(reset=False)
             self.screen_size = self.screen.getmaxyx()
 
     def print_terminal(self, message, mutex=None):
