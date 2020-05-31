@@ -43,6 +43,96 @@ import termipod.image as termimage
 from termipod.cache import item_get_cache
 
 
+class Colors():
+    inverted = False
+    colors = {
+        'item': {
+            'normal': 2,
+            'bold': 1,
+            'selected': -2,
+            'highlighted': 3,
+            'greyedout': 4,
+        },
+        'status': {
+            'normal': -2,
+        },
+        'popup': {
+            'normal': 2,
+        },
+        'title': {
+            'normal': -2,
+        },
+    }
+
+    @classmethod
+    def init(cls):
+        curses.use_default_colors()
+        curses.init_pair(1, curses.COLOR_GREEN, -1)
+        curses.init_pair(2, -1, -1)
+        curses.init_pair(3, curses.COLOR_RED, -1)
+        try:
+            curses.init_pair(4, 8, -1)  # Grey
+        except curses.error:
+            curses.init_pair(4, -1, -1)
+
+        for colorpair in range(1, 5):
+            fg, bg = curses.pair_content(colorpair)
+            colorpair = 20-colorpair
+            if fg != -1 or bg != -1:
+                if fg == -1:
+                    inverse_fg = -1
+                else:
+                    inverse_fg = cls.get_inverse_color_num(fg)
+
+                if bg == -1:
+                    inverse_bg = -1
+                else:
+                    inverse_bg = cls.get_inverse_color_num(bg)
+
+                curses.init_pair(colorpair, inverse_fg, inverse_bg)
+            else:
+                curses.init_pair(colorpair, fg, bg)
+
+    @classmethod
+    def invert(cls):
+        cls.inverted = not cls.inverted
+
+    @staticmethod
+    def color_distance(color1, color2):
+        dl = [(color1[i]-color2[i])**2 for i in range(3)]
+        delta = 2*dl[0]+4*dl[1]+3*dl[2]
+        return delta
+
+    @classmethod
+    def get_closest_color(cls, color):
+        min_value = 9*1000**2
+        idx = -1
+        for c in range(curses.COLORS):
+            color_to_test = curses.color_content(c)
+            value = cls.color_distance(color, color_to_test)
+            if value < min_value:
+                idx = c
+        return idx
+
+    @classmethod
+    def get_inverse_color_num(cls, color_num):
+        rgb = curses.color_content(color_num)
+        inverse_rgb = tuple(1000-c for c in rgb)
+        return cls.get_closest_color(inverse_rgb)
+
+    @classmethod
+    def get_color(cls, where, style):
+        colorcode = cls.colors[where][style]
+        colorpair = abs(colorcode)
+        if cls.inverted:
+            colorpair = 20-colorpair
+
+        if colorcode < 0:
+            return curses.color_pair(colorpair) | curses.A_REVERSE
+        else:
+            return curses.color_pair(colorpair)
+
+
 class UI():
     def __init__(self, config):
         screen = curses.initscr()
@@ -54,14 +144,7 @@ class UI():
         curses.curs_set(0)  # disable cursor
         curses.cbreak()  # no need to press enter to react to keys
         curses.noecho()  # do not show pressed keys
-        curses.use_default_colors()
-        curses.init_pair(1, curses.COLOR_GREEN, -1)
-        curses.init_pair(2, -1, -1)
-        curses.init_pair(3, curses.COLOR_RED, -1)
-        try:
-            curses.init_pair(4, 8, -1)  # Grey
-        except curses.error:
-            curses.init_pair(4, -1, -1)
+        Colors.init()
         screen.refresh()
 
         init_key_tables(screen)
@@ -954,7 +1037,7 @@ class ItemArea:
         self.height = height-2
         self.width = width-1
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
-        self.win.bkgd(curses.color_pair(2))
+        self.win.bkgd(Colors.get_color('item', 'normal'))
 
     def get_title_name(self):
         filters = [
@@ -1151,11 +1234,11 @@ class ItemArea:
         self.move_screen('line', 'down', item_idx-self.cursor-self.first_line)
 
     def print_line(self, line, string, style=None):
-        normal_style = curses.color_pair(2)
-        bold_style = curses.color_pair(1)
-        select_style = curses.color_pair(2) | curses.A_REVERSE
-        highlight_style = curses.color_pair(3)
-        greyedout_style = curses.color_pair(4)
+        normal_style = Colors.get_color('item', 'normal')
+        bold_style = Colors.get_color('item', 'bold')
+        select_style = Colors.get_color('item', 'selected')
+        highlight_style = Colors.get_color('item', 'highlighted')
+        greyedout_style = Colors.get_color('item', 'greyedout')
 
         # Style can be embedded in string with :<b,g>:
         if len(string) > 3 and string[0] == ':' and string[2] == ':':
@@ -1339,7 +1422,7 @@ class ItemArea:
         # Show popup window
         try:
             win = curses.newwin(height, width, start, outer_margin)
-            win.bkgd(curses.color_pair(2))
+            win.bkgd(Colors.get_color('popup', 'normal'))
             win.keypad(1)
             win.border()
 
@@ -1875,7 +1958,7 @@ class TitleArea:
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, 0, 0)
-        self.win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
+        self.win.bkgd(Colors.get_color('title', 'normal'))
         self.win.keypad(1)
 
         self.print(format_string(self.title, self.width-1))
@@ -1914,7 +1997,7 @@ class StatusArea:
         self.height = 1
         self.width = width-1
         self.win = curses.newwin(self.height, self.width, height-1, 0)
-        self.win.bkgd(curses.color_pair(2) | curses.A_REVERSE)
+        self.win.bkgd(Colors.get_color('status', 'normal'))
         self.win.keypad(1)
         self.print('')
 
