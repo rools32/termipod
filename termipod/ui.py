@@ -1812,6 +1812,9 @@ class MediumArea(ItemArea):
             string += separator
             string += formatted_item['duration']
 
+            if self.filters['state'] == 'all' and medium['state'] != 'unread':
+                string = ':g:'+string
+
         else:
             fields = ['title', 'channel', 'date', 'duration', 'tags',
                       'filename', 'size', 'link', 'thumbnail']
