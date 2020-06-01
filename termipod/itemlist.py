@@ -404,7 +404,7 @@ class ItemList():
         opts['strict'] = 1
 
         try:
-            data = backends.get_vidoo_data_only(url, opts, self.print_infos)
+            data = backends.get_video_data_only(url, opts, self.print_infos)
         except NotImplementedError:
             self.print_infos(f'Unsupported address \"{url}\"')
             return False

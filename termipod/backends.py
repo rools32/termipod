@@ -101,6 +101,8 @@ def get_video_data_only(url, opts, print_infos):
         data = yt.get_video_data_only(url, opts, print_infos)
     else:
         raise NotImplementedError(f'{url} is not yet supported for video only')
+
+    channel_add_missing_fields(data)
     return data
 
 
