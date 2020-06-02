@@ -1836,8 +1836,9 @@ class MediumArea(ItemArea):
                 string = ':g:'+string
 
         else:
-            fields = ['title', 'channel', 'date', 'duration', 'tags',
-                      'filename', 'size', 'link', 'thumbnail']
+            fields = ['title', 'channel', 'date', 'state', 'location',
+                      'duration', 'tags', 'filename', 'size', 'link',
+                      'thumbnail']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
