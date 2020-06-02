@@ -538,8 +538,14 @@ class UI():
             elif 'state_filter' == action:
                 tabs.state_switch()
 
+            elif 'state_filter_reverse' == action:
+                tabs.state_switch(reverse=True)
+
             elif 'location_filter' == action:
                 tabs.location_switch()
+
+            elif 'location_filter_reverse' == action:
+                tabs.location_switch(reverse=True)
 
             elif action in ('medium_read', 'medium_skip'):
                 if 'medium_skip' == action:
@@ -918,13 +924,13 @@ class Tabs:
         area = self.get_current_area()
         area.switch_sort()
 
-    def state_switch(self):
+    def state_switch(self, reverse=False):
         area = self.get_current_area()
-        area.filter_next_state()
+        area.filter_next_state(reverse)
 
-    def location_switch(self):
+    def location_switch(self, reverse=False):
         area = self.get_current_area()
-        area.filter_next_location()
+        area.filter_next_location(reverse)
 
     def screen_infos(self):
         area = self.get_current_area()
@@ -1738,18 +1744,20 @@ class MediumArea(ItemArea):
         # Update screen
         self.reset_contents()
 
-    def filter_next_state(self):
+    def filter_next_state(self, reverse=False):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.filters['state'])
-        self.filters['state'] = states[(idx+1) % len(states)]
+        way = 1 if not reverse else -1
+        self.filters['state'] = states[(idx+way) % len(states)]
 
         self.print_infos('Show %s media' % self.filters['state'])
         self.reset_contents()
 
-    def filter_next_location(self):
+    def filter_next_location(self, reverse=False):
         states = ['all', 'download', 'local', 'remote']
         idx = states.index(self.filters['location'])
-        self.filters['location'] = states[(idx+1) % len(states)]
+        way = 1 if not reverse else -1
+        self.filters['location'] = states[(idx+way) % len(states)]
 
         self.print_infos(f'Show media in {self.filters["location"]}')
         self.reset_contents()

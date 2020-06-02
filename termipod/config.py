@@ -91,7 +91,9 @@ default_keymaps = [
     ('media', 'c', 'channel_filter'),
     ('media', 'C', 'medium_show_channel'),
     ('media', 'f', 'state_filter'),
+    ('media', 'F', 'state_filter_reverse'),
     ('media', 'a', 'location_filter'),
+    ('media', 'A', 'location_filter_reverse'),
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
     ('media', 'T', 'medium_tag'),
     ('media', 't', 'tag_filter'),
