@@ -37,6 +37,8 @@ default_params = {
     'update_minutes': "30",
     'httpserver_port': "8195",
     'httpserver_start': "0",
+    'media_reverse': "0",
+    'channel_reverse': "0",
 }
 
 default_keymaps = [

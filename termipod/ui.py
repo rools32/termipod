@@ -167,6 +167,7 @@ class Colors():
 
 class UI():
     def __init__(self, config):
+        self.config = config
         screen = curses.initscr()
         self.screen = screen
         self.screen_size = screen.getmaxyx()
@@ -190,7 +191,7 @@ class UI():
             print(e, file=stderr)
             exit(1)
 
-        tabs = Tabs(screen, self.item_list, self.print_infos)
+        tabs = Tabs(screen, self.item_list, self.print_infos, self.config)
         self.tabs = tabs
 
         # New tabs
@@ -865,12 +866,13 @@ class UI():
 
 
 class Tabs:
-    def __init__(self, screen, item_list, print_infos):
+    def __init__(self, screen, item_list, print_infos, config):
         self.screen = screen
         self.item_list = item_list
         self.print_infos = print_infos
         self.current_idx = -1
         self.areas = []
+        self.config = config
         self.title_area = TitleArea(screen, '')
 
     def get_area_idx(self, name):
@@ -881,14 +883,14 @@ class Tabs:
 
     def add_media(self, name, display_name):
         area = MediumArea(self.screen, self.item_list.media, name,
-                          display_name,
-                          self.title_area, self.print_infos)
+                          display_name, self.title_area, self.print_infos,
+                          self.config)
         self.areas.append(area)
 
     def add_channels(self, name, display_name):
         area = ChannelArea(self.screen, self.item_list.channels, name,
                            display_name, self.title_area, self.print_infos,
-                           self.item_list.db)
+                           self.item_list.db, self.config)
         self.areas.append(area)
 
     def get_current_area(self):
@@ -1057,10 +1059,11 @@ class Tabs:
 
 class ItemArea:
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos):
+                 print_infos, config):
         self.print_infos = print_infos
         self.screen = screen
         self.title_area = title_area
+        self.config = config
         self.mutex = Lock()
         self.name = name
         self.display_name = display_name
@@ -1079,6 +1082,7 @@ class ItemArea:
         self.reverse = False
         self.thumbnail = ''
 
+        self.apply_config()
         self.init_win()
         self.add_contents()
 
@@ -1708,7 +1712,7 @@ class ItemArea:
 
 class MediumArea(ItemArea):
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos):
+                 print_infos, config):
         self.key_class = 'media'
         self.filters = {
             'location': 'all',
@@ -1724,7 +1728,11 @@ class MediumArea(ItemArea):
         self.sortname = 'date'
 
         super().__init__(screen, items, name, display_name, title_area,
-                         print_infos)
+                         print_infos, config)
+
+    def apply_config(self):
+        if int(self.config.media_reverse):
+            self.reverse = True
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")
@@ -1925,7 +1933,7 @@ class MediumArea(ItemArea):
 
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos, data_base):
+                 print_infos, data_base, config):
         self.key_class = 'channels'
         self.data_base = data_base
         self.filters = {
@@ -1939,7 +1947,12 @@ class ChannelArea(ItemArea):
         self.sortname = 'last video'
 
         super().__init__(screen, items, name, display_name, title_area,
-                         print_infos)
+                         print_infos, config)
+        self.apply_config()
+
+    def apply_config(self):
+        if int(self.config.channel_reverse):
+            self.reverse = True
 
     def filter(self, new_items):
         matching_items = []
