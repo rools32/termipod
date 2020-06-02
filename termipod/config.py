@@ -80,6 +80,9 @@ default_keymaps = [
 
     ('*', 'e', 'category_filter'),
 
+    ('*', 's', 'sort'),
+    ('*', 'S', 'sort_reverse'),
+
     ('media', '*', 'search_channel'),
     ('media', 'l', 'medium_play'),
     ('media', '\n', 'medium_playadd'),
@@ -87,7 +90,6 @@ default_keymaps = [
     ('media', 'r', 'medium_read'),
     ('media', 'R', 'medium_skip'),
     ('media', 'U', 'medium_update'),
-    ('media', 's', 'medium_sort'),
     ('media', 'c', 'channel_filter'),
     ('media', 'C', 'medium_show_channel'),
     ('media', 'f', 'state_filter'),

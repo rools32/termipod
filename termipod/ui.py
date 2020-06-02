@@ -501,6 +501,11 @@ class UI():
             elif 'filter_clear' == action:
                 tabs.filter_clear()
 
+            elif 'sort' == action:
+                tabs.sort_switch()
+            elif 'sort_reverse' == action:
+                tabs.sort_reverse()
+
             ###################################################################
             # Allmedia commands
             ###################################################################
@@ -562,9 +567,6 @@ class UI():
                     categories = commastr_to_list(category_str)
 
                 tabs.filter_by_categories(categories=categories)
-
-            elif 'medium_sort' == action:
-                tabs.sort_switch()
 
             elif 'state_filter' == action:
                 tabs.state_switch()
@@ -967,6 +969,10 @@ class Tabs:
         area = self.get_current_area()
         area.screen_infos()
 
+    def sort_reverse(self):
+        area = self.get_current_area()
+        area.sort_reverse()
+
     def next_highlight(self, reverse=False):
         area = self.get_current_area()
         area.next_highlight(reverse)
@@ -1067,10 +1073,10 @@ class ItemArea:
         self.last_selected_item = None
         self.contents = None
         self.shown = False
-        self.items = items
+        self.itemlist = items
         self.selection = deque()
         self.user_selection = deque()
-        self.sort = None
+        self.reverse = False
         self.thumbnail = ''
 
         self.init_win()
@@ -1091,7 +1097,8 @@ class ItemArea:
         ]
         if not filters:
             filters = ['All shown']
-        return f'{self.display_name} - {"; ".join(filters)}'
+        return (f'{self.display_name} - {"; ".join(filters)} - '
+                f'By {self.sortname}')
 
     def add_to_user_selection(self, idx=None, redraw=True):
         if idx is None:
@@ -1142,18 +1149,18 @@ class ItemArea:
             self.contents = deque()
 
         if items is None:
-            items = self.items
+            items = self.itemlist
             self.contents = deque()
             self.selection = deque()
             self.user_selection = deque()
-        else:
-            shift = len(items)
-            self.selection = deque([s+shift for s in self.selection])
-            self.user_selection = deque([s+shift for s in self.user_selection])
 
         items = self.filter(items)[0]
-        self.selection.extendleft([item['index'] for item in items])
-        self.contents.extendleft(self.items_to_string(items))
+        if self.reverse:
+            self.selection.extend([item['index'] for item in items])
+            self.contents.extend(self.items_to_string(items))
+        else:
+            self.selection.extendleft([item['index'] for item in items])
+            self.contents.extendleft(self.items_to_string(items))
 
         self.mutex.release()
 
@@ -1200,26 +1207,41 @@ class ItemArea:
         if self.shown:
             self.display(True)  # TODO depending on changes
 
-    def sort_selection(self, col):
+    def sort_selection(self):
+        col, reverse = self.sort_methods[self.sortname]
+        reverse = reverse != self.reverse
         idtt = range(len(self.selection))
         if col is None:
-            permutation = sorted(idtt, key=lambda i: self.contents[i],
-                                 reverse=True)
+            permutation = sorted(idtt,
+                                 key=lambda i: self.contents[i].casefold(),
+                                 reverse=reverse)
+        elif isinstance(col, str):
+            if isinstance(self.itemlist[self.selection[0]][col], str):
+                permutation = sorted(
+                    idtt,
+                    key=lambda i: (
+                        self.itemlist[self.selection[i]][col].casefold()),
+                    reverse=reverse
+                )
+            else:
+                permutation = sorted(
+                    idtt, key=lambda i: self.itemlist[self.selection[i]][col],
+                    reverse=reverse
+                )
         else:
             permutation = sorted(
-                idtt, key=lambda i: self.items[self.selection[i]][col])
+                idtt, key=lambda i: col(self.itemlist[self.selection[i]]),
+                reverse=reverse
+            )
 
         self.selection = deque([self.selection[p] for p in permutation])
         self.contents = deque([self.contents[p] for p in permutation])
-
-    def switch_sort(self):
-        if self.sort is None:
-            self.sort = 'duration'
-        else:
-            self.sort = None
-
-        self.sort_selection(self.sort)
+        self.print_infos(f'Sort by {self.sortname}', mode='direct')
         self.display(True)
+
+    def sort_reverse(self):
+        self.reverse = not self.reverse
+        self.reset_contents()
 
     def items_to_string(self, items):
         return list(map(lambda x: self.item_to_string(x), items))
@@ -1238,7 +1260,7 @@ class ItemArea:
     def get_current_item(self):
         if self.get_idx() is None:
             return None
-        return self.items[self.get_idx()]
+        return self.itemlist[self.get_idx()]
 
     def get_current_line(self):
         if self.first_line+self.cursor < 0:
@@ -1601,7 +1623,7 @@ class ItemArea:
 
         self.last_selected_idx = idx
         if self.selection:  # if display is not empty
-            self.last_selected_item = self.items[self.selection[idx]]
+            self.last_selected_item = self.itemlist[self.selection[idx]]
         self.display(redraw)
         self.show_thumbnail()
 
@@ -1636,12 +1658,12 @@ class ItemArea:
                     idx = min(len(self.selection)-1, self.last_selected_idx)
                     self.last_selected_idx = idx
                 self.first_line, self.cursor = self.idx_to_position(idx)
-                self.last_selected_item = self.items[self.selection[idx]]
+                self.last_selected_item = self.itemlist[self.selection[idx]]
                 redraw = True
 
             else:
                 self.first_line, self.cursor = (0, 0)
-                self.last_selected_item = self.items[self.selection[0]]
+                self.last_selected_item = self.itemlist[self.selection[0]]
 
         # Check cursor position
         idx = self.position_to_idx(self.first_line, self.cursor)
@@ -1695,6 +1717,11 @@ class MediumArea(ItemArea):
             'categories': None,
             'tags': None,
         }
+        self.sort_methods = {
+            'date': ('date', True),
+            'duration': ('duration', True),
+        }
+        self.sortname = 'date'
 
         super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
@@ -1704,6 +1731,14 @@ class MediumArea(ItemArea):
         if len(parts) >= 2:
             return line.split(u" \u2022 ")[1]
         return ''
+
+    def switch_sort(self):
+        if self.sortname == 'date':
+            self.sortname = 'duration'
+        else:
+            self.sortname = 'date'
+
+        self.sort_selection()
 
     def get_current_channel(self):
         line = self.get_current_line()
@@ -1719,7 +1754,7 @@ class MediumArea(ItemArea):
                     channel_titles = [medium['channel']['title']]
 
                 else:
-                    media = [self.items[i] for i in self.user_selection]
+                    media = [self.itemlist[i] for i in self.user_selection]
                     channel_titles = [m['channel']['title'] for m in media]
 
                 self.filters['channels'] = list(set(channel_titles))
@@ -1741,7 +1776,7 @@ class MediumArea(ItemArea):
                     channel_categories = medium['channel']['categories']
 
                 else:
-                    media = [self.items[i] for i in self.user_selection]
+                    media = [self.itemlist[i] for i in self.user_selection]
                     channel_categories = [m['channel']['categories']
                                           for m in media]
 
@@ -1763,7 +1798,7 @@ class MediumArea(ItemArea):
                     medium_tags = medium['tags']
 
                 else:
-                    media = [self.items[i] for i in self.user_selection]
+                    media = [self.itemlist[i] for i in self.user_selection]
                     medium_tags = [m['tags'] for m in media]
 
                 self.filters['tags'] = list(set(medium_tags))
@@ -1897,6 +1932,11 @@ class ChannelArea(ItemArea):
             'ids': None,
             'categories': None,
         }
+        self.sort_methods = {
+            'last video': (lambda c: c['media'][-1]['date'], True),
+            'title': ('title', False),
+        }
+        self.sortname = 'last video'
 
         super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
@@ -1932,7 +1972,7 @@ class ChannelArea(ItemArea):
                     channel_categories = channel['categories']
 
                 else:
-                    channels = [self.items[i] for i in self.user_selection]
+                    channels = [self.itemlist[i] for i in self.user_selection]
                     channel_categories = [c['categories'] for c in channels]
 
                 self.filters['categories'] = list(set(channel_categories))
@@ -1951,6 +1991,14 @@ class ChannelArea(ItemArea):
 
         # Update screen
         self.reset_contents()
+
+    def switch_sort(self):
+        if self.sortname == 'title':
+            self.sortname = 'last video'
+        else:
+            self.sortname = 'title'
+
+        self.sort_selection()
 
     def item_to_string(self, channel, multi_lines=False, width=None):
         nunread_elements = len([m for m in channel['media']

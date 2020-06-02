@@ -170,6 +170,9 @@ descriptions = {
         'select_until': 'Grow selection',
         'select_clear': 'Clear selection',
 
+        'sort': 'Change item sorting (date+name, duration, name)',
+        'sort_reverse': 'Reverse sort order',
+
         'filter_clear': 'Clear filters',
 
         'search_channel': 'Highlight channel',
@@ -180,7 +183,6 @@ descriptions = {
         'medium_read': 'Mark as read/unread',
         'medium_skip': 'Mark/Unmark as skipped',
         'medium_update': 'Update media',
-        'medium_sort': 'Change media sorting (date+name, duration)',
         'channel_filter': 'Filter same channel',
         'category_filter': 'Filter by category',
         'state_filter': 'Change panel state view (read, unread, skipped...)',

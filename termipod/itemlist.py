@@ -127,19 +127,18 @@ class ItemList():
             for c in self.channels:
                 c['media'] = deque()
             media = self.db.select_media()
-
-        self.media.extendleft(media)
-        self.media_update_index()
+            media.reverse()
+            self.media.extend(media)
+            self.media_update_index()
+        else:
+            for i, m in enumerate(media):
+                m['index'] = len(self.media)+i
+            self.media.extend(media)
 
         for m in media:
-            m['channel']['media'].appendleft(m)
+            m['channel']['media'].append(m)
 
         return media
-
-    def add(self, medium):
-        self.media.append(medium)
-        medium['channel']['media'].append(medium)
-        self.update_strings()
 
     def download_manager_init(self, dl_marked=False, cb=None):
         if self.download_manager is None:
