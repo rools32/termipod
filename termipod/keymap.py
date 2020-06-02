@@ -184,6 +184,8 @@ descriptions = {
         'channel_filter': 'Filter same channel',
         'category_filter': 'Filter by category',
         'state_filter': 'Change panel state view (read, unread, skipped...)',
+        'location_filter': ('Change panel location view '
+                            '(remote, download, local...)'),
         'infos': 'Show information',
         'description': 'Show description',
         'thumbnail': 'Show/hide thumbnail (urxvt only)',

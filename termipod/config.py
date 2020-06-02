@@ -82,7 +82,7 @@ default_keymaps = [
 
     ('media', '*', 'search_channel'),
     ('media', 'l', 'medium_play'),
-    ('media', 'a', 'medium_playadd'),
+    ('media', '\n', 'medium_playadd'),
     ('media', 'h', 'medium_stop'),
     ('media', 'r', 'medium_read'),
     ('media', 'R', 'medium_skip'),
@@ -91,19 +91,13 @@ default_keymaps = [
     ('media', 'c', 'channel_filter'),
     ('media', 'C', 'medium_show_channel'),
     ('media', 'f', 'state_filter'),
+    ('media', 'a', 'location_filter'),
     ('media', 'I', 'description'),  # TODO for channels too (s/'media'/'')
     ('media', 'T', 'medium_tag'),
     ('media', 't', 'tag_filter'),
-
-    ('media_remote', '\n', 'medium_download'),
-
-    ('media_local', '\n', 'medium_playadd'),
-    ('media_local', 'd', 'medium_download'),
-    ('media_local', 'D', 'medium_remove'),
-    ('media_local', 'p', 'save_as_playlist'),
-
-    ('media_download', 'd', 'medium_download'),
-
+    ('media', 'd', 'medium_download'),
+    ('media', 'D', 'medium_remove'),  # only for local medium
+    ('media', 'p', 'save_as_playlist'),
 
     ('channels', 'a', 'channel_auto'),
     ('channels', 'A', 'channel_auto_custom'),

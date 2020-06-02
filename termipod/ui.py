@@ -163,9 +163,7 @@ class UI():
         self.tabs = tabs
 
         # New tabs
-        tabs.add_media('remote', 'Remote media')
-        tabs.add_media('local', 'Local media')
-        tabs.add_media('download', 'Downloading')
+        tabs.add_media('remote', 'Media')
         tabs.add_channels('channels', 'Channels')
         tabs.show_tab(0)
 
@@ -540,6 +538,9 @@ class UI():
             elif 'state_filter' == action:
                 tabs.state_switch()
 
+            elif 'location_filter' == action:
+                tabs.location_switch()
+
             elif action in ('medium_read', 'medium_skip'):
                 if 'medium_skip' == action:
                     skip = True
@@ -646,7 +647,8 @@ class UI():
             elif 'save_as_playlist' == action:
                 sel = self.get_user_selection(idx, area)
                 media = self.item_list.medium_idx_to_objects(sel)
-                filenames = [m['filename'] for m in media]
+                filenames = [m['filename'] if m['filename']
+                             else m['link'] for m in media]
 
                 # Choose base name
                 text = 'Playlist name: '
@@ -838,8 +840,9 @@ class Tabs:
                 return idx
         return None
 
-    def add_media(self, location, name):
-        area = MediumArea(self.screen, location, self.item_list.media, name,
+    def add_media(self, name, display_name):
+        area = MediumArea(self.screen, self.item_list.media, name,
+                          display_name,
                           self.title_area, self.print_infos)
         self.areas.append(area)
 
@@ -918,6 +921,10 @@ class Tabs:
     def state_switch(self):
         area = self.get_current_area()
         area.filter_next_state()
+
+    def location_switch(self):
+        area = self.get_current_area()
+        area.filter_next_location()
 
     def screen_infos(self):
         area = self.get_current_area()
@@ -1642,17 +1649,18 @@ class ItemArea:
 
 
 class MediumArea(ItemArea):
-    def __init__(self, screen, location, items, name, title_area, print_infos):
-        self.location = location
-        self.key_class = 'media_'+location
+    def __init__(self, screen, items, name, display_name, title_area,
+                 print_infos):
+        self.key_class = 'media'
         self.filters = {
+            'location': 'all',
             'state': 'unread',
             'channels': None,
             'categories': None,
             'tags': None,
         }
 
-        super().__init__(screen, items, location, name, title_area,
+        super().__init__(screen, items, name, display_name, title_area,
                          print_infos)
 
     def extract_channel_name(self, line):
@@ -1738,6 +1746,14 @@ class MediumArea(ItemArea):
         self.print_infos('Show %s media' % self.filters['state'])
         self.reset_contents()
 
+    def filter_next_location(self):
+        states = ['all', 'download', 'local', 'remote']
+        idx = states.index(self.filters['location'])
+        self.filters['location'] = states[(idx+1) % len(states)]
+
+        self.print_infos(f'Show media in {self.filters["location"]}')
+        self.reset_contents()
+
     # if new_items update selection (do not replace)
     def filter(self, new_items):
         matching_items = []
@@ -1746,11 +1762,15 @@ class MediumArea(ItemArea):
         # Reinit state filter if cleared
         if self.filters['state'] is None:
             self.filters['state'] = 'unread'
+        if self.filters['location'] is None:
+            self.filters['location'] = 'all'
 
         # Keep matching elements
         for item in new_items:
             match = True
-            if self.location != item['location']:
+
+            if (self.filters['location'] != 'all'
+                    and self.filters['location'] != item['location']):
                 match = False
 
             elif ('all' != self.filters['state']
