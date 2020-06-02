@@ -44,28 +44,29 @@ from termipod.cache import item_get_cache
 
 
 class Colors():
-    inverted = False
     colors = {
         'item': {
-            'normal': 2,
-            'bold': 1,
-            'selected': -2,
-            'highlighted': 3,
-            'greyedout': 4,
+            'normal': (-1, -1, False),
+            'bold': (curses.COLOR_GREEN, None, None),
+            'greyedout': (8, None, None),
+            'selected': (None, None, True),
+            'highlighted': (curses.COLOR_RED, None, None),
         },
         'status': {
-            'normal': -2,
+            'normal': (-1, -1, True),
         },
         'popup': {
-            'normal': 2,
+            'normal': (-1, -1, False),
         },
         'title': {
-            'normal': -2,
+            'normal': (-1, -1, True),
         },
     }
+    color_codes = {}
 
     @classmethod
     def init(cls):
+        curses.start_color()
         curses.use_default_colors()
         curses.init_pair(1, curses.COLOR_GREEN, -1)
         curses.init_pair(2, -1, -1)
@@ -121,16 +122,47 @@ class Colors():
         return cls.get_closest_color(inverse_rgb)
 
     @classmethod
-    def get_color(cls, where, style):
-        colorcode = cls.colors[where][style]
-        colorpair = abs(colorcode)
-        if cls.inverted:
-            colorpair = 20-colorpair
+    def add_color(cls, style):
+        fg, bg, inverse = style
+        pair_index = len(cls.color_codes)+1
+        curses.init_pair(pair_index, fg, bg)
+        inverse = curses.A_REVERSE if inverse else 0
+        return curses.color_pair(pair_index) | inverse
 
-        if colorcode < 0:
-            return curses.color_pair(colorpair) | curses.A_REVERSE
-        else:
-            return curses.color_pair(colorpair)
+    @classmethod
+    def add_style(cls, style, where, new_style_str):
+        if new_style_str is None:
+            return style
+
+        fg, bg, invert = cls.colors[where][new_style_str]
+
+        if fg is not None:
+            style[0] = fg
+        if bg is not None:
+            style[1] = bg
+        if invert is not None:
+            style[2] = invert
+
+        return style
+
+    @classmethod
+    def get_style(cls, where, style):
+        return list(cls.colors[where][style])
+
+    @classmethod
+    def get_color_from_style(cls, style):
+        if None in style:
+            raise ValueError('Bad styles')
+
+        style = tuple(style)
+        if style not in cls.color_codes:
+            cls.color_codes[style] = cls.add_color(style)
+
+        return cls.color_codes[style]
+
+    @classmethod
+    def get_color(cls, where, style):
+        return cls.get_color_from_style(cls.colors[where][style])
 
 
 class UI():
@@ -140,7 +172,6 @@ class UI():
         self.screen_size = screen.getmaxyx()
         screen.keypad(1)  # to handle special keys as one key
         screen.immedok(True)
-        curses.start_color()
         curses.curs_set(0)  # disable cursor
         curses.cbreak()  # no need to press enter to react to keys
         curses.noecho()  # do not show pressed keys
@@ -1062,7 +1093,7 @@ class ItemArea:
             filters = ['All shown']
         return f'{self.display_name} - {"; ".join(filters)}'
 
-    def add_to_user_selection(self, idx=None):
+    def add_to_user_selection(self, idx=None, redraw=True):
         if idx is None:
             idx = self.get_idx()
 
@@ -1070,6 +1101,9 @@ class ItemArea:
             self.user_selection.remove(idx)
         except ValueError:
             self.user_selection.append(idx)
+
+        if redraw:
+            self.display(redraw=True)
 
     def add_until_to_user_selection(self):
         idx = self.get_idx()
@@ -1086,7 +1120,7 @@ class ItemArea:
 
         for i in range(start, end, step):
             sel = self.selection[i+step]
-            self.add_to_user_selection(sel)
+            self.add_to_user_selection(sel, redraw=False)
 
         self.display(redraw=True)
 
@@ -1247,12 +1281,6 @@ class ItemArea:
         self.move_screen('line', 'down', item_idx-self.cursor-self.first_line)
 
     def print_line(self, line, string, style=None):
-        normal_style = Colors.get_color('item', 'normal')
-        bold_style = Colors.get_color('item', 'bold')
-        select_style = Colors.get_color('item', 'selected')
-        highlight_style = Colors.get_color('item', 'highlighted')
-        greyedout_style = Colors.get_color('item', 'greyedout')
-
         # Style can be embedded in string with :<b,g>:
         if len(string) > 3 and string[0] == ':' and string[2] == ':':
             if style is not None:
@@ -1271,30 +1299,32 @@ class ItemArea:
                 self.win.refresh()
                 return
 
-            if style == 'bold':
-                self.win.addstr(line, 0, string, bold_style)
+            style_value = Colors.get_style('item', 'normal')
+            Colors.add_style(style_value, 'item', style)
+
+            # If line is in user selection
+            if self.selection[line+self.first_line] in self.user_selection:
+                Colors.add_style(style_value, 'item', 'selected')
+
+            if self.highlight_on:
+                highlight_style_value = Colors.add_style(
+                    style_value.copy(), 'item', 'highlighted')
+                styles = (style_value, highlight_style_value)
+
+                # Split with highlight string and put it back
+                parts = re.split('('+self.highlight_string+')',
+                                 string, flags=re.IGNORECASE)
+
+                written = 0
+                style_idx = 0
+                for part in parts:
+                    color = Colors.get_color_from_style(styles[style_idx])
+                    self.win.addstr(line, written, part, color)
+                    written += len(part)
+                    style_idx = (style_idx+1) % 2
             else:
-                # If line is in user selection
-                if self.selection[line+self.first_line] in self.user_selection:
-                    self.win.addstr(line, 0, string, select_style)
-
-                elif self.highlight_on:
-                    styles = (normal_style, highlight_style)
-
-                    # Split with highlight string and put it back
-                    parts = re.split('('+self.highlight_string+')',
-                                     string, flags=re.IGNORECASE)
-
-                    written = 0
-                    style_idx = 0
-                    for part in parts:
-                        self.win.addstr(line, written, part, styles[style_idx])
-                        written += len(part)
-                        style_idx = (style_idx+1) % 2
-                elif style == 'greyedout':
-                    self.win.addstr(line, 0, string, greyedout_style)
-                else:
-                    self.win.addstr(line, 0, string, normal_style)
+                color = Colors.get_color_from_style(style_value)
+                self.win.addstr(line, 0, string, color)
 
             self.win.refresh()
         except curses.error:
