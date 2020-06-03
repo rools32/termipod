@@ -586,7 +586,7 @@ class ItemList():
 
         self.print_infos('Update...')
 
-        all_new_media = []
+        new_media_num = 0
         updated_channels = []
 
         need_to_wait = False
@@ -603,7 +603,7 @@ class ItemList():
             if not new_media:
                 continue
 
-            all_new_media = new_media+all_new_media
+            new_media_num += len(new_media)
             updated_channels.append(channel)
 
             # Automatic download
@@ -617,12 +617,14 @@ class ItemList():
                         self.download_manager.add(s)
                         need_to_wait = True
                     cb('medium', 'modified', sub_media, only=True)
-        self.print_infos('Update channels done!')
 
-        all_new_media.sort(key=operator.itemgetter('date'), reverse=False)
-        self.add_media(all_new_media)
-        cb('channel', 'modified', updated_channels, only=True)
-        cb('medium', 'new', all_new_media, only=True)
+            new_media.sort(key=operator.itemgetter('date'), reverse=False)
+            self.add_media(new_media)
+            cb('channel', 'modified', updated_channels, only=True)
+            cb('medium', 'new', new_media, only=True)
+
+        self.print_infos(f'Update channels done ({new_media_num} '
+                         'media added)!')
 
         self.lastupdate = time.time()
         self.update_mutex.release()
