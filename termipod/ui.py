@@ -28,6 +28,7 @@ from queue import Queue
 from time import sleep
 from datetime import datetime
 from collections import deque
+import subprocess
 
 try:
     import pyperclip
@@ -882,7 +883,7 @@ class UI():
                 self.refresh(reset=False)
             self.screen_size = self.screen.getmaxyx()
 
-    def print_terminal(self, message, mutex=None):
+    def print_terminal(self, message, mutex=None, pager=True):
         if not isinstance(message, str):
             message = '\n'.join(message)
 
@@ -890,8 +891,25 @@ class UI():
             mutex.acquire()
         curses.endwin()
         screen_reset()
-        print(message)
-        input("-- Press Enter to continue --")
+
+        if pager:
+            try:
+                pager_bin = os.environ['PAGER']
+            except KeyError:
+                pager_bin = 'more'
+
+            # We need to add blank lines to prevent pager to quit directly
+            if pager_bin == 'more':
+                screenlines, _ = self.screen_size
+                nlines = message.count('\n')
+                if nlines < screenlines:
+                    message += '\n'*(screenlines-nlines)
+
+            subprocess.call([f'echo "{message}" | {pager_bin}'], shell=True)
+
+        else:
+            print(message)
+            input("-- Press Enter to continue --")
         screen = curses.initscr()
         self.screen = screen
         self.refresh()
