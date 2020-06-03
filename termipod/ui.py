@@ -29,6 +29,12 @@ from time import sleep
 from datetime import datetime
 from collections import deque
 
+try:
+    import pyperclip
+    _has_pyperclip = True
+except ModuleNotFoundError:
+    _has_pyperclip = False
+
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
                             commastr_to_list, list_to_commastr,
@@ -512,6 +518,28 @@ class UI():
                 tabs.sort_switch()
             elif 'sort_reverse' == action:
                 tabs.sort_reverse()
+
+            elif 'url_copy' == action:
+                sel = self.get_user_selection(idx, area)
+                if not sel:
+                    continue
+
+                if isinstance(area, MediumArea):
+                    media = self.item_list.medium_idx_to_objects(sel)
+                    urls = [m['link'] for m in media]
+                else:
+                    channels = self.item_list.channel_ids_to_objects('ui', sel)
+                    urls = [c['url'] for c in channels]
+
+                if _has_pyperclip:
+                    pyperclip.copy('\n'.join(urls))
+                    if len(urls) == 1:
+                        self.print_infos('URL copied', mode='direct')
+                    else:
+                        self.print_infos(f'{len(urls)} URLs copied',
+                                         mode='error')
+                else:
+                    self.print_infos('Need to install pyperclip', mode='error')
 
             ###################################################################
             # Allmedia commands

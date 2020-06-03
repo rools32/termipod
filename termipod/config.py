@@ -85,6 +85,8 @@ default_keymaps = [
     ('*', 's', 'sort'),
     ('*', 'S', 'sort_reverse'),
 
+    ('*', 'y', 'url_copy'),
+
     ('media', '*', 'search_channel'),
     ('media', 'l', 'medium_play'),
     ('media', '\n', 'medium_playadd'),

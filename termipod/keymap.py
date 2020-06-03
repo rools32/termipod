@@ -176,6 +176,8 @@ descriptions = {
         'sort': 'Change item sorting (date+name, duration, name)',
         'sort_reverse': 'Reverse sort order',
 
+        'url_copy': 'Copy urls to clipbooard',
+
         'filter_clear': 'Clear filters',
 
         'search_channel': 'Highlight channel',
