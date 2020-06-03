@@ -54,6 +54,7 @@ class Colors():
     colors = {
         'item': {
             'normal': (-1, -1, False),
+            'blackbg': (None, curses.COLOR_BLACK, False),
             'bold': (curses.COLOR_GREEN, None, None),
             'greyedout': (8, None, None),
             'selected': (None, None, True),
@@ -528,6 +529,9 @@ class UI():
                 tabs.sort_switch()
             elif 'sort_reverse' == action:
                 tabs.sort_reverse()
+
+            elif 'show_cursor_bg' == action:
+                tabs.show_cursor_bg()
 
             elif 'url_copy' == action:
                 sel = self.get_user_selection(idx, area)
@@ -1036,6 +1040,10 @@ class Tabs:
         area = self.get_current_area()
         area.sort_reverse()
 
+    def show_cursor_bg(self):
+        area = self.get_current_area()
+        area.show_cursor_bg()
+
     def next_highlight(self, reverse=False):
         area = self.get_current_area()
         area.next_highlight(reverse)
@@ -1142,6 +1150,7 @@ class ItemArea:
         self.user_selection = deque()
         self.reverse = False
         self.thumbnail = ''
+        self.cursorbg = False
 
         self.apply_config()
         self.init_win()
@@ -1308,6 +1317,10 @@ class ItemArea:
         self.reverse = not self.reverse
         self.reset_contents()
 
+    def show_cursor_bg(self):
+        self.cursorbg = not self.cursorbg
+        self.display()
+
     def items_to_string(self, items):
         return list(map(lambda x: self.item_to_string(x), items))
 
@@ -1368,6 +1381,10 @@ class ItemArea:
         self.move_screen('line', 'down', item_idx-self.cursor-self.first_line)
 
     def print_line(self, line, string, style=None):
+        cursor = False
+        if style == 'bold':
+            cursor = True
+
         # Style can be embedded in string with :<b,g>:
         if len(string) > 3 and string[0] == ':' and string[2] == ':':
             if style is not None:
@@ -1388,6 +1405,9 @@ class ItemArea:
 
             style_value = Colors.get_style('item', 'normal')
             Colors.add_style(style_value, 'item', style)
+
+            if cursor and self.cursorbg:
+                Colors.add_style(style_value, 'item', 'blackbg')
 
             # If line is in user selection
             if self.selection[line+self.first_line] in self.user_selection:
@@ -1761,6 +1781,10 @@ class ItemArea:
         elif self.old_cursor != self.cursor:
             self.print_line(self.old_cursor,
                             self.contents[self.first_line+self.old_cursor])
+            self.print_line(self.cursor,
+                            self.contents[self.first_line+self.cursor],
+                            style='bold')
+        else:  # Redraw current line
             self.print_line(self.cursor,
                             self.contents[self.first_line+self.cursor],
                             style='bold')
