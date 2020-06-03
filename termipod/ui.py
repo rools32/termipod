@@ -351,6 +351,8 @@ class UI():
                 completer.add_option(
                     ['messages'], 'file', '', '.*', 'Output file')
 
+                completer.add_command('maps', 'Show key maps')
+
                 completer.add_command('errors', 'Print last errors')
                 completer.add_option(
                     ['errors'], 'file', '', '.*', 'Output file')
@@ -403,6 +405,13 @@ class UI():
                     else:
                         file = None
                     self.status_area.print_all_messages(file)
+
+                elif command[0] in ('maps', ):
+                    if len(command) != 1:
+                        area.show_command_help('maps', error=True)
+                    help_string = area.show_help(self.keymap, show=False)
+                    self.print_terminal(help_string,
+                                        mutex=self.status_area.mutex)
 
                 elif command[0] in ('add',):
                     if len(command) == 1:
@@ -1408,7 +1417,7 @@ class ItemArea:
         except curses.error:
             pass
 
-    def show_help(self, keymap):
+    def show_help(self, keymap, show=True):
         lines = []
         lines.append('In main area')
         lines.append('============')
@@ -1427,7 +1436,10 @@ class ItemArea:
         lines.append("^L      Redraw line")
         lines.append("^U      Clear line")
 
-        self.print_popup(lines, 'cursor')
+        if show:
+            self.print_popup(lines, 'cursor')
+        else:
+            return lines
 
     def show_command_help(self, cmd=None, error=False):
         if error:
@@ -1453,6 +1465,10 @@ class ItemArea:
             'messages': (
                 'Print last messages',
                 'messages [outputfile]'
+            ),
+            'maps': (
+                'Print key maps',
+                'maps'
             ),
             'errors': (
                 'Print last errors',
