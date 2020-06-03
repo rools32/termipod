@@ -180,7 +180,13 @@ class UI():
         screen.refresh()
 
         init_key_tables(screen)
-        self.keymap = Keymap(config)
+
+        try:
+            self.keymap = Keymap(config)
+        except ValueError as e:
+            curses.endwin()
+            print(e, file=stderr)
+            exit(1)
 
         self.status_area = StatusArea(screen, print_popup=self.print_popup,
                                       print_terminal=self.print_terminal)

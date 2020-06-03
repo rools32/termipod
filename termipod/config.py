@@ -178,7 +178,12 @@ class Config():
                     self.config_parser['Global'][param] = getattr(self, param)
 
             # Keymap
-            keymap_config = self.config_parser['Keymap']
+            try:
+                keymap_config = self.config_parser['Keymap']
+            except KeyError:
+                self.config_parser['Keymap'] = {}
+                keymap_config = self.config_parser['Keymap']
+
             # Add new actions
             new_actions = [a for a in default_keymap_config
                            if a not in keymap_config]
@@ -190,7 +195,7 @@ class Config():
                     # If key sequence is available, we add it
                     found = False
                     for value in keymap_config.values():
-                        if key_seq in value:
+                        if key_seq in value.split(' '):
                             found = True
                             break
                     if not found:

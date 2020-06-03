@@ -82,7 +82,10 @@ class Keymap():
 
     def add_key(self, area_type, key, action):
         if key not in keycodes:
-            raise ValueError(f"Key '{key}' is not handled")
+            raise ValueError(
+                f"Key '{key}' for {action} is not handled, "
+                "please fix your config file (or remove Keymap section "
+                "to have default key binding")
         self.keys[(area_type, key)] = action
         if action not in self.actions:
             self.actions[action] = []
