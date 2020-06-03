@@ -18,12 +18,12 @@
 
 import os
 import shlex
-from time import sleep
+from time import sleep, mktime
+from datetime import datetime
 from queue import Queue
 from threading import Thread
 import multiprocessing
 import subprocess
-import time
 import re
 
 import os.path
@@ -185,7 +185,7 @@ class DownloadManager():
 
         # Wait for UI to be ready
         if not self.wait:
-            time.sleep(2)
+            sleep(2)
 
         while True:
             medium = q.get()
@@ -241,6 +241,11 @@ class DownloadManager():
             dl_func = rss.download
 
         elif 'youtube' == channel['type']:
+            # If date is missing, update medium
+            if medium['date'] == int(mktime(
+                    datetime.strptime('19700102', "%Y%m%d").timetuple())):
+                yt.update_medium(medium, self.print_infos)
+
             filename = "%s/%s_%s.%s" % (path, ts_to_date(medium['date']),
                                         str_to_filename(medium['title']),
                                         'mp4')
@@ -257,7 +262,7 @@ class DownloadManager():
 
         # While download is running, check if needs to be cancelled
         while p.is_alive():
-            time.sleep(1)
+            sleep(1)
             if link in self.cancel_requests:
                 p.kill()
                 del self.cancel_requests[link]
