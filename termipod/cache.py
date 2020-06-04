@@ -24,8 +24,8 @@ import hashlib
 import termipod.config as Config
 
 # Ordered dict by date, contains file size as value
-files = None
-total_file_size = 0
+files = {}
+total_file_size = {}
 
 
 def filename_get_path(what, filename=''):
@@ -50,15 +50,14 @@ def item_get_filename(item, what):
 
 
 def item_get_cache(item, what, print_infos):
-    global files, total_file_size
     # Build file list sorted by age
-    if files is None:
+    if what not in files:
         filenames = os.listdir(filename_get_path(what))
         filelist = [(f, os.stat(filename_get_path(what, f)))
                     for f in filenames]
         filelist.sort(key=lambda f: f[1].st_ctime, reverse=True)
-        files = OrderedDict((f[0], f[1].st_size) for f in filelist)
-        total_file_size = sum(files.values())
+        files[what] = OrderedDict((f[0], f[1].st_size) for f in filelist)
+        total_file_size[what] = sum(files[what].values())
 
     if not item[what]:
         return ''
@@ -72,23 +71,23 @@ def item_get_cache(item, what, print_infos):
         try:
             urllib.request.urlretrieve(url, filepath)
             file_size = os.stat(filepath).st_size
-            files[filename] = file_size
+            files[what][filename] = file_size
 
-            total_file_size += file_size
+            total_file_size[what] += file_size
             max_size = 1024**2*Config.get_size(what)
-            while total_file_size > max_size and len(files) > 1:
-                f, size = files.popitem(last=False)
+            while total_file_size[what] > max_size and len(files[what]) > 1:
+                f, size = files[what].popitem(last=False)
                 try:
                     os.unlink(filename_get_path(what, f))
+                    total_file_size[what] -= size
                 except OSError:
                     pass
-                total_file_size -= size
 
         except urllib.error.URLError:
             print_infos('Cannot access to %s' % url, mode='error')
             return ''
 
     else:
-        files.move_to_end(filename)
+        files[what].move_to_end(filename)
 
     return filepath
