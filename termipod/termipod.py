@@ -25,7 +25,7 @@ from sys import stderr
 
 from termipod.itemlist import ItemList
 from termipod.ui import UI
-from termipod.config import Config
+import termipod.config as Config
 from termipod.database import DataBaseVersionException
 
 
@@ -71,8 +71,8 @@ def main():
     config_params = {}
     if args.f:
         config_params['config_path'] = args.f
-    config = Config(**config_params)
-    os.chdir(config.media_path)
+    Config.init(**config_params)
+    os.chdir(Config.media_path)
 
     # Ensure only one instance is running
     instance_file = open('/tmp/termipod.lock', 'w')
@@ -83,12 +83,12 @@ def main():
         exit(1)
 
     if len(sys.argv) == 1 or (len(sys.argv) == 3 and args.f):
-        UI(config)
+        UI()
 
     else:
         updatedb = True if args.updatedb else False
         try:
-            item_list = ItemList(config, print_infos, wait=True,
+            item_list = ItemList(print_infos, wait=True,
                                  updatedb=updatedb)
         except DataBaseVersionException as e:
             print(e, file=stderr)

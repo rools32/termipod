@@ -19,7 +19,7 @@ import os
 import os.path
 import urllib
 
-from termipod.config import default_cache_dir
+import termipod.config as Config
 
 
 def item_get_filename(item, what):
@@ -30,10 +30,8 @@ def item_get_filename(item, what):
         h = hash(('channel', what, item['id']))
 
     ext = os.path.splitext(item[what])[1]
-    if ext:
-        ext = '.'+ext
 
-    return f'{default_cache_dir}/{h}{ext}'
+    return f'{Config.thumbnail_path}/{h}{ext}'
 
 
 def item_get_cache(item, what, print_infos):

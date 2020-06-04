@@ -49,11 +49,11 @@ from termipod.completer import (CommaListSizeCompleter, CommandCompleter)
 import termipod.image as termimage
 from termipod.cache import item_get_cache
 import termipod.colors as Colors
+import termipod.config as Config
 
 
 class UI():
-    def __init__(self, config):
-        self.config = config
+    def __init__(self):
         screen = curses.initscr()
         self.screen = screen
         self.screen_size = screen.getmaxyx()
@@ -68,7 +68,7 @@ class UI():
         init_key_tables(screen)
 
         try:
-            self.keymap = Keymap(config)
+            self.keymap = Keymap()
         except ValueError as e:
             curses.endwin()
             print(e, file=stderr)
@@ -77,13 +77,13 @@ class UI():
         self.status_area = StatusArea(screen, print_popup=self.print_popup,
                                       print_terminal=self.print_terminal)
         try:
-            self.item_list = ItemList(config, print_infos=self.print_infos)
+            self.item_list = ItemList(print_infos=self.print_infos)
         except DataBaseVersionException as e:
             curses.endwin()
             print(e, file=stderr)
             exit(1)
 
-        tabs = Tabs(screen, self.item_list, self.print_infos, self.config)
+        tabs = Tabs(screen, self.item_list, self.print_infos)
         self.tabs = tabs
 
         # New tabs
@@ -92,7 +92,6 @@ class UI():
         tabs.show_tab(0)
 
         # Run update thread
-        self.update_minutes = int(config.update_minutes)
         thread = Thread(target=self.update_channels_task)
         thread.daemon = True
         thread.start()
@@ -105,9 +104,7 @@ class UI():
         self.item_list.player_init(cb=tabs.update_areas)
 
         # Prepare http server (do not run it)
-        self.httpserver = HTTPServer(int(config.httpserver_port),
-                                     int(config.httpserver_start),
-                                     self.print_infos)
+        self.httpserver = HTTPServer(print_infos=self.print_infos)
 
         while True:
             # Wait for key
@@ -739,9 +736,9 @@ class UI():
 
     def update_channels_task(self):
         while True:
-            if self.update_minutes:
+            if Config.update_minutes:
                 if (time.time()-self.item_list.lastupdate >
-                        self.update_minutes*60):
+                        Config.update_minutes*60):
                     self.item_list.update_channels(
                         'ui', wait=True, cb=self.tabs.update_areas)
 
@@ -806,13 +803,12 @@ class UI():
 
 
 class Tabs:
-    def __init__(self, screen, item_list, print_infos, config):
+    def __init__(self, screen, item_list, print_infos):
         self.screen = screen
         self.item_list = item_list
         self.print_infos = print_infos
         self.current_idx = -1
         self.areas = []
-        self.config = config
         self.title_area = TitleArea(screen, '')
 
     def get_area_idx(self, name):
@@ -823,14 +819,13 @@ class Tabs:
 
     def add_media(self, name, display_name):
         area = MediumArea(self.screen, self.item_list.media, name,
-                          display_name, self.title_area, self.print_infos,
-                          self.config)
+                          display_name, self.title_area, self.print_infos)
         self.areas.append(area)
 
     def add_channels(self, name, display_name):
         area = ChannelArea(self.screen, self.item_list.channels, name,
                            display_name, self.title_area, self.print_infos,
-                           self.item_list.db, self.config)
+                           self.item_list.db)
         self.areas.append(area)
 
     def get_current_area(self):
@@ -1003,11 +998,10 @@ class Tabs:
 
 class ItemArea:
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos, config):
+                 print_infos):
         self.print_infos = print_infos
         self.screen = screen
         self.title_area = title_area
-        self.config = config
         self.mutex = Lock()
         self.name = name
         self.display_name = display_name
@@ -1679,7 +1673,7 @@ class ItemArea:
 
 class MediumArea(ItemArea):
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos, config):
+                 print_infos):
         self.key_class = 'media'
         self.filters = {
             'location': 'all',
@@ -1695,10 +1689,10 @@ class MediumArea(ItemArea):
         self.sortname = 'date'
 
         super().__init__(screen, items, name, display_name, title_area,
-                         print_infos, config)
+                         print_infos)
 
     def apply_config(self):
-        if int(self.config.media_reverse):
+        if int(Config.media_reverse):
             self.reverse = True
 
     def extract_channel_name(self, line):
@@ -1900,7 +1894,7 @@ class MediumArea(ItemArea):
 
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos, data_base, config):
+                 print_infos, data_base):
         self.key_class = 'channels'
         self.data_base = data_base
         self.filters = {
@@ -1914,11 +1908,11 @@ class ChannelArea(ItemArea):
         self.sortname = 'last video'
 
         super().__init__(screen, items, name, display_name, title_area,
-                         print_infos, config)
+                         print_infos)
         self.apply_config()
 
     def apply_config(self):
-        if int(self.config.channel_reverse):
+        if int(Config.channel_reverse):
             self.reverse = True
 
     def filter(self, new_items):

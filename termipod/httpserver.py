@@ -13,9 +13,10 @@ try:
     from twisted.web.static import File
     from twisted.internet import reactor
     _has_twisted = True
-
 except ModuleNotFoundError:
     _has_twisted = False
+
+import termipod.config as Config
 
 
 if _has_twisted:
@@ -66,7 +67,12 @@ if _has_twisted:
 
 
 class HTTPServer():
-    def __init__(self, port, start, print_infos):
+    def __init__(self, port=None, start=None, print_infos=print):
+        if port is None:
+            port = Config.httpserver_port
+        if start is None:
+            start = Config.httpserver_start,
+
         self.port = port
         self.print_infos = print_infos
         self.server_process = None

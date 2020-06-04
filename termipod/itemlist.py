@@ -28,11 +28,12 @@ import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase, DataBaseUpdateException
 from termipod.utils import options_string_to_dict, commastr_to_list
+import termipod.config as Config
 
 
 class ItemList():
-    def __init__(self, config, print_infos, wait=False, updatedb=False):
-        self.db_name = config.db_path
+    def __init__(self, print_infos, wait=False, updatedb=False):
+        self.db_name = Config.db_path
         self.wait = wait
         self.db = DataBase(self.db_name, print_infos, updatedb=updatedb)
         self.print_infos = print_infos

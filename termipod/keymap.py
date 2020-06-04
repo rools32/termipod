@@ -17,6 +17,8 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import curses
 
+import termipod.config as Config
+
 
 keycodes = {}
 keynames = {}
@@ -70,8 +72,8 @@ def get_keymap():
 
 
 class Keymap():
-    def __init__(self, config):
-        self.keymaps = self.load_keymap(config.keys)
+    def __init__(self):
+        self.keymaps = self.load_keymap(Config.keys)
 
         self.keys = {}
         self.actions = {}
@@ -214,5 +216,6 @@ descriptions = {
         'channel_show_media': 'Show media of channel',
         'channel_category': 'Add category to channel',
         'channel_mask': 'Edit channel mask',
-        'channel_force_update': 'Update channels (check also for old elements)',
+        'channel_force_update': ('Update channels '
+                                 '(check also for old elements)'),
 }
