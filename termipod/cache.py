@@ -19,6 +19,7 @@ import os
 import os.path
 import urllib
 from collections import OrderedDict
+import hashlib
 
 import termipod.config as Config
 
@@ -36,10 +37,12 @@ def filename_get_path(what, filename=''):
 
 def item_get_filename(item, what):
     if 'channel' in item:  # Medium
-        h = hash(('medium', what, item['link'], item['cid']))
+        tohash = f'{what}: {item["cid"]} {item["link"]}'
 
     else:  # Channel
-        h = hash(('channel', what, item['id']))
+        tohash = f'{what}: {item["id"]}'
+
+    h = hashlib.sha256(tohash.encode()).hexdigest()
 
     ext = os.path.splitext(item[what])[1]
 
