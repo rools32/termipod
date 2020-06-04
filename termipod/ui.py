@@ -378,12 +378,15 @@ class UI():
                     continue
 
                 if not search_string:
-                    self.print_infos('No search pattern provided')
-                    continue
-                self.print_infos('Search: '+search_string)
+                    self.print_infos('Disable search highlighting')
+                else:
+                    self.print_infos('Search: '+search_string)
+
                 tabs.highlight(search_string)
+
             elif 'search_next' == action:
                 tabs.next_highlight()
+
             elif 'search_prev' == action:
                 tabs.next_highlight(reverse=True)
 
@@ -1216,11 +1219,14 @@ class ItemArea:
 
     def highlight(self, string):
         if not string:
-            return
-        self.highlight_on = True
-        self.highlight_string = string
-        self.display(redraw=True)
-        self.next_highlight()
+            self.highlight_on = False
+            self.display(redraw=True)
+
+        else:
+            self.highlight_on = True
+            self.highlight_string = string
+            self.display(redraw=True)
+            self.next_highlight()
 
     def next_highlight(self, reverse=False):
         if self.highlight_string is None:
