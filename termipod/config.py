@@ -49,6 +49,7 @@ def init(**kwargs):
         'httpserver_start': '0',
         'media_reverse': '0',
         'channel_reverse': '0',
+        'thumbnail_max_total_mb': '256',
     }
 
     params = default_params.keys()
@@ -156,7 +157,7 @@ def init(**kwargs):
 
     # Cast integer parameters
     for p in ('update_minutes', 'media_reverse', 'channel_reverse',
-              'httpserver_port', 'httpserver_start'):
+              'httpserver_port', 'httpserver_start', 'thumbnail_max_total_mb'):
         setattr(this, p, int(getattr(this, p)))
 
 
