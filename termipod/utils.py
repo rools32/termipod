@@ -22,6 +22,8 @@ import shlex
 import unicodedata
 from os import system, name
 
+import termipod.config as Config
+
 
 def printable_str(string):
     new_str = ''
@@ -46,20 +48,19 @@ def printable_str(string):
 
 def print_log(string):
     string = str(string)
-    if print_log.filename:
+    if Config.log_path:
         if print_log.reset:
             mode = 'w'
             print_log.reset = False
         else:
             mode = 'a'
-        with open(print_log.filename, mode) as myfile:
+        with open(Config.log_path, mode) as myfile:
             myfile.write(string+"\n")
     else:
         print(string)
 
 
 print_log.reset = True
-print_log.filename = None
 
 
 def ts_to_date(ts):

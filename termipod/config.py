@@ -21,9 +21,6 @@ import os
 from os.path import expanduser
 
 import appdirs
-
-from termipod.utils import print_log
-
 import sys
 
 # This is a pointer to the module object instance itself
@@ -77,9 +74,6 @@ def init(**kwargs):
         else:
             if not hasattr(this, param):
                 setattr(this, param, default_params[param])
-
-    # Set destination file for print_log
-    print_log.filename = this.log_path
 
     # We create missing directories
     dirs = [
@@ -250,3 +244,11 @@ def default_keymap_to_config():
 
         keys[action] = value
     return keys
+
+
+def get_path(what):
+    return this.__getattribute__(what+'_path')
+
+
+def get_size(what):
+    return this.__getattribute__(what+'_max_total_mb')

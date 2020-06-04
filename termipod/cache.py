@@ -27,8 +27,11 @@ files = None
 total_file_size = 0
 
 
-def filename_get_path(filename):
-    return Config.thumbnail_path+'/'+filename
+def filename_get_path(what, filename=''):
+    if filename:
+        return Config.get_path(what)+'/'+filename
+    else:
+        return Config.get_path(what)
 
 
 def item_get_filename(item, what):
@@ -47,8 +50,8 @@ def item_get_cache(item, what, print_infos):
     global files, total_file_size
     # Build file list sorted by age
     if files is None:
-        filenames = os.listdir(Config.thumbnail_path)
-        filelist = [(f, os.stat(Config.thumbnail_path+'/'+f))
+        filenames = os.listdir(filename_get_path(what))
+        filelist = [(f, os.stat(filename_get_path(what, f)))
                     for f in filenames]
         filelist.sort(key=lambda f: f[1].st_ctime, reverse=True)
         files = OrderedDict((f[0], f[1].st_size) for f in filelist)
@@ -58,7 +61,7 @@ def item_get_cache(item, what, print_infos):
         return ''
 
     filename = item_get_filename(item, what)
-    filepath = filename_get_path(filename)
+    filepath = filename_get_path(what, filename)
 
     url = item[what]
 
@@ -69,11 +72,11 @@ def item_get_cache(item, what, print_infos):
             files[filename] = file_size
 
             total_file_size += file_size
-            while (total_file_size > 1024**2*Config.thumbnail_max_total_mb
-                   and len(files) > 1):
+            max_size = 1024**2*Config.get_size(what)
+            while total_file_size > max_size and len(files) > 1:
                 f, size = files.popitem(last=False)
                 try:
-                    os.unlink(filename_get_path(f))
+                    os.unlink(filename_get_path(what, f))
                 except OSError:
                     pass
                 total_file_size -= size
