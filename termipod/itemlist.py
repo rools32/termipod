@@ -601,6 +601,15 @@ class ItemList():
             if not new_media:
                 continue
 
+            if force_all:
+                # New media won't have all info, so we retrieve them
+                for medium in new_media:
+                    if backends.update_medium(medium, self.print_infos):
+                        try:
+                            self.db.update_medium(medium)
+                        except DataBaseUpdateException:
+                            pass
+
             new_media_num += len(new_media)
             updated_channels.append(channel)
 
