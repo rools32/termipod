@@ -50,11 +50,7 @@ def get_data(url, print_infos):
 
     data['items'] = []
 
-    try:
-        url = feed['image']['href']
-        data['thumbnail'] = url
-    except KeyError:
-        data['thumbnail'] = ''
+    data['thumbnail'] = feed['image'].get('href', '')
 
     entries = rss.entries
     maxtime = 0

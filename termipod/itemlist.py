@@ -19,7 +19,7 @@ import re
 import operator
 import os
 import time
-from collections import deque
+from collections import deque, Counter
 from threading import Thread, Lock
 
 import os.path
@@ -61,13 +61,10 @@ class ItemList():
             channel['index'] = i
 
     def channel_get_categories(self):
-        categories = {}
+        categories = Counter()
         for channel in self.channels:
             for category in channel['categories']:
-                try:
-                    categories[category] += 1
-                except KeyError:
-                    categories[category] = 1
+                categories[category] += 1
         return categories
 
     def add_channels(self, channels=None):
@@ -643,13 +640,10 @@ class ItemList():
         return '\n'.join(exports)
 
     def medium_get_tags(self):
-        tags = {}
+        tags = Counter()
         for medium in self.media:
             for tag in medium['tags']:
-                try:
-                    tags[tag] += 1
-                except KeyError:
-                    tags[tag] = 1
+                tags[tag] += 1
         return tags
 
     def medium_set_tags(self, origin, medium_ids, add_tags,

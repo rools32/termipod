@@ -181,11 +181,7 @@ class Config():
                     self.config_parser['Global'][param] = getattr(self, param)
 
             # Keymap
-            try:
-                keymap_config = self.config_parser['Keymap']
-            except KeyError:
-                self.config_parser['Keymap'] = {}
-                keymap_config = self.config_parser['Keymap']
+            keymap_config = self.config_parser.setdefault('Keymap', {})
 
             # Add new actions
             new_actions = [a for a in default_keymap_config
