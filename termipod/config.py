@@ -219,6 +219,7 @@ def default_keymap_to_config():
         ('media', 'I', 'description'),
         ('media', 'T', 'medium_tag'),
         ('media', 't', 'tag_filter'),
+        ('media', '%%', 'search_filter'),
         ('media', 'd', 'medium_download'),
         ('media', 'D', 'medium_remove'),  # only for local medium
         ('media', 'p', 'save_as_playlist'),

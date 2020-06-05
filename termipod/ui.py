@@ -580,6 +580,9 @@ class UI():
 
                 tabs.filter_by_tags(tags=tags)
 
+            elif 'search_filter' == action:
+                tabs.filter_by_search()
+
             elif 'medium_show_channel' == action:
                 sel = self.get_user_selection(idx, area)
                 media = self.item_list.medium_idx_to_objects(sel)
@@ -885,6 +888,10 @@ class Tabs:
         area = self.get_current_area()
         area.filter_by_tags(tags)
 
+    def filter_by_search(self):
+        area = self.get_current_area()
+        area.filter_by_search()
+
     def filter_by_ids(self, ids=None):
         area = self.get_current_area()
         area.filter_by_ids(ids)
@@ -1036,11 +1043,13 @@ class ItemArea:
         self.win.bkgd(Colors.get_color('item', 'normal'))
 
     def get_title_name(self):
-        filters = [
-            f'{k}: {list_to_commastr(self.filters[k])}'
-            for k in self.filters
-            if self.filters[k]
-        ]
+        filters = []
+        for k in self.filters:
+            if self.filters[k]:
+                if isinstance(self.filters[k], bool):
+                    filters.append(k)
+                else:
+                    filters.append(f'{k}: {list_to_commastr(self.filters[k])}')
         if not filters:
             filters = ['All shown']
         return (f'{self.display_name} - {"; ".join(filters)} - '
@@ -1687,6 +1696,7 @@ class MediumArea(ItemArea):
             'channels': None,
             'categories': None,
             'tags': None,
+            'search': None,
         }
         self.sort_methods = {
             'date': ('date', True),
@@ -1784,6 +1794,16 @@ class MediumArea(ItemArea):
         # Update screen
         self.reset_contents()
 
+    def filter_by_search(self):
+        if self.filters['search']:
+            self.filters['search'] = None
+        else:
+            if self.highlight_string:
+                self.filters['search'] = True
+
+        # Update screen
+        self.reset_contents()
+
     def filter_next_state(self, reverse=False):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.filters['state'])
@@ -1813,6 +1833,11 @@ class MediumArea(ItemArea):
         if self.filters['location'] is None:
             self.filters['location'] = 'all'
 
+        if self.highlight_string:
+            no_case_string = self.highlight_string.casefold()
+        else:
+            no_case_string = None
+
         # Keep matching elements
         for item in new_items:
             match = True
@@ -1838,6 +1863,12 @@ class MediumArea(ItemArea):
             elif (self.filters['tags'] is not None
                   and (set(self.filters['tags'])
                        - set(item['tags']))):
+                match = False
+
+            elif (self.filters['search'] and no_case_string
+                  and no_case_string not in item['title'].casefold()
+                  and no_case_string not in item[
+                      'channel']['title'].casefold()):
                 match = False
 
             if match:

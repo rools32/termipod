@@ -205,6 +205,7 @@ descriptions = {
         'thumbnail': 'Show/hide thumbnail (urxvt only)',
         'medium_tag': 'Set tags for media',
         'tag_filter': 'Filter by tag',
+        'search_filter': 'Filter matching items',
         'medium_show_channel': 'Jump to corresponding channel',
 
         'medium_download': 'Download / Cancel downloading / Remove file',
