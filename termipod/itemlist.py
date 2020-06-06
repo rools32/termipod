@@ -29,13 +29,23 @@ import termipod.player as player
 from termipod.database import DataBase, DataBaseUpdateException
 from termipod.utils import options_string_to_dict, commastr_to_list
 import termipod.config as Config
+from termipod.database import DataBaseVersionException
+
+
+class ItemListException(Exception):
+    pass
 
 
 class ItemList():
     def __init__(self, print_infos, wait=False, updatedb=False):
         self.db_name = Config.db_path
         self.wait = wait
-        self.db = DataBase(self.db_name, print_infos, updatedb=updatedb)
+
+        try:
+            self.db = DataBase(self.db_name, print_infos, updatedb=updatedb)
+        except DataBaseVersionException as e:
+            raise ItemListException(e)
+
         self.print_infos = print_infos
         self.media = deque()
         self.channels = deque()

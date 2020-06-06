@@ -24,7 +24,6 @@ import fcntl
 from sys import stderr
 
 from termipod.itemlist import ItemList
-from termipod.ui import UI
 import termipod.config as Config
 from termipod.database import DataBaseVersionException
 
@@ -83,7 +82,9 @@ def main():
         exit(1)
 
     if len(sys.argv) == 1 or (len(sys.argv) == 3 and args.f):
-        UI()
+        import termipod.ui as UI
+        UI.init()
+        UI.loop()
 
     else:
         updatedb = True if args.updatedb else False

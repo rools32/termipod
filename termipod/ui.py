@@ -43,7 +43,6 @@ from termipod.utils import (duration_to_str, ts_to_date, print_log,
 from termipod.itemlist import ItemList
 from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
                              get_last_key, init_key_tables, get_keymap)
-from termipod.database import DataBaseVersionException
 from termipod.httpserver import HTTPServer
 from termipod.completer import (CommaListSizeCompleter, CommandCompleter)
 import termipod.image as termimage
@@ -52,770 +51,854 @@ import termipod.colors as Colors
 import termipod.config as Config
 
 
-class UI():
-    def __init__(self):
-        screen = curses.initscr()
-        self.screen = screen
-        self.screen_size = screen.getmaxyx()
-        screen.keypad(1)  # to handle special keys as one key
-        screen.immedok(True)
-        curses.curs_set(0)  # disable cursor
-        curses.cbreak()  # no need to press enter to react to keys
-        curses.noecho()  # do not show pressed keys
-        Colors.init()
-        screen.refresh()
-
-        init_key_tables(screen)
-
-        try:
-            self.keymap = Keymap()
-        except ValueError as e:
-            curses.endwin()
-            print(e, file=stderr)
-            exit(1)
-
-        self.status_area = StatusArea(screen, print_popup=self.print_popup,
-                                      print_terminal=self.print_terminal)
-        try:
-            self.item_list = ItemList(print_infos=self.print_infos)
-        except DataBaseVersionException as e:
-            curses.endwin()
-            print(e, file=stderr)
-            exit(1)
-
-        tabs = Tabs(screen, self.item_list, self.print_infos)
-        self.tabs = tabs
-
-        # New tabs
-        tabs.add_media('remote', 'Media')
-        tabs.add_channels('channels', 'Channels')
-        tabs.show_tab(0)
-
-        # Run update thread
-        thread = Thread(target=self.update_channels_task)
-        thread.daemon = True
-        thread.start()
-
-        # Run download maæger
-        self.item_list.download_manager_init(cb=tabs.update_areas,
-                                             dl_marked=False)
-
-        # Init player
-        self.item_list.player_init(cb=tabs.update_areas)
-
-        # Prepare http server (do not run it)
-        self.httpserver = HTTPServer(print_infos=self.print_infos)
-
-        while True:
-            # Wait for key
-            key_code = get_key(screen)
-            key_name = get_key_name(key_code)
-            if key_name is None:
-                continue
-
-            area = tabs.get_current_area()
-            area_key_class = area.get_key_class()
-            idx = area.get_idx()
-
-            action = self.keymap.get_action(area_key_class, key_name)
-            print_log(action)
-
-            if action is None:
-                self.print_infos("Key '%r' not mapped for %s" %
-                                 (key_name, area_key_class))
-
-            ###################################################################
-            # All tab commands
-            ###################################################################
-
-            elif 'line_down' == action:
-                tabs.move_screen('line', 'down')
-            elif 'line_up' == action:
-                tabs.move_screen('line', 'up')
-            elif 'page_down' == action:
-                tabs.move_screen('page', 'down')
-            elif 'page_up' == action:
-                tabs.move_screen('page', 'up')
-            elif 'bottom' == action:
-                tabs.move_screen('all', 'down')
-            elif 'top' == action:
-                tabs.move_screen('all', 'up')
-
-            elif 'screen_infos' == action:
-                tabs.screen_infos()
-
-            elif 'tab_next' == action:
-                tabs.show_next_tab()
-
-            elif 'tab_prev' == action:
-                tabs.show_next_tab(reverse=True)
-
-            elif 'help' == action:
-                area.show_help(self.keymap)
-
-            elif 'refresh' == action:
-                self.refresh()
-
-            elif 'reset' == action:
-                self.reset()
-
-            elif 'resize' == action:
-                self.resize()
-
-            elif 'infos' == action:
-                area.show_infos()
-
-            elif 'description' == action:
-                area.show_description()
-
-            elif 'thumbnail' == action:
-                area.switch_thumbnail_mode()
-
-            elif 'command_get' == action:
-                completer = CommandCompleter()
-
-                completer.add_command('add', 'Add a channel')
-                completer.add_option(
-                    ['add'], 'url', '', '[^ ]+', 'URL', position=0)
-                completer.add_option(
-                    ['add'], 'count', 'count=', 'count=[-0-9]+',
-                    'Maximal number of elements to retrieve info')
-                completer.add_option(
-                    ['add'], 'force', 'force', 'force',
-                    'Force creation if already exists')
-                completer.add_option(
-                    ['add'], 'strict', 'strict', 'strict',
-                    'Do no retrieve list of files after count')
-                completer.add_option(
-                    ['add'], 'auto', 'auto=', 'auto=[^ ]+',
-                    'Regex for files to download automatically')
-                completer.add_option(
-                    ['add'], 'categories', 'categories=', 'categories=[^ ]+',
-                    'Comma separated list of categories (use quotes)')
-                completer.add_option(
-                    ['add'], 'name', 'name=', 'name=[^ ]+',
-                    'Alternative name of the channel (needed with force)')
-
-                completer.add_command('addvideo',
-                                      'Add a video (to a new disabled channel)')
-                completer.add_option(
-                    ['addvideo'], 'url', '', '[^ ]+', 'URL', position=0)
-                completer.add_option(
-                    ['addvideo'], 'force', 'force', 'force',
-                    'Force creation if already exists')
-                completer.add_option(
-                    ['addvideo'], 'categories', 'categories=',
-                    'categories=[^ ]+',
-                    'Comma separated list of categories (use quotes)')
-                completer.add_option(
-                    ['addvideo'], 'name', 'name=', 'name=[^ ]+',
-                    'Alternative name of the channel')
-
-                completer.add_command(
-                    'channelRemove',
-                    'Remove selected channels (and all associated media)')
-
-                completer.add_command('channelDisable',
-                                      'Disable selected channels')
-
-                completer.add_command('channelEnable',
-                                      'Enable selected channels')
-
-                completer.add_command('help', 'Show help')
-
-                completer.add_command('messages', 'Print last messages')
-                completer.add_option(
-                    ['messages'], 'file', '', '.*', 'Output file')
-
-                completer.add_command('maps', 'Show key maps')
-
-                completer.add_command('errors', 'Print last errors')
-                completer.add_option(
-                    ['errors'], 'file', '', '.*', 'Output file')
-
-                completer.add_command(
-                    'httpServerStart',
-                    'Start http streaming server')
-                completer.add_option(
-                    ['httpServerStart'], 'port', '', '[0-9]+', 'Port')
-
-                completer.add_command('httpServerStop', 'Stop the server')
-
-                completer.add_command('httpServerStatus',
-                                      'Get streaming server status')
-
-                completer.add_command('quit', 'Quit termipod')
-
-                # TODO generate help for show_command_help from completer
-                string = self.status_area.run_command(':', completer=completer)
-                if string is None:
-                    continue
-
-                try:
-                    command = shlex.split(string)
-                except ValueError as e:
-                    self.print_infos(f'Error in command: {e}', mode='error')
-                    continue
-
-                if not command:
-                    self.print_infos('No command to run', mode='direct')
-                    continue
-
-                if command[0] in ('q', 'quit'):
-                    curses.endwin()
-                    exit()
-
-                elif command[0] in ('h', 'help'):
-                    area.show_command_help()
-
-                elif command[0] in ('errors', ):
-                    if len(command) == 2:
-                        file = command[1]
-                    else:
-                        file = None
-                    self.status_area.print_errors(file)
-
-                elif command[0] in ('messages', ):
-                    if len(command) == 2:
-                        file = command[1]
-                    else:
-                        file = None
-                    self.status_area.print_all_messages(file)
-
-                elif command[0] in ('maps', ):
-                    if len(command) != 1:
-                        area.show_command_help('maps', error=True)
-                    help_string = area.show_help(self.keymap, show=False)
-                    self.print_terminal(help_string,
-                                        mutex=self.status_area.mutex)
-
-                elif command[0] in ('add',):
-                    if len(command) == 1:
-                        area.show_command_help('add', error=True)
-                    else:
-                        url = command[1]
-                        start = len(command[0])+1
-                        opts = string[start:].lstrip()[len(url)+1:].lstrip()
-                        callback = tabs.update_areas
-                        self.item_list.new_channel(url, opts, callback)
-
-                elif command[0] in ('addvideo',):
-                    if len(command) == 1:
-                        area.show_command_help('addvideo', error=True)
-                    else:
-                        url = command[1]
-                        start = len(command[0])+1
-                        opts = string[start:].lstrip()[len(url)+1:].lstrip()
-                        callback = tabs.update_areas
-
-                        self.item_list.new_video(url, opts, callback)
-
-                elif command[0] in ('channelDisable',):
-                    if len(command) != 1:
-                        area.show_command_help('channelDisable', error=True)
-                    elif area.key_class != 'channels':
-                        self.print_infos('Not in channel area')
-
-                    else:
-                        sel = self.get_user_selection(idx, area)
-                        channels = self.item_list.disable_channels('ui', sel)
-                        tabs.update_areas('channel', 'removed', channels,
-                                          only=True)
-
-                elif command[0] in ('channelEnable',):
-                    if len(command) != 1:
-                        area.show_command_help('channelEnable', error=True)
-                    elif area.key_class != 'channels':
-                        self.print_infos('Not in channel area')
-
-                    else:
-                        sel = self.get_user_selection(idx, area)
-                        channels = self.item_list.disable_channels('ui', sel,
-                                                                   enable=True)
-                        tabs.update_areas('channel', 'removed', channels,
-                                          only=True)
-
-                elif command[0] in ('channelRemove',):
-                    if len(command) != 1:
-                        area.show_command_help('channelRemove', error=True)
-                    elif area.key_class != 'channels':
-                        self.print_infos('Not in channel area')
-                    else:
-                        sel = self.get_user_selection(idx, area)
-                        channels = self.item_list.remove_channels('ui', sel)
-                        tabs.update_areas('channel', 'removed', channels)
-
-                # HTTP server
-                elif command[0] in ('httpServerStart',):
-                    if len(command) == 2:
-                        port = command[1]
-                    elif len(command) == 1:
-                        port = None
-                    else:
-                        area.show_command_help('httpServerStart', error=True)
-                        continue
-                    self.httpserver.start(port)
-
-                elif command[0] in ('httpServerStop',):
-                    if len(command) != 1:
-                        area.show_command_help('httpServerStop', error=True)
-                    else:
-                        self.httpserver.stop()
-
-                elif command[0] in ('httpServerStatus',):
-                    if len(command) != 1:
-                        area.show_command_help('httpServerStatus', error=True)
-                    else:
-                        self.httpserver.status()
-
-                else:
-                    self.print_infos('Command "%s" not found' % command[0],
-                                     mode='error')
-
-            elif 'search_get' == action:
-                search_string = self.status_area.run_command('/')
-                if search_string is None:
-                    continue
-
-                if not search_string:
-                    self.print_infos('Disable search highlighting')
-                else:
-                    self.print_infos('Search: '+search_string)
-
-                tabs.highlight(search_string)
-
-            elif 'search_next' == action:
-                tabs.next_highlight()
-
-            elif 'search_prev' == action:
-                tabs.next_highlight(reverse=True)
-
-            elif 'quit' == action:
-                break
-
-            elif 'select_item' == action:
-                tabs.select_item()
-            elif 'select_until' == action:
-                tabs.select_until()
-            elif 'select_clear' == action:
-                tabs.select_clear()
-
-            elif 'filter_clear' == action:
-                tabs.filter_clear()
-
-            elif 'sort' == action:
-                tabs.sort_switch()
-            elif 'sort_reverse' == action:
-                tabs.sort_reverse()
-
-            elif 'show_cursor_bg' == action:
-                tabs.show_cursor_bg()
-
-            elif 'url_copy' == action:
-                sel = self.get_user_selection(idx, area)
-                if not sel:
-                    continue
-
-                if isinstance(area, MediumArea):
-                    media = self.item_list.medium_idx_to_objects(sel)
-                    urls = [m['link'] for m in media]
-                else:
-                    channels = self.item_list.channel_ids_to_objects('ui', sel)
-                    urls = [c['url'] for c in channels]
-
-                if _has_pyperclip:
-                    pyperclip.copy('\n'.join(urls))
-                    if len(urls) == 1:
-                        self.print_infos('URL copied', mode='direct')
-                    else:
-                        self.print_infos(f'{len(urls)} URLs copied',
-                                         mode='error')
-                else:
-                    self.print_infos('Need to install pyperclip', mode='error')
-
-            ###################################################################
-            # Allmedia commands
-            ###################################################################
-            # Highlight channel name
-            elif 'search_channel' == action:
-                if idx is None:
-                    continue
-                channel = area.get_current_channel()
-                self.print_infos('Search: '+channel)
-                tabs.highlight(channel)
-
-            elif 'medium_play' == action:
-                sel = self.get_user_selection(idx, area)
-                self.item_list.play(sel)
-
-            elif 'medium_playadd' == action:
-                sel = self.get_user_selection(idx, area)
-                self.item_list.playadd(sel)
-
-            elif 'medium_stop' == action:
-                self.item_list.stop()
-
-            elif 'medium_remove' == action:
-                # TODO if is being played: self.item_list.stop()
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.remove(sel)
-                tabs.update_areas('medium', 'removed', media)
-                area.user_selection = deque()
-
-            elif 'channel_filter' == action:
-                tabs.filter_by_channels()
-
-            elif 'category_filter' == action:
-                sel = self.get_user_selection(idx, area)
-                if isinstance(area, MediumArea):
-                    media = self.item_list.medium_idx_to_objects(sel)
-                    channels = [medium['channel'] for medium in media]
-                else:
-                    channels = self.item_list.channel_ids_to_objects('ui', sel)
-
-                if channels:
-                    categories = set(channels[0]['categories'])
-                    for c in channels[1:]:
-                        categories &= set(c['categories'])
-                    init = list_to_commastr(categories)
-                else:
-                    init = ''
-
-                all_categories = self.item_list.channel_get_categories()
-                completer = CommaListSizeCompleter(all_categories)
-                category_str = self.status_area.run_command(
-                    'category filter: ', init=init, completer=completer)
-
-                if category_str is None:
-                    continue
-                if not category_str:
-                    categories = None
-                else:
-                    categories = commastr_to_list(category_str)
-
-                tabs.filter_by_categories(categories=categories)
-
-            elif 'state_filter' == action:
-                tabs.state_switch()
-
-            elif 'state_filter_reverse' == action:
-                tabs.state_switch(reverse=True)
-
-            elif 'location_filter' == action:
-                tabs.location_switch()
-
-            elif 'location_filter_reverse' == action:
-                tabs.location_switch(reverse=True)
-
-            elif action in ('medium_read', 'medium_skip'):
-                if 'medium_skip' == action:
-                    skip = True
-                else:
-                    skip = False
-
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.switch_read(sel, skip)
-                tabs.update_areas('medium', 'modified', media)
-                area.user_selection = deque()
-
-            elif 'medium_update' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.update_media(sel)
-                tabs.update_areas('medium', 'modified', media)
-                area.user_selection = deque()
-
-            elif 'medium_tag' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.medium_idx_to_objects(sel)
-
-                # Shared tags
-                shared_tags = set.intersection(
-                    *[set(c['tags']) for c in media])
-
-                text = 'Comma separated shared tags: '
-                init = list_to_commastr(shared_tags)
-
-                if init:
-                    init += ', '
-
-                all_tags = self.item_list.medium_get_tags()
-                completer = CommaListSizeCompleter(all_tags)
-                tag_str = (
-                    self.status_area.run_command(text, init=init,
-                                                 completer=completer))
-                if tag_str is None:
-                    continue
-                tags = set(commastr_to_list(tag_str))
-
-                add_tags = tags-shared_tags
-                remove_tags = shared_tags-tags
-
-                media = self.item_list.medium_set_tags(
-                    'ui', sel, add_tags, remove_tags)
-                tabs.update_areas('medium', 'modified', media, only=True)
-
-            elif 'tag_filter' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.medium_idx_to_objects(sel)
-
-                if media:
-                    tags = set(media[0]['tags'])
-                    for c in media[1:]:
-                        tags &= set(c['tags'])
-                    init = list_to_commastr(tags)
-                else:
-                    init = ''
-
-                all_tags = self.item_list.medium_get_tags()
-                completer = CommaListSizeCompleter(all_tags)
-                tag_str = self.status_area.run_command(
-                    'tag filter: ', init=init, completer=completer)
-
-                if tag_str is None:
-                    continue
-                if not tag_str:
-                    tags = None
-                else:
-                    tags = commastr_to_list(tag_str)
-
-                tabs.filter_by_tags(tags=tags)
-
-            elif 'search_filter' == action:
-                tabs.filter_by_search()
-
-            elif 'medium_show_channel' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.medium_idx_to_objects(sel)
-                if media:
-                    ids = [m['channel']['id'] for m in media]
-                    tabs.show_tab('channels')
-                    tabs.filter_by_ids(list(set(ids)))
-
-            ###################################################################
-            # Remote medium commands
-            ###################################################################
-            elif 'medium_download' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.download(sel)
-                tabs.update_areas('medium', 'modified', media)
-                area.user_selection = deque()
-
-            elif 'channel_update' == action:
-                # If in channel tab we update only user_selection
-                if 'channels' == area.key_class:
-                    sel = self.get_user_selection(idx, area)
-                # We update all channels
-                else:
-                    sel = None
-                self.item_list.update_channels('ui', channel_ids=sel,
-                                               cb=tabs.update_areas)
-
-            ###################################################################
-            # Local medium commands
-            ###################################################################
-            elif 'save_as_playlist' == action:
-                sel = self.get_user_selection(idx, area)
-                media = self.item_list.medium_idx_to_objects(sel)
-                filenames = [m['filename'] if m['filename']
-                             else m['link'] for m in media]
-
-                # Choose base name
-                text = 'Playlist name: '
-                destfile = self.status_area.run_command(text)
-                if destfile is None:
-                    continue
-                destfile += '.m3u'
-
-                try:
-                    with open(destfile, 'w') as f:
-                        for filename in filenames:
-                            f.write(f'{filename}\n')
-                except FileNotFoundError as e:
-                    self.print_infos(e, mode='error')
-                    continue
-
-            ###################################################################
-            # Downloading medium commands
-            ###################################################################
-
-            ###################################################################
-            # Channel commands
-            ###################################################################
-            elif 'channel_auto' == action:
-                sel = self.get_user_selection(idx, area)
-                channels = self.item_list.channel_set_auto('ui', sel)
-                tabs.update_areas('channel', 'modified', channels, only=True)
-
-            elif 'channel_auto_custom' == action:
-                sel = self.get_user_selection(idx, area)
-                auto = self.status_area.run_command('auto: ')
-                if auto is None:
-                    continue
-                channels = self.item_list.channel_set_auto('ui', sel, auto)
-                tabs.update_areas('channel', 'modified', channels, only=True)
-
-            elif 'channel_show_media' == action:
-                sel = self.get_user_selection(idx, area)
-                channels = [self.item_list.channels[s] for s in sel]
-                if channels:
-                    tabs.show_tab('remote')
-                    tabs.filter_by_channels(channels)
-
-            elif 'channel_category' == action:
-                sel = self.get_user_selection(idx, area)
-                channels = self.item_list.channel_ids_to_objects('ui', sel)
-
-                # Shared categories
-                shared_categories = set.intersection(
-                    *[set(c['categories']) for c in channels])
-
-                text = 'Comma separated shared categories: '
-                init = list_to_commastr(shared_categories)
-
-                if init:
-                    init += ', '
-
-                all_categories = self.item_list.channel_get_categories()
-                completer = CommaListSizeCompleter(all_categories)
-                category_str = (
-                    self.status_area.run_command(text, init=init,
-                                                 completer=completer))
-                if category_str is None:
-                    continue
-                categories = set(commastr_to_list(category_str))
-
-                add_categories = categories-shared_categories
-                remove_categories = shared_categories-categories
-
-                channels = self.item_list.channel_set_categories(
-                    'ui', sel, add_categories, remove_categories)
-                tabs.update_areas('channel', 'modified', channels, only=True)
-
-            elif 'channel_mask' == action:
-                sel = self.get_user_selection(idx, area)
-                channels = self.item_list.channel_ids_to_objects('ui', sel)
-                if len(channels) != 1:
-                    self.print_infos('Cannot change mask of several channels',
-                                     mode='error')
-                    continue
-
-                channel = channels[0]
-                text = 'Mask: '
-                init = channel['mask']
-
-                mask = self.status_area.run_command(text, init=init)
-                if mask is None:
-                    continue
-
-                channel = self.item_list.channel_set_mask('ui', sel, mask)
-                tabs.update_areas('channel', 'modified', [channel], only=True)
-
-            elif 'channel_force_update' == action:
-                sel = self.get_user_selection(idx, area)
-                self.item_list.update_channels('ui', channel_ids=sel,
-                                               force_all=True,
-                                               cb=tabs.update_areas)
-
-            # Action not recognized
-            else:
-                self.print_infos('Unknown action "%s"' % action, mode='error')
-
-        self.item_list.player.stop()  # To prevent segfault in some cases
-        termimage.clear()
-        curses.endwin()
-
-    def get_user_selection(self, idx, area):
-        if not area.user_selection:
-            if idx is None or idx < 0:
-                return []
-            sel = [idx]
-        else:
-            sel = area.user_selection
-        return sel
-
-    def print_infos(self, *args, **kwargs):
-        self.status_area.print(*args, **kwargs)
-
-    def print_popup(self, lines, position='bottom'):
-        area = self.tabs.get_current_area()
-        area.print_popup(lines, position)
-
-    def update_channels_task(self):
+def init():
+    global screen, info_area, tabs, screen_size
+    screen = curses.initscr()
+    screen_size = screen.getmaxyx()
+    screen.keypad(1)  # to handle special keys as one key
+    screen.immedok(True)
+    curses.curs_set(0)  # disable cursor
+    curses.cbreak()  # no need to press enter to react to keys
+    curses.noecho()  # do not show pressed keys
+    Colors.init()
+    screen.refresh()
+    tabs = Tabs(screen)
+    info_area = InfoArea(screen)
+
+
+def loop():
+    def update_channels_task():
         while True:
             if Config.update_minutes:
-                if (time.time()-self.item_list.lastupdate >
+                if (time.time()-item_list.lastupdate >
                         Config.update_minutes*60):
-                    self.item_list.update_channels(
-                        'ui', wait=True, cb=self.tabs.update_areas)
+                    item_list.update_channels(
+                        'ui', wait=True, cb=tabs.update_areas)
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
 
-    def refresh(self, reset=False):
-        self.screen.clear()
+    init_key_tables(screen)
 
-        current_area = self.tabs.get_current_area()
-        areas = self.tabs.areas if reset else [current_area]
-        for area in areas:
-            area.init_win()
-            if reset:
-                area.reset_contents()
-
-        self.tabs.show_tab()
-        self.status_area.init_win()
-        current_area.show_thumbnail(force_clear=True)
-
-    def reset(self):
-        self.refresh(reset=True)
-
-    def resize(self):
-        screen_size = self.screen.getmaxyx()
-        if screen_size != self.screen_size:
-            if screen_size[1] != self.screen_size[1]:
-                self.refresh(reset=True)
-            else:
-                self.refresh(reset=False)
-            self.screen_size = self.screen.getmaxyx()
-
-    def print_terminal(self, message, mutex=None, pager=True):
-        if not isinstance(message, str):
-            message = '\n'.join(message)
-
-        if mutex is not None:
-            mutex.acquire()
+    try:
+        keymap = Keymap()
+    except ValueError as e:
         curses.endwin()
-        screen_reset()
+        print(e, file=stderr)
+        exit(1)
 
-        if pager:
-            pager_bin = os.environ.get('PAGER', 'less')
+    try:
+        item_list = ItemList(print_infos=print_infos)
+    except ItemList.ItemListException as e:
+        curses.endwin()
+        print(e, file=stderr)
+        exit(1)
 
-            # We need to add blank lines to prevent pager to quit directly
-            if pager_bin == 'more':
-                screenlines, _ = self.screen_size
-                nlines = message.count('\n')
-                if nlines < screenlines:
-                    message += '\n'*(screenlines-nlines)
+    # New tabs
+    tabs.add_tab(MediumArea(screen, item_list.media,
+                            'remote',  'Media'))  # remove 'remote'
+    tabs.add_tab(ChannelArea(screen, item_list.channels,
+                             'channels', 'Channels'))
+    tabs.show_tab(0)
 
-            subprocess.call([f'echo "{message}" | {pager_bin}'], shell=True)
+    # Run update thread
+    thread = Thread(target=update_channels_task)
+    thread.daemon = True
+    thread.start()
 
+    # Run download manager
+    item_list.download_manager_init(cb=tabs.update_areas, dl_marked=False)
+
+    # Init player
+    item_list.player_init(cb=tabs.update_areas)
+
+    # Prepare http server (do not run it)
+    httpserver = HTTPServer(print_infos=print_infos)
+
+    while True:
+        # Wait for key
+        key_code = get_key(screen)
+        key_name = get_key_name(key_code)
+        if key_name is None:
+            continue
+
+        area = tabs.get_current_area()
+        area_key_class = area.get_key_class()
+        idx = area.get_idx()
+
+        action = keymap.get_action(area_key_class, key_name)
+        print_log(action)
+
+        if action is None:
+            print_infos("Key '%r' not mapped for %s" %
+                        (key_name, area_key_class))
+
+        ###################################################################
+        # All tab commands
+        ###################################################################
+
+        elif 'line_down' == action:
+            tabs.move_screen('line', 'down')
+        elif 'line_up' == action:
+            tabs.move_screen('line', 'up')
+        elif 'page_down' == action:
+            tabs.move_screen('page', 'down')
+        elif 'page_up' == action:
+            tabs.move_screen('page', 'up')
+        elif 'bottom' == action:
+            tabs.move_screen('all', 'down')
+        elif 'top' == action:
+            tabs.move_screen('all', 'up')
+
+        elif 'screen_infos' == action:
+            tabs.screen_infos()
+
+        elif 'tab_next' == action:
+            tabs.show_next_tab()
+
+        elif 'tab_prev' == action:
+            tabs.show_next_tab(reverse=True)
+
+        elif 'help' == action:
+            area.show_help(keymap)
+
+        elif 'refresh' == action:
+            refresh()
+
+        elif 'reset' == action:
+            reset()
+
+        elif 'resize' == action:
+            resize()
+
+        elif 'infos' == action:
+            area.show_infos()
+
+        elif 'description' == action:
+            area.show_description()
+
+        elif 'thumbnail' == action:
+            area.switch_thumbnail_mode()
+
+        elif 'command_get' == action:
+            completer = CommandCompleter()
+
+            completer.add_command('add', 'Add a channel')
+            completer.add_option(
+                ['add'], 'url', '', '[^ ]+', 'URL', position=0)
+            completer.add_option(
+                ['add'], 'count', 'count=', 'count=[-0-9]+',
+                'Maximal number of elements to retrieve info')
+            completer.add_option(
+                ['add'], 'force', 'force', 'force',
+                'Force creation if already exists')
+            completer.add_option(
+                ['add'], 'strict', 'strict', 'strict',
+                'Do no retrieve list of files after count')
+            completer.add_option(
+                ['add'], 'auto', 'auto=', 'auto=[^ ]+',
+                'Regex for files to download automatically')
+            completer.add_option(
+                ['add'], 'categories', 'categories=', 'categories=[^ ]+',
+                'Comma separated list of categories (use quotes)')
+            completer.add_option(
+                ['add'], 'name', 'name=', 'name=[^ ]+',
+                'Alternative name of the channel (needed with force)')
+
+            completer.add_command('addvideo',
+                                  'Add a video (to a new disabled channel)')
+            completer.add_option(
+                ['addvideo'], 'url', '', '[^ ]+', 'URL', position=0)
+            completer.add_option(
+                ['addvideo'], 'force', 'force', 'force',
+                'Force creation if already exists')
+            completer.add_option(
+                ['addvideo'], 'categories', 'categories=',
+                'categories=[^ ]+',
+                'Comma separated list of categories (use quotes)')
+            completer.add_option(
+                ['addvideo'], 'name', 'name=', 'name=[^ ]+',
+                'Alternative name of the channel')
+
+            completer.add_command(
+                'channelRemove',
+                'Remove selected channels (and all associated media)')
+
+            completer.add_command('channelDisable',
+                                  'Disable selected channels')
+
+            completer.add_command('channelEnable',
+                                  'Enable selected channels')
+
+            completer.add_command('help', 'Show help')
+
+            completer.add_command('messages', 'Print last messages')
+            completer.add_option(
+                ['messages'], 'file', '', '.*', 'Output file')
+
+            completer.add_command('maps', 'Show key maps')
+
+            completer.add_command('errors', 'Print last errors')
+            completer.add_option(
+                ['errors'], 'file', '', '.*', 'Output file')
+
+            completer.add_command(
+                'httpServerStart',
+                'Start http streaming server')
+            completer.add_option(
+                ['httpServerStart'], 'port', '', '[0-9]+', 'Port')
+
+            completer.add_command('httpServerStop', 'Stop the server')
+
+            completer.add_command('httpServerStatus',
+                                  'Get streaming server status')
+
+            completer.add_command('quit', 'Quit termipod')
+
+            # TODO generate help for show_command_help from completer
+            string = run_command(':', completer=completer)
+            if string is None:
+                continue
+
+            try:
+                command = shlex.split(string)
+            except ValueError as e:
+                print_infos(f'Error in command: {e}', mode='error')
+                continue
+
+            if not command:
+                print_infos('No command to run', mode='direct')
+                continue
+
+            if command[0] in ('q', 'quit'):
+                curses.endwin()
+                exit()
+
+            elif command[0] in ('h', 'help'):
+                area.show_command_help()
+
+            elif command[0] in ('errors', ):
+                if len(command) == 2:
+                    file = command[1]
+                else:
+                    file = None
+                info_area.print_errors(file)
+
+            elif command[0] in ('messages', ):
+                if len(command) == 2:
+                    file = command[1]
+                else:
+                    file = None
+                info_area.print_all_messages(file)
+
+            elif command[0] in ('maps', ):
+                if len(command) != 1:
+                    area.show_command_help('maps', error=True)
+                help_string = area.show_help(keymap, show=False)
+                print_terminal(help_string,
+                               mutex=info_area.mutex)
+
+            elif command[0] in ('add',):
+                if len(command) == 1:
+                    area.show_command_help('add', error=True)
+                else:
+                    url = command[1]
+                    start = len(command[0])+1
+                    opts = string[start:].lstrip()[len(url)+1:].lstrip()
+                    callback = tabs.update_areas
+                    item_list.new_channel(url, opts, callback)
+
+            elif command[0] in ('addvideo',):
+                if len(command) == 1:
+                    area.show_command_help('addvideo', error=True)
+                else:
+                    url = command[1]
+                    start = len(command[0])+1
+                    opts = string[start:].lstrip()[len(url)+1:].lstrip()
+                    callback = tabs.update_areas
+
+                    item_list.new_video(url, opts, callback)
+
+            elif command[0] in ('channelDisable',):
+                if len(command) != 1:
+                    area.show_command_help('channelDisable', error=True)
+                elif area.key_class != 'channels':
+                    print_infos('Not in channel area')
+
+                else:
+                    sel = tabs.get_user_selection(idx)
+                    channels = item_list.disable_channels('ui', sel)
+                    tabs.update_areas('channel', 'removed', channels,
+                                      only=True)
+
+            elif command[0] in ('channelEnable',):
+                if len(command) != 1:
+                    area.show_command_help('channelEnable', error=True)
+                elif area.key_class != 'channels':
+                    print_infos('Not in channel area')
+
+                else:
+                    sel = tabs.get_user_selection(idx)
+                    channels = item_list.disable_channels(
+                        'ui', sel, enable=True)
+                    tabs.update_areas('channel', 'removed', channels,
+                                      only=True)
+
+            elif command[0] in ('channelRemove',):
+                if len(command) != 1:
+                    area.show_command_help('channelRemove', error=True)
+                elif area.key_class != 'channels':
+                    print_infos('Not in channel area')
+                else:
+                    sel = tabs.get_user_selection(idx)
+                    channels = item_list.remove_channels('ui', sel)
+                    tabs.update_areas('channel', 'removed', channels)
+
+            # HTTP server
+            elif command[0] in ('httpServerStart',):
+                if len(command) == 2:
+                    port = command[1]
+                elif len(command) == 1:
+                    port = None
+                else:
+                    area.show_command_help('httpServerStart', error=True)
+                    continue
+                httpserver.start(port)
+
+            elif command[0] in ('httpServerStop',):
+                if len(command) != 1:
+                    area.show_command_help('httpServerStop', error=True)
+                else:
+                    httpserver.stop()
+
+            elif command[0] in ('httpServerStatus',):
+                if len(command) != 1:
+                    area.show_command_help('httpServerStatus', error=True)
+                else:
+                    httpserver.status()
+
+            else:
+                print_infos('Command "%s" not found' % command[0],
+                            mode='error')
+
+        elif 'search_get' == action:
+            search_string = run_command('/')
+            if search_string is None:
+                continue
+
+            if not search_string:
+                print_infos('Disable search highlighting')
+            else:
+                print_infos('Search: '+search_string)
+
+            tabs.highlight(search_string)
+
+        elif 'search_next' == action:
+            tabs.next_highlight()
+
+        elif 'search_prev' == action:
+            tabs.next_highlight(reverse=True)
+
+        elif 'quit' == action:
+            break
+
+        elif 'select_item' == action:
+            tabs.select_item()
+        elif 'select_until' == action:
+            tabs.select_until()
+        elif 'select_clear' == action:
+            tabs.select_clear()
+
+        elif 'filter_clear' == action:
+            tabs.filter_clear()
+
+        elif 'sort' == action:
+            tabs.sort_switch()
+        elif 'sort_reverse' == action:
+            tabs.sort_reverse()
+
+        elif 'show_cursor_bg' == action:
+            tabs.show_cursor_bg()
+
+        elif 'url_copy' == action:
+            sel = tabs.get_user_selection(idx)
+            if not sel:
+                continue
+
+            if isinstance(area, MediumArea):
+                media = item_list.medium_idx_to_objects(sel)
+                urls = [m['link'] for m in media]
+            else:
+                channels = item_list.channel_ids_to_objects('ui', sel)
+                urls = [c['url'] for c in channels]
+
+            if _has_pyperclip:
+                pyperclip.copy('\n'.join(urls))
+                if len(urls) == 1:
+                    print_infos('URL copied', mode='direct')
+                else:
+                    print_infos(f'{len(urls)} URLs copied', mode='error')
+            else:
+                print_infos('Need to install pyperclip', mode='error')
+
+        ###################################################################
+        # Allmedia commands
+        ###################################################################
+        # Highlight channel name
+        elif 'search_channel' == action:
+            if idx is None:
+                continue
+            channel = area.get_current_channel()
+            print_infos('Search: '+channel)
+            tabs.highlight(channel)
+
+        elif 'medium_play' == action:
+            sel = tabs.get_user_selection(idx)
+            item_list.play(sel)
+
+        elif 'medium_playadd' == action:
+            sel = tabs.get_user_selection(idx)
+            item_list.playadd(sel)
+
+        elif 'medium_stop' == action:
+            item_list.stop()
+
+        elif 'medium_remove' == action:
+            # TODO if is being played: self.item_list.stop()
+            sel = tabs.get_user_selection(idx)
+            media = item_list.remove(sel)
+            tabs.update_areas('medium', 'removed', media)
+            area.user_selection = deque()
+
+        elif 'channel_filter' == action:
+            tabs.filter_by_channels()
+
+        elif 'category_filter' == action:
+            sel = tabs.get_user_selection(idx)
+            if isinstance(area, MediumArea):
+                media = item_list.medium_idx_to_objects(sel)
+                channels = [medium['channel'] for medium in media]
+            else:
+                channels = item_list.channel_ids_to_objects('ui', sel)
+
+            if channels:
+                categories = set(channels[0]['categories'])
+                for c in channels[1:]:
+                    categories &= set(c['categories'])
+                init = list_to_commastr(categories)
+            else:
+                init = ''
+
+            all_categories = item_list.channel_get_categories()
+            completer = CommaListSizeCompleter(all_categories)
+            category_str = run_command(
+                'category filter: ', init=init, completer=completer)
+
+            if category_str is None:
+                continue
+            if not category_str:
+                categories = None
+            else:
+                categories = commastr_to_list(category_str)
+
+            tabs.filter_by_categories(categories=categories)
+
+        elif 'state_filter' == action:
+            tabs.state_switch()
+
+        elif 'state_filter_reverse' == action:
+            tabs.state_switch(reverse=True)
+
+        elif 'location_filter' == action:
+            tabs.location_switch()
+
+        elif 'location_filter_reverse' == action:
+            tabs.location_switch(reverse=True)
+
+        elif action in ('medium_read', 'medium_skip'):
+            if 'medium_skip' == action:
+                skip = True
+            else:
+                skip = False
+
+            sel = tabs.get_user_selection(idx)
+            media = item_list.switch_read(sel, skip)
+            tabs.update_areas('medium', 'modified', media)
+            area.user_selection = deque()
+
+        elif 'medium_update' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.update_media(sel)
+            tabs.update_areas('medium', 'modified', media)
+            area.user_selection = deque()
+
+        elif 'medium_tag' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.medium_idx_to_objects(sel)
+
+            # Shared tags
+            shared_tags = set.intersection(
+                *[set(c['tags']) for c in media])
+
+            text = 'Comma separated shared tags: '
+            init = list_to_commastr(shared_tags)
+
+            if init:
+                init += ', '
+
+            all_tags = item_list.medium_get_tags()
+            completer = CommaListSizeCompleter(all_tags)
+            tag_str = (
+                run_command(text, init=init, completer=completer))
+            if tag_str is None:
+                continue
+            tags = set(commastr_to_list(tag_str))
+
+            add_tags = tags-shared_tags
+            remove_tags = shared_tags-tags
+
+            media = item_list.medium_set_tags(
+                'ui', sel, add_tags, remove_tags)
+            tabs.update_areas('medium', 'modified', media, only=True)
+
+        elif 'tag_filter' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.medium_idx_to_objects(sel)
+
+            if media:
+                tags = set(media[0]['tags'])
+                for c in media[1:]:
+                    tags &= set(c['tags'])
+                init = list_to_commastr(tags)
+            else:
+                init = ''
+
+            all_tags = item_list.medium_get_tags()
+            completer = CommaListSizeCompleter(all_tags)
+            tag_str = run_command(
+                'tag filter: ', init=init, completer=completer)
+
+            if tag_str is None:
+                continue
+            if not tag_str:
+                tags = None
+            else:
+                tags = commastr_to_list(tag_str)
+
+            tabs.filter_by_tags(tags=tags)
+
+        elif 'search_filter' == action:
+            tabs.filter_by_search()
+
+        elif 'medium_show_channel' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.medium_idx_to_objects(sel)
+            if media:
+                ids = [m['channel']['id'] for m in media]
+                tabs.show_tab('channels')
+                tabs.filter_by_ids(list(set(ids)))
+
+        ###################################################################
+        # Remote medium commands
+        ###################################################################
+        elif 'medium_download' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.download(sel)
+            tabs.update_areas('medium', 'modified', media)
+            area.user_selection = deque()
+
+        elif 'channel_update' == action:
+            # If in channel tab we update only user_selection
+            if 'channels' == area.key_class:
+                sel = tabs.get_user_selection(idx)
+            # We update all channels
+            else:
+                sel = None
+            item_list.update_channels('ui', channel_ids=sel,
+                                      cb=tabs.update_areas)
+
+        ###################################################################
+        # Local medium commands
+        ###################################################################
+        elif 'save_as_playlist' == action:
+            sel = tabs.get_user_selection(idx)
+            media = item_list.medium_idx_to_objects(sel)
+            filenames = [m['filename'] if m['filename']
+                         else m['link'] for m in media]
+
+            # Choose base name
+            text = 'Playlist name: '
+            destfile = run_command(text)
+            if destfile is None:
+                continue
+            destfile += '.m3u'
+
+            try:
+                with open(destfile, 'w') as f:
+                    for filename in filenames:
+                        f.write(f'{filename}\n')
+            except FileNotFoundError as e:
+                print_infos(e, mode='error')
+                continue
+
+        ###################################################################
+        # Downloading medium commands
+        ###################################################################
+
+        ###################################################################
+        # Channel commands
+        ###################################################################
+        elif 'channel_auto' == action:
+            sel = tabs.get_user_selection(idx)
+            channels = item_list.channel_set_auto('ui', sel)
+            tabs.update_areas('channel', 'modified', channels, only=True)
+
+        elif 'channel_auto_custom' == action:
+            sel = tabs.get_user_selection(idx)
+            auto = run_command('auto: ')
+            if auto is None:
+                continue
+            channels = item_list.channel_set_auto('ui', sel, auto)
+            tabs.update_areas('channel', 'modified', channels, only=True)
+
+        elif 'channel_show_media' == action:
+            sel = tabs.get_user_selection(idx)
+            channels = [item_list.channels[s] for s in sel]
+            if channels:
+                tabs.show_tab('remote')
+                tabs.filter_by_channels(channels)
+
+        elif 'channel_category' == action:
+            sel = tabs.get_user_selection(idx)
+            channels = item_list.channel_ids_to_objects('ui', sel)
+
+            # Shared categories
+            shared_categories = set.intersection(
+                *[set(c['categories']) for c in channels])
+
+            text = 'Comma separated shared categories: '
+            init = list_to_commastr(shared_categories)
+
+            if init:
+                init += ', '
+
+            all_categories = item_list.channel_get_categories()
+            completer = CommaListSizeCompleter(all_categories)
+            category_str = (
+                run_command(text, init=init, completer=completer))
+            if category_str is None:
+                continue
+            categories = set(commastr_to_list(category_str))
+
+            add_categories = categories-shared_categories
+            remove_categories = shared_categories-categories
+
+            channels = item_list.channel_set_categories(
+                'ui', sel, add_categories, remove_categories)
+            tabs.update_areas('channel', 'modified', channels, only=True)
+
+        elif 'channel_mask' == action:
+            sel = tabs.get_user_selection(idx)
+            channels = item_list.channel_ids_to_objects('ui', sel)
+            if len(channels) != 1:
+                print_infos('Cannot change mask of several channels',
+                            mode='error')
+                continue
+
+            channel = channels[0]
+            text = 'Mask: '
+            init = channel['mask']
+
+            mask = run_command(text, init=init)
+            if mask is None:
+                continue
+
+            channel = item_list.channel_set_mask('ui', sel, mask)
+            tabs.update_areas('channel', 'modified', [channel], only=True)
+
+        elif 'channel_force_update' == action:
+            sel = tabs.get_user_selection(idx)
+            item_list.update_channels('ui', channel_ids=sel, force_all=True,
+                                      cb=tabs.update_areas)
+
+        # Action not recognized
         else:
-            print(message)
-            input("-- Press Enter to continue --")
-        screen = curses.initscr()
-        self.screen = screen
-        self.refresh()
-        if mutex is not None:
-            mutex.release()
+            print_infos(f'Unknown action "{action}"', mode='error')
+
+    item_list.player.stop()  # To prevent segfault in some cases
+    termimage.clear()
+    curses.endwin()
+
+
+def print_infos(*args, **kwargs):
+    info_area.print(*args, **kwargs)
+
+
+def run_command(prefix, init='', completer=None):
+    return info_area.run_command(prefix, init, completer)
+
+
+def refresh(reset=False):
+    screen.clear()
+
+    current_area = tabs.get_current_area()
+    areas = tabs.areas if reset else [current_area]
+    for area in areas:
+        area.init()
+        if reset:
+            area.reset_contents()
+
+    tabs.show_tab()
+    info_area.init()
+    current_area.show_thumbnail(force_clear=True)
+
+
+def reset():
+    refresh(reset=True)
+
+
+def tabredraw():
+    tabs.redraw()
+
+
+def resize():
+    screen_size = screen.getmaxyx()
+    if screen_size != screen_size:
+        if screen_size[1] != screen_size[1]:
+            refresh(reset=True)
+        else:
+            refresh(reset=False)
+        screen_size = screen.getmaxyx()
+
+
+def print_terminal(message, mutex=None, pager=True):
+    global screen
+    if not isinstance(message, str):
+        message = '\n'.join(message)
+
+    if mutex is not None:
+        mutex.acquire()
+    curses.endwin()
+    screen_reset()
+
+    if pager:
+        pager_bin = os.environ.get('PAGER', 'less')
+
+        # We need to add blank lines to prevent pager to quit directly
+        if pager_bin == 'more':
+            screenlines, _ = screen_size
+            nlines = message.count('\n')
+            if nlines < screenlines:
+                message += '\n'*(screenlines-nlines)
+
+        subprocess.call([f'echo "{message}" | {pager_bin}'], shell=True)
+
+    else:
+        print(message)
+        input("-- Press Enter to continue --")
+    screen = curses.initscr()
+    refresh()
+    if mutex is not None:
+        mutex.release()
+
+
+def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
+                close_on_repeat=True, search=''):
+    max_height, max_width = screen.getmaxyx()
+    max_height -= 2
+    if position is None:
+        position = max_height-2
+
+    outer_margin = margin
+    inner_margin = 2
+    width = max_width-outer_margin*2
+    text_width = width-inner_margin*2
+
+    flines = []
+    for l in lines:
+        flines.extend(format_string(l, text_width, truncate=False))
+
+    height = len(flines)+2  # for border
+    if fit:
+        max_text_width = max([len(l.strip()) for l in flines])
+        fit_size = max_text_width+inner_margin*2
+        if fit_size < width:
+            width = fit_size
+            text_width = max_text_width
+            flines = []
+            for l in lines:
+                flines.extend(format_string(l, text_width, truncate=False))
+
+    # Compute first line position
+    if height > max_height:
+        flines = flines[:max_height-2]
+        flines[-1] = flines[-1][:-1]+'…'
+        print_infos('Truncated, too many lines!')
+
+    height = len(flines)+2
+    nlines = len(flines)
+
+    start = max(1, position-int(nlines/2))
+    if start+height-1 > max_height:
+        start = max(1, max_height+1-height)
+
+    # Show popup window
+    try:
+        win = curses.newwin(height, width, start, outer_margin)
+        win.keypad(1)
+
+        win.border()
+
+        for lineidx in range(len(flines)):
+            line = flines[lineidx]
+            win.move(lineidx+1, inner_margin)
+
+            win.addstr(lineidx+1, inner_margin, str(line))
+
+        win.refresh()
+    except curses.error:
+        print_infos('Cannot show popup!', mode='error')
+
+    keymap = get_keymap()
+    this_popup_key = get_last_key()
+    move_keys = {
+        get_key_code(k)
+        for a in [
+            'line_down',
+            'line_up',
+            'page_down',
+            'page_up',
+            'top',
+            'bottom',
+            'search_next',
+            'search_prev',
+            'thumbnail',
+        ]
+        for k in keymap.get_keys(a)
+    }
+
+    key = get_key(screen)
+
+    if sticky:
+        if key == this_popup_key:
+            pass
+        elif key not in move_keys:
+            curses.ungetch(key)
+        else:
+            curses.ungetch(this_popup_key)
+            curses.ungetch(key)
+    else:
+        if key != this_popup_key or not close_on_repeat:
+            curses.ungetch(key)
+
+    tabredraw()
 
 
 class Tabs:
-    def __init__(self, screen, item_list, print_infos):
+    def __init__(self, screen):
         self.screen = screen
-        self.item_list = item_list
-        self.print_infos = print_infos
         self.current_idx = -1
         self.areas = []
-        self.title_area = TitleArea(screen, '')
 
     def get_area_idx(self, name):
         for idx, area in enumerate(self.areas):
@@ -823,19 +906,21 @@ class Tabs:
                 return idx
         return None
 
-    def add_media(self, name, display_name):
-        area = MediumArea(self.screen, self.item_list.media, name,
-                          display_name, self.title_area, self.print_infos)
-        self.areas.append(area)
-
-    def add_channels(self, name, display_name):
-        area = ChannelArea(self.screen, self.item_list.channels, name,
-                           display_name, self.title_area, self.print_infos,
-                           self.item_list.db)
+    def add_tab(self, area):
         self.areas.append(area)
 
     def get_current_area(self):
         return self.get_area(self.current_idx)
+
+    def get_user_selection(self, idx):
+        area = self.get_current_area()
+        if not area.user_selection:
+            if idx is None or idx < 0:
+                return []
+            sel = [idx]
+        else:
+            sel = area.user_selection
+        return sel
 
     def get_area(self, idx):
         return self.areas[idx]
@@ -857,9 +942,13 @@ class Tabs:
         else:
             area = self.get_current_area()
 
-        self.title_area = TitleArea(self.screen, area.get_title_name())
-        area.display(True)
+        info_area.show_title(area.get_title_name())
+        area.redraw()
         area.show_thumbnail()
+
+    def redraw(self):
+        area = self.get_current_area()
+        area.redraw()
 
     def show_next_tab(self, reverse=False):
         if reverse:
@@ -1007,11 +1096,8 @@ class Tabs:
 
 
 class ItemArea:
-    def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos):
-        self.print_infos = print_infos
+    def __init__(self, screen, items, name, display_name):
         self.screen = screen
-        self.title_area = title_area
         self.mutex = Lock()
         self.name = name
         self.display_name = display_name
@@ -1032,10 +1118,10 @@ class ItemArea:
         self.cursorbg = False
 
         self.apply_config()
-        self.init_win()
+        self.init()
         self.add_contents()
 
-    def init_win(self):
+    def init(self):
         height, width = self.screen.getmaxyx()
         self.height = height-2
         self.width = width-1
@@ -1065,7 +1151,7 @@ class ItemArea:
             self.user_selection.append(idx)
 
         if redraw:
-            self.display(redraw=True)
+            self.redraw()
 
     def add_until_to_user_selection(self):
         idx = self.get_idx()
@@ -1084,18 +1170,18 @@ class ItemArea:
             sel = self.selection[i+step]
             self.add_to_user_selection(sel, redraw=False)
 
-        self.display(redraw=True)
+        self.redraw()
 
     def clear_user_selection(self):
         self.user_selection = []
-        self.display(redraw=True)
+        self.redraw()
 
     def reset_contents(self):
         self.mutex.acquire()
         self.contents = None
         self.mutex.release()
         if self.shown:
-            self.display(True)
+            self.redraw()
 
     def add_contents(self, items=None):
         self.mutex.acquire()
@@ -1120,7 +1206,7 @@ class ItemArea:
         self.mutex.release()
 
         if self.shown:
-            self.display(True)
+            self.redraw()
 
     def update_contents(self, items):
         if self.contents is None:
@@ -1160,7 +1246,7 @@ class ItemArea:
         self.mutex.release()
 
         if self.shown:
-            self.display(True)  # TODO depending on changes
+            self.redraw()  # TODO depending on changes
 
     def sort_selection(self):
         col, reverse = self.sort_methods[self.sortname]
@@ -1191,8 +1277,8 @@ class ItemArea:
 
         self.selection = deque([self.selection[p] for p in permutation])
         self.contents = deque([self.contents[p] for p in permutation])
-        self.print_infos(f'Sort by {self.sortname}', mode='direct')
-        self.display(True)
+        print_infos(f'Sort by {self.sortname}', mode='direct')
+        self.redraw()
 
     def sort_reverse(self):
         self.reverse = not self.reverse
@@ -1208,7 +1294,7 @@ class ItemArea:
     def screen_infos(self):
         line = self.first_line+self.cursor+1
         total = len(self.selection)
-        self.print_infos('%d/%d' % (line, total))
+        print_infos('%d/%d' % (line, total))
 
     def get_idx(self):
         if self.selection:
@@ -1229,12 +1315,12 @@ class ItemArea:
     def highlight(self, string):
         if not string:
             self.highlight_on = False
-            self.display(redraw=True)
+            self.redraw()
 
         else:
             self.highlight_on = True
             self.highlight_string = string
-            self.display(redraw=True)
+            self.redraw()
             self.next_highlight()
 
     def next_highlight(self, reverse=False):
@@ -1259,7 +1345,7 @@ class ItemArea:
 
     def no_highlight(self):
         self.highlight_on = False
-        self.display(redraw=True)
+        self.redraw()
 
     def move_cursor(self, item_idx):
         self.move_screen('line', 'down', item_idx-self.cursor-self.first_line)
@@ -1341,16 +1427,16 @@ class ItemArea:
         lines.append("^U      Clear line")
 
         if show:
-            self.print_popup(lines, 'cursor')
+            print_popup(lines, position=self.cursor)
         else:
             return lines
 
     def show_command_help(self, cmd=None, error=False):
         if error:
             if cmd is not None:
-                self.print_infos(f'Invalid syntax for {cmd}!', mode='error')
+                print_infos(f'Invalid syntax for {cmd}!', mode='error')
             else:
-                self.print_infos('Invalid syntax!', mode='error')
+                print_infos('Invalid syntax!', mode='error')
 
         # TODO commands as parameter (dynamic depending in area)
         commands = {
@@ -1416,96 +1502,7 @@ class ItemArea:
             lines.append(f'{cmd} - {desc[0]}')
             lines.append(f'  Usage: {desc[1]}')
 
-        self.print_popup(lines, 'bottom')
-
-    def print_popup(self, lines, position='bottom',
-                    margin=8, sticky=False, fit=False):
-        if position == 'cursor':
-            base = self.cursor
-        elif position == 'bottom':
-            base = self.height
-        else:
-            raise(ValueError('Bad position'))
-
-        outer_margin = margin
-        inner_margin = 2
-        width = self.width-outer_margin*2
-        text_width = width-inner_margin*2
-
-        flines = []
-        for l in lines:
-            flines.extend(format_string(l, text_width, truncate=False))
-
-        height = len(flines)+2  # for border
-        if fit:
-            max_text_width = max([len(l.strip()) for l in flines])
-            fit_size = max_text_width+inner_margin*2
-            if fit_size < width:
-                width = fit_size
-                text_width = max_text_width
-                flines = []
-                for l in lines:
-                    flines.extend(format_string(l, text_width, truncate=False))
-
-        # Compute first line position
-        if height > self.height:
-            flines = flines[:self.height-2]
-            flines[-1] = flines[-1][:-1]+'…'
-            self.print_infos('Truncated, too many lines!')
-
-        height = len(flines)+2
-        nlines = len(flines)
-
-        start = max(1, base-int(nlines/2))
-        if start+height-1 > self.height:
-            start = max(1, self.height+1-height)
-
-        # Show popup window
-        try:
-            win = curses.newwin(height, width, start, outer_margin)
-            win.bkgd(Colors.get_color('popup', 'normal'))
-            win.keypad(1)
-            win.border()
-
-            for line in range(len(flines)):
-                win.move(line+1, inner_margin)
-                win.addstr(line+1, inner_margin, str(flines[line]))
-            win.refresh()
-        except curses.error:
-            pass
-
-        keymap = get_keymap()
-        this_popup_key = get_last_key()
-        move_keys = {
-            get_key_code(k)
-            for a in [
-                'line_down',
-                'line_up',
-                'page_down',
-                'page_up',
-                'top',
-                'bottom',
-                'search_next',
-                'search_prev',
-                'thumbnail',
-            ]
-            for k in keymap.get_keys(a)
-        }
-
-        key = get_key(self.screen)
-
-        if sticky:
-            if key == this_popup_key:
-                pass
-            elif key not in move_keys:
-                curses.ungetch(key)
-            else:
-                curses.ungetch(this_popup_key)
-                curses.ungetch(key)
-        else:
-            curses.ungetch(key)
-
-        self.display(redraw=True)
+        print_popup(lines)
 
     def show_infos(self):
         item = self.get_current_item()
@@ -1514,12 +1511,12 @@ class ItemArea:
 
         lines = self.item_to_string(item, multi_lines=True)
         fit = True if self.thumbnail == 'window' else False
-        self.print_popup(lines, 'cursor', sticky=True, fit=fit)
+        print_popup(lines, position=self.cursor, sticky=True, fit=fit)
 
     def show_description(self):
         item = self.get_current_item()
         lines = item['description'].split('\n')
-        self.print_popup(lines, 'cursor', sticky=True)
+        print_popup(lines, position=self.cursor, sticky=True)
 
     def show_thumbnail(self, force_clear=False):
         if not self.thumbnail:
@@ -1542,7 +1539,7 @@ class ItemArea:
                 termimage.draw(image)
 
     def switch_thumbnail_mode(self):
-        if not termimage.compatible(self.print_infos):
+        if not termimage.compatible(print_infos):
             return
 
         thumbnail_modes = ('', 'window', 'full')
@@ -1608,8 +1605,11 @@ class ItemArea:
         self.cursor = 0
         self.first_line = 0
         self.last_selected_idx = 0
-        self.display(True)
+        self.redraw()
         self.show_thumbnail(force_clear=True)
+
+    def redraw(self):
+        self.display(redraw=True)
 
     def display(self, redraw=False):
         self.shown = True
@@ -1617,7 +1617,7 @@ class ItemArea:
         if self.contents is None:
             redraw = True
             self.add_contents()
-            self.title_area.print(self.get_title_name())
+            info_area.show_title(self.get_title_name())
             return
 
         self.mutex.acquire()
@@ -1687,8 +1687,7 @@ class ItemArea:
 
 
 class MediumArea(ItemArea):
-    def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos):
+    def __init__(self, screen, items, name, display_name):
         self.key_class = 'media'
         self.filters = {
             'location': 'all',
@@ -1704,8 +1703,7 @@ class MediumArea(ItemArea):
         }
         self.sortname = 'date'
 
-        super().__init__(screen, items, name, display_name, title_area,
-                         print_infos)
+        super().__init__(screen, items, name, display_name)
 
     def apply_config(self):
         if int(Config.media_reverse):
@@ -1810,7 +1808,7 @@ class MediumArea(ItemArea):
         way = 1 if not reverse else -1
         self.filters['state'] = states[(idx+way) % len(states)]
 
-        self.print_infos('Show %s media' % self.filters['state'])
+        print_infos('Show %s media' % self.filters['state'])
         self.reset_contents()
 
     def filter_next_location(self, reverse=False):
@@ -1819,7 +1817,7 @@ class MediumArea(ItemArea):
         way = 1 if not reverse else -1
         self.filters['location'] = states[(idx+way) % len(states)]
 
-        self.print_infos(f'Show media in {self.filters["location"]}')
+        print_infos(f'Show media in {self.filters["location"]}')
         self.reset_contents()
 
     # if new_items update selection (do not replace)
@@ -1926,14 +1924,12 @@ class MediumArea(ItemArea):
         return string
 
     def item_get_thumbnail(self, item):
-        return item_get_cache(item, 'thumbnail', self.print_infos)
+        return item_get_cache(item, 'thumbnail', print_infos)
 
 
 class ChannelArea(ItemArea):
-    def __init__(self, screen, items, name, display_name, title_area,
-                 print_infos, data_base):
+    def __init__(self, screen, items, name, display_name):
         self.key_class = 'channels'
-        self.data_base = data_base
         self.filters = {
             'ids': None,
             'categories': None,
@@ -1944,8 +1940,7 @@ class ChannelArea(ItemArea):
         }
         self.sortname = 'last video'
 
-        super().__init__(screen, items, name, display_name, title_area,
-                         print_infos)
+        super().__init__(screen, items, name, display_name)
         self.apply_config()
 
     def apply_config(self):
@@ -2062,44 +2057,16 @@ class ChannelArea(ItemArea):
         return string
 
     def item_get_thumbnail(self, item):
-        filemame = item_get_cache(item, 'thumbnail', self.print_infos)
+        filemame = item_get_cache(item, 'thumbnail', print_infos)
         if not filemame:
             return item_get_cache(item['media'][-1], 'thumbnail',
-                                  self.print_infos)
+                                  print_infos)
 
 
-class TitleArea:
-    def __init__(self, screen, title):
+class InfoArea:
+    def __init__(self, screen):
         self.screen = screen
-        self.title = title
-        self.init_win()
-
-    def init_win(self):
-        height, width = self.screen.getmaxyx()
-        self.height = 1
-        self.width = width-1
-        self.win = curses.newwin(self.height, self.width, 0, 0)
-        self.win.bkgd(Colors.get_color('title', 'normal'))
-        self.win.keypad(1)
-
-        self.print(format_string(self.title, self.width-1))
-        # self.print(self.title)
-
-    def print(self, string):
-        try:
-            self.win.move(0, 0)
-            self.win.clrtoeol()
-            self.win.addstr(0, 0, str(string))
-            self.win.refresh()
-        except curses.error:
-            pass
-
-
-class StatusArea:
-    def __init__(self, screen, print_popup, print_terminal):
-        self.screen = screen
-        self.print_popup = print_popup
-        self.print_terminal = print_terminal
+        self.title = None
 
         self.mutex = Lock()
         self.messages = Queue()
@@ -2111,16 +2078,39 @@ class StatusArea:
         message_handler.daemon = True
         message_handler.start()
 
-        self.init_win()
+        self.init()
 
-    def init_win(self):
+    def init(self):
         height, width = self.screen.getmaxyx()
-        self.height = 1
         self.width = width-1
-        self.win = curses.newwin(self.height, self.width, height-1, 0)
-        self.win.bkgd(Colors.get_color('status', 'normal'))
-        self.win.keypad(1)
-        self.print('')
+
+        # Init status
+        self.status_win = curses.newwin(1, self.width, height-1, 0)
+        self.status_win.bkgd(Colors.get_color('status', 'normal'))
+        self.status_win.keypad(1)
+        self.print('', mode='clear')
+
+        # Init title
+        self.title_win = curses.newwin(1, self.width, 0, 0)
+        self.title_win.bkgd(Colors.get_color('title', 'normal'))
+        self.title_win.keypad(1)
+
+        self.show_title()
+
+    def show_title(self, string=None):
+        if string is not None:
+            self.title = string
+        elif self.title is None:
+            return
+
+        try:
+            title = format_string(self.title, self.width-1)
+            self.title_win.move(0, 0)
+            self.title_win.clrtoeol()
+            self.title_win.addstr(0, 0, title)
+            self.title_win.refresh()
+        except curses.error:
+            pass
 
     def handle_queue(self):
         """This is the worker thread function. It processes items in the queue one
@@ -2148,10 +2138,10 @@ class StatusArea:
             if need_to_wait:
                 self.need_to_wait = time.time()
 
-            self.win.move(0, 0)
-            self.win.clrtoeol()
-            self.win.addstr(0, 0, str(string))
-            self.win.refresh()
+            self.status_win.move(0, 0)
+            self.status_win.clrtoeol()
+            self.status_win.addstr(0, 0, str(string))
+            self.status_win.refresh()
         except curses.error:
             pass
         finally:
@@ -2167,7 +2157,7 @@ class StatusArea:
         print_handler.start()
 
     def print(self, value, mode=None, mutex=True):
-        if mode not in (None, 'direct', 'error', 'prompt'):
+        if mode not in (None, 'direct', 'error', 'prompt', 'clear'):
             raise ValueError('Wrong print mode')
 
         string = str(value)
@@ -2180,7 +2170,7 @@ class StatusArea:
         else:
             short_string = string
 
-        if mode in ('direct', 'error', 'prompt'):
+        if mode in ('direct', 'error', 'prompt', 'clear'):
             if mode == 'prompt':
                 need_to_wait = False
             else:
@@ -2205,21 +2195,17 @@ class StatusArea:
             with open(file, 'w') as f:
                 print('\n'.join(messages), f)
         else:
-            self.print_terminal(messages, mutex=self.mutex)
+            print_terminal(messages, mutex=self.mutex)
 
     def run_command(self, prefix, init='', completer=None):
-        with Textbox(self.win, self.mutex, self.print, self.print_popup,
-                     self.print_terminal) as tb:
+        with Textbox(self.status_win, self.mutex) as tb:
             return tb.run(prefix, init, completer)
 
 
 class Textbox:
-    def __init__(self, win, mutex, printf, popupf, terminalf):
+    def __init__(self, win, mutex):
         self.win = win
         self.mutex = mutex
-        self.print = printf
-        self.popup = popupf
-        self.terminal = terminalf
         self.completion = False
         self.mutex.acquire()
 
@@ -2235,7 +2221,7 @@ class Textbox:
     def run(self, prefix, init, completer):
         self.prefix = prefix
         self.win.move(0, 0)
-        self.print(self.prefix+init, mode='prompt', mutex=False)
+        print_infos(self.prefix+init, mode='prompt', mutex=False)
         y, x = self.win.getyx()
         self.start = x-len(init)
 
@@ -2297,7 +2283,7 @@ class Textbox:
                 else:
                     if not self.desc:
                         self.desc = ['Nothing to complete!']
-                    self.popup(self.desc)
+                    print_popup(self.desc, close_on_repeat=False)
 
             # Direct next tab press
             if self.completion and self.compls:
@@ -2327,10 +2313,10 @@ class Textbox:
 
                 lines = [v if i != self.complidx else '> '+v
                          for i, v in enumerate(self.desc)]
-                self.popup(lines)
+                print_popup(lines, close_on_repeat=False)
 
             if self.completion and not self.compls:
-                self.popup(self.desc)
+                print_popup(self.desc, close_on_repeat=False)
 
             self.completion = True
             return None
@@ -2391,3 +2377,9 @@ class Textbox:
         self.complidx = -1
 
         return key
+
+
+screen = None
+screen_size = None
+tabs = None
+info_area = None
