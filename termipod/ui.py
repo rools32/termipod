@@ -2149,7 +2149,6 @@ class InfoArea:
             sleep(.1)
 
     def print_raw_task(self, string, mutex=True, need_to_wait=False):
-        self.all_messages.append(string)
         try:
             if mutex:
                 self.mutex.acquire()
@@ -2187,9 +2186,11 @@ class InfoArea:
             raise ValueError('Wrong print mode')
 
         string = str(value)
-        print_log(string)
-
         string = printable_str(string)
+
+        if mode not in ('clear', 'prompt'):
+            print_log(string)
+            self.all_messages.append(string)
 
         if len(string)+1 > self.width:
             short_string = string[:self.width-4]+'.'*3
@@ -2265,6 +2266,9 @@ class Textbox:
 
         else:  # If was cancelled by pressing escape key
             ret = None
+
+        if ret:
+            print_log(ret)
 
         curses.curs_set(0)  # disable cursor
         return ret
