@@ -114,7 +114,10 @@ def apply_mask(data, mask):
 
 
 def update_medium(medium, print_infos):
-    channel_type = medium['channel']['type']
+    try:
+        channel_type = medium['channel']['type']
+    except KeyError:
+        channel_type = medium['type']
     if channel_type == 'youtube':
         updated = yt.update_medium(medium, print_infos)
     else:
@@ -295,3 +298,14 @@ class DownloadManager():
         self.cancel_requests[medium['link']] = True
         medium['location'] = 'remote'
         self.db.update_medium(medium)
+
+
+def search_media(search, source, print_infos, get_info=False):
+    if source == 'youtube':
+        items = yt.search_media(search, print_infos, get_info)
+    else:
+        raise NotImplementedError('Not supported yet')
+
+    for item in items:
+        media_add_missing_fields(item)
+    return items

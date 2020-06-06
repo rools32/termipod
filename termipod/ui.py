@@ -220,6 +220,11 @@ def loop():
                 ['addvideo'], 'name', 'name=', 'name=[^ ]+',
                 'Alternative name of the channel')
 
+            completer.add_command('ytsearch', 'Search on youtube')
+            completer.add_option(
+                ['ytsearch'], 'search_string', '', '.+', 'search_string',
+                position=0)
+
             completer.add_command(
                 'channelRemove',
                 'Remove selected channels (and all associated media)')
@@ -318,6 +323,29 @@ def loop():
                     callback = tabs.update_areas
 
                     item_list.new_video(url, opts, callback)
+
+            elif command[0] in ('ytsearch',):
+                if len(command) == 1:
+                    area.show_command_help('ytsearch', error=True)
+                else:
+                    search = string[len(command[0])+1:].strip()
+                    media = item_list.add_search_media(search, 'youtube')
+
+                    area_idx = tabs.get_area_idx('search')
+                    name = f'Search: {search}'
+                    if area_idx is None:
+                        tabs.add_tab(SearchArea(screen, item_list.search,
+                                                'search', name))
+                    else:
+                        area = tabs.get_area(area_idx)
+                        area.update_name(name)
+                        tabs.update_search_area(media, 'new')
+                    tabs.show_tab(target='search')
+
+                    # Get all info
+                    indices = [m['index'] for m in media]
+                    item_list.update_media(indices, where='search')
+                    tabs.update_search_area(media, 'modified')
 
             elif command[0] in ('channelDisable',):
                 if len(command) != 1:
@@ -1120,6 +1148,21 @@ class Tabs:
         else:
             raise(ValueError(f'Bad state ({state})'))
 
+    def update_search_area(self, items, state):
+        area_idx = self.get_area_idx('search')
+        area = self.get_area(area_idx)
+        if state == 'new':
+            area.add_contents(items)
+
+        elif state == 'modified':
+            area.update_contents(items)
+
+        elif state == 'removed':
+            area.reset_contents()
+
+        else:
+            raise(ValueError(f'Bad state ({state})'))
+
 
 class ItemArea:
     def __init__(self, screen, items, name, display_name):
@@ -1166,6 +1209,9 @@ class ItemArea:
             filters = ['All shown']
         return (f'{self.display_name} - {"; ".join(filters)} - '
                 f'By {self.sortname}')
+
+    def update_name(self, display_name):
+        self.display_name = display_name
 
     def add_to_user_selection(self, idx=None, redraw=True):
         if idx is None:
@@ -1477,6 +1523,10 @@ class ItemArea:
                 'Add video (in disabled channel)',
                 'add <url> [categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
+            ),
+            'ytsearch': (
+                'Search on youtube',
+                'ytsearch search_string'
             ),
             'messages': (
                 'Print last messages',
@@ -2087,6 +2137,144 @@ class ChannelArea(ItemArea):
         if not filemame:
             return item_get_cache(item['media'][-1], 'thumbnail',
                                   print_infos)
+
+
+class SearchArea(ItemArea):
+    def __init__(self, screen, items, name, display_name):
+        self.key_class = 'search'
+        self.filters = {
+            'search': None,
+            'channels': None,
+        }
+        self.sort_methods = {
+            'date': ('date', True),
+            'duration': ('duration', True),
+        }
+        self.sortname = 'date'
+
+        super().__init__(screen, items, name, display_name)
+
+    def apply_config(self):
+        if int(Config.media_reverse):
+            self.reverse = True
+
+    def extract_channel_name(self, line):
+        parts = line.split(u" \u2022 ")
+        if len(parts) >= 2:
+            return line.split(u" \u2022 ")[1]
+        return ''
+
+    def switch_sort(self):
+        if self.sortname == 'date':
+            self.sortname = 'duration'
+        else:
+            self.sortname = 'date'
+
+        self.sort_selection()
+
+    def get_current_channel(self):
+        line = self.get_current_line()
+        return self.extract_channel_name(line)
+
+    def filter_by_channels(self, channels=None):
+        if channels is None and self.filters['channels']:
+            self.filters['channels'] = None
+        else:
+            if channels is None:
+                if not self.user_selection:
+                    medium = self.get_current_item()
+                    channel_titles = [medium['channel']['title']]
+
+                else:
+                    media = [self.itemlist[i] for i in self.user_selection]
+                    channel_titles = [m['channel']['title'] for m in media]
+
+                self.filters['channels'] = list(set(channel_titles))
+
+            else:
+                self.filters['channels'] = list(
+                    set([c['title'] for c in channels]))
+
+        # Update screen
+        self.reset_contents()
+
+    def filter_by_search(self):
+        if self.filters['search']:
+            self.filters['search'] = None
+        else:
+            if self.highlight_string:
+                self.filters['search'] = True
+
+        # Update screen
+        self.reset_contents()
+
+    def filter(self, new_items):
+        matching_items = []
+        other_items = []
+
+        if self.highlight_string:
+            no_case_string = self.highlight_string.casefold()
+        else:
+            no_case_string = None
+
+        # Keep matching elements
+        for item in new_items:
+            match = True
+
+            if (self.filters['channels'] is not None
+                    and item['channel']['title']
+                    not in self.filters['channels']):
+                match = False
+
+            elif (self.filters['search'] and no_case_string
+                  and no_case_string not in item['title'].casefold()
+                  and no_case_string not in item[
+                      'channel']['title'].casefold()):
+                match = False
+
+            if match:
+                matching_items.append(item)
+            else:
+                other_items.append(item)
+
+        return (matching_items, other_items)
+
+    def item_to_string(self, medium, multi_lines=False, width=None):
+        if width is None:
+            width = self.width
+
+        formatted_item = dict(medium)
+        formatted_item['date'] = ts_to_date(medium['date'])
+        formatted_item['duration'] = duration_to_str(medium['duration'])
+        # formatted_item['channel'] = formatted_item['channel']['title']
+
+        separator = u" \u2022 "
+
+        if not multi_lines:
+            string = formatted_item['date']
+            string += separator
+            string += formatted_item['uploader']
+            string += separator
+            string += formatted_item['title']
+
+            string = format_string(
+                string,
+                width-len(separator+formatted_item['duration']))
+            string += separator
+            string += formatted_item['duration']
+
+        else:
+            fields = ['title', 'uploader', 'date', 'duration',
+                      'link', 'thumbnail']
+            string = []
+            for f in fields:
+                s = '%s%s: %s' % (separator, f, formatted_item[f])
+                string.append(s)
+
+        return string
+
+    def item_get_thumbnail(self, item):
+        return item_get_cache(item, 'thumbnail', print_infos)
 
 
 class InfoArea:

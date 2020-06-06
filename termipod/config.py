@@ -209,7 +209,7 @@ def default_keymap_to_config():
         ('media', 'h', 'medium_stop'),
         ('media', 'r', 'medium_read'),
         ('media', 'R', 'medium_skip'),
-        ('media', 'U', 'medium_update'),
+        ('media,search', 'U', 'medium_update'),
         ('media', 'c', 'channel_filter'),
         ('media', 'C', 'medium_show_channel'),
         ('media', 'f', 'state_filter'),

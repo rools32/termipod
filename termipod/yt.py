@@ -80,6 +80,15 @@ class DataLogger(object):
         self.print_infos('[YTDL error] %s' % msg)
 
 
+class SearchLogger(object):
+    def __init__(self, print_infos, search):
+        self.print_infos = print_infos
+        self.search = search
+
+    def debug(self, msg):
+        pass
+
+
 class MediumDataLogger(object):
     def __init__(self, print_infos, title):
         self.print_infos = print_infos
@@ -313,8 +322,12 @@ def get_new_data(channel, opts, print_infos, force_all=False):
 
 def get_video_data_only(url, opts, print_infos):
     medium_data = get_medium_data(url, url, print_infos)
-    channel_data = get_data(medium_data['uploader_url'], opts, print_infos)
+    channel_data = {}
+    channel_data['title'] = medium_data['uploader']
+    channel_data['url'] = medium_data['uploader_url']
     channel_data['updated'] = 0
+    channel_data['items'] = []
+    channel_data['type'] = 'youtube'
 
     medium = medium_from_ytdl(medium_data)
     channel_data['items'].append(medium)
@@ -328,6 +341,8 @@ def medium_from_ytdl(data):
         'date': int(mktime(datetime.strptime(
             data['upload_date'], "%Y%m%d").timetuple())),
         'description': data['description'],
+        'uploader': data['uploader'],
+        'type': 'youtube',
         'duration': data['duration'],
         'thumbnail': data['thumbnail'],
     }
@@ -380,3 +395,34 @@ def expand_link(link):
 
 def shrink_link(link):
     return re.sub(r'^https://www.youtube.com/watch\?v=', '', link)
+
+
+def search_media(search, print_infos, get_info=False):
+    ydl_opts = {'logger': SearchLogger(print_infos, 'search: {search}'),
+                'ignoreerrors': True}
+
+    media = []
+    with ytdl.YoutubeDL(ydl_opts) as ydl:
+        info = ydl.extract_info('ytsearchall:'+search, download=False,
+                                process=False)
+
+        for entry in info['entries']:
+            if get_info:
+                entry = ydl.extract_info(entry['url'], download=False,
+                                         process=False)
+                if entry is None:
+                    continue
+            else:
+                entry['upload_date'] = '19700102'
+                entry['duration'] = 0
+                entry['uploader'] = ''
+                entry['description'] = ''
+                entry['thumbnail'] = ''
+
+            try:
+                medium = medium_from_ytdl(entry)
+                media.append(medium)
+            except KeyError:
+                pass
+
+    return media

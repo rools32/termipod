@@ -140,7 +140,8 @@ class Keymap():
 
                 key = value[value.index('/')+1:]
                 key = bytes(key, "utf-8").decode("unicode_escape")
-                keymaps.append((where, key, action))
+                for w in where.split(','):
+                    keymaps.append((w, key, action))
 
         keymaps.append(('', 'KEY_RESIZE', 'resize'))
         return keymaps

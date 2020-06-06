@@ -49,6 +49,7 @@ class ItemList():
         self.print_infos = print_infos
         self.media = deque()
         self.channels = deque()
+        self.search = deque()
         self.lastupdate = 0  # time of last channel update
         self.update_mutex = Lock()
         self.download_manager = None
@@ -227,19 +228,27 @@ class ItemList():
 
         return media
 
-    def update_media(self, indices, skip=False):
+    def update_media(self, indices, skip=False, where='media'):
         if isinstance(indices, int):
             indices = [indices]
+
+        if where == 'media':
+            medialist = self.media
+        elif where == 'search':
+            medialist = self.search
+        else:
+            raise ValueError('Bad "where"')
 
         media = []
         nfailed = 0
         i = 1
         for idx in indices:
             self.print_infos(f'Update media {i}/{len(indices)}...')
-            medium = self.media[idx]
+            medium = medialist[idx]
             if backends.update_medium(medium, self.print_infos):
                 try:
-                    self.db.update_medium(medium)
+                    if where == 'media':
+                        self.db.update_medium(medium)
                     media.append(medium)
                     i += 1
                 except DataBaseUpdateException:
@@ -649,6 +658,20 @@ class ItemList():
         if self.wait and need_to_wait:
             self.print_infos('Wait for downloads to complete...')
             self.download_manager.wait_done()
+
+    def add_search_media(self, search, source):
+        media = backends.search_media(search, source, self.print_infos)
+
+        if not media:
+            return
+
+        for i, m in enumerate(media):
+            m['index'] = len(self.search)+i
+        self.search.extend(media)
+
+        self.print_infos(f'Search done ({len(media)} media added)!')
+
+        return media
 
     def export_channels(self):
         exports = []
