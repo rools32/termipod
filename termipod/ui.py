@@ -847,13 +847,32 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
         win = curses.newwin(height, width, start, outer_margin)
         win.keypad(1)
 
+        if print_popup.popup_search:
+            style_value = Colors.get_style('popup', 'normal')
+            highlight_style_value = Colors.add_style(
+                style_value.copy(), 'item', 'highlighted')
+            styles = (style_value, highlight_style_value)
+
         win.border()
 
         for lineidx in range(len(flines)):
             line = flines[lineidx]
             win.move(lineidx+1, inner_margin)
 
-            win.addstr(lineidx+1, inner_margin, str(line))
+            if not print_popup.popup_search:
+                win.addstr(lineidx+1, inner_margin, str(line))
+
+            else:
+                # Split with highlight string and put it back
+                parts = re.split('('+print_popup.popup_search+')', line,
+                                 flags=re.IGNORECASE)
+                written = inner_margin
+                style_idx = 0
+                for part in parts:
+                    color = Colors.get_color_from_style(styles[style_idx])
+                    win.addstr(lineidx+1, written, part, color)
+                    written += len(part)
+                    style_idx = (style_idx+1) % 2
 
         win.refresh()
     except curses.error:
@@ -879,7 +898,11 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
 
     key = get_key(screen)
 
-    if sticky:
+    if key in [get_key_code(k) for k in keymap.get_keys('search_get')]:
+        print_popup.popup_search = run_command('/')
+        curses.ungetch(this_popup_key)
+
+    elif sticky:
         if key == this_popup_key:
             pass
         elif key not in move_keys:
@@ -892,6 +915,9 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
             curses.ungetch(key)
 
     tabredraw()
+
+
+print_popup.popup_search = None
 
 
 class Tabs:
