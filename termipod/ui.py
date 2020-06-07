@@ -1239,7 +1239,7 @@ class ItemArea:
 
     def add_until_to_user_selection(self):
         idx = self.get_idx()
-        if idx is None:
+        if idx is None or not self.user_selection:
             return
 
         start = self.selection.index(self.user_selection[-1])
