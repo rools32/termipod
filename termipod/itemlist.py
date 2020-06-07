@@ -228,7 +228,7 @@ class ItemList():
 
         return media
 
-    def update_media(self, indices, skip=False, where='media'):
+    def update_media(self, indices, where='media', cb=None):
         if isinstance(indices, int):
             indices = [indices]
 
@@ -239,25 +239,44 @@ class ItemList():
         else:
             raise ValueError('Bad "where"')
 
-        media = []
+        media = [medialist[idx] for idx in indices]
+        if where == 'media':
+            update_db = True
+        else:
+            update_db = False
+
+        args = (media, )
+        kwargs = {'cb': cb, 'update_db': update_db}
+        if self.wait:
+            media = self.update_media_task(*args, **kwargs)
+            return media
+        else:
+            thread = Thread(target=self.update_media_task,
+                            args=args, kwargs=kwargs)
+            thread.daemon = True
+            thread.start()
+
+    def update_media_task(self, media, cb=None, update_db=True):
+        updated_media = []
         nfailed = 0
-        i = 1
-        for idx in indices:
-            self.print_infos(f'Update media {i}/{len(indices)}...')
-            medium = medialist[idx]
+
+        for i, medium in enumerate(media):
+            self.print_infos(f'Update media {i+1}/{len(media)}...')
             if backends.update_medium(medium, self.print_infos):
                 try:
-                    if where == 'media':
+                    if update_db:
                         self.db.update_medium(medium)
-                    media.append(medium)
-                    i += 1
+                    updated_media.append(medium)
+                    if cb:
+                        cb(medium)
                 except DataBaseUpdateException:
                     nfailed += 1
 
         self.print_infos(
             'Update media done'
             f' ({nfailed} failed)' if nfailed else '')
-        return media
+
+        return updated_media
 
     def remove(self, indices=None, medium=None, unlink=True,
                mark_as_read=True):

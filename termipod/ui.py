@@ -344,8 +344,8 @@ def loop():
 
                     # Get all info
                     indices = [m['index'] for m in media]
-                    item_list.update_media(indices, where='search')
-                    tabs.update_search_area(media, 'modified')
+                    def cb(m): tabs.update_search_area([m], 'modified')
+                    item_list.update_media(indices, where='search', cb=cb)
 
             elif command[0] in ('channelDisable',):
                 if len(command) != 1:
@@ -556,8 +556,15 @@ def loop():
 
         elif 'medium_update' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.update_media(sel)
-            tabs.update_areas('medium', 'modified', media)
+
+            where = area.get_key_class()
+
+            if where == 'media':
+                def cb(m): tabs.update_areas('medium', 'modified', [m])
+            elif where == 'search':
+                def cb(m): tabs.update_search_area([m], 'modified')
+
+            item_list.update_media(sel, where=where, cb=cb)
             area.user_selection = deque()
 
         elif 'medium_tag' == action:
