@@ -36,8 +36,8 @@ def filename_get_path(what, filename=''):
 
 
 def item_get_filename(item, what):
-    if 'channel' in item:  # Medium
-        tohash = f'{what}: {item["cid"]} {item["link"]}'
+    if 'link' in item:  # Medium or Search
+        tohash = f'{what}: {item["link"]}'
 
     else:  # Channel
         tohash = f'{what}: {item["id"]}'
