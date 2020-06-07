@@ -203,26 +203,27 @@ def default_keymap_to_config():
 
         ('*', 'y', 'url_copy'),
 
+        ('media,search', 'l', 'medium_play'),
+        ('media,search', '\n', 'medium_playadd'),
+        ('media,search', 'U', 'medium_update'),
+        ('media,search', '%%', 'search_filter'),
+        ('media,search', 'p', 'save_as_playlist'),
+        ('media,search', 'I', 'description'),
+
         ('media', '*', 'search_channel'),
-        ('media', 'l', 'medium_play'),
-        ('media', '\n', 'medium_playadd'),
         ('media', 'h', 'medium_stop'),
         ('media', 'r', 'medium_read'),
         ('media', 'R', 'medium_skip'),
-        ('media,search', 'U', 'medium_update'),
         ('media', 'c', 'channel_filter'),
         ('media', 'C', 'medium_show_channel'),
         ('media', 'f', 'state_filter'),
         ('media', 'F', 'state_filter_reverse'),
         ('media', 'a', 'location_filter'),
         ('media', 'A', 'location_filter_reverse'),
-        ('media', 'I', 'description'),
         ('media', 'T', 'medium_tag'),
         ('media', 't', 'tag_filter'),
-        ('media', '%%', 'search_filter'),
         ('media', 'd', 'medium_download'),
         ('media', 'D', 'medium_remove'),  # only for local medium
-        ('media', 'p', 'save_as_playlist'),
 
         ('channels', 'a', 'channel_auto'),
         ('channels', 'A', 'channel_auto_custom'),

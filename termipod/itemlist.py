@@ -506,8 +506,15 @@ class ItemList():
         return self.media[idx]
 
     def medium_idx_to_objects(self, idx):
-        medium = [self.medium_idx_to_object(c) for c in idx]
-        return [c for c in medium if c is not None]
+        medium = [self.medium_idx_to_object(m) for m in idx]
+        return [m for m in medium if m is not None]
+
+    def search_idx_to_object(self, idx):
+        return self.search[idx]
+
+    def search_idx_to_objects(self, idx):
+        search = [self.search_idx_to_object(s) for s in idx]
+        return [s for s in search if s is not None]
 
     def channel_id_to_object(self, origin, channel_id):
         if origin == 'ui':

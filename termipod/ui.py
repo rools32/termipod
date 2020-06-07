@@ -456,9 +456,14 @@ def loop():
             if isinstance(area, MediumArea):
                 media = item_list.medium_idx_to_objects(sel)
                 urls = [m['link'] for m in media]
-            else:
+            elif isinstance(area, SearchArea):
+                search = item_list.search_idx_to_objects(sel)
+                urls = [m['link'] for m in search]
+            elif isinstance(area, ChannelArea):
                 channels = item_list.channel_ids_to_objects('ui', sel)
                 urls = [c['url'] for c in channels]
+            else:
+                raise ValueError('URL copy not implemented for this area')
 
             if _has_pyperclip:
                 pyperclip.copy('\n'.join(urls))
@@ -2229,14 +2234,13 @@ class SearchArea(ItemArea):
             match = True
 
             if (self.filters['channels'] is not None
-                    and item['channel']['title']
+                    and item['uploader']
                     not in self.filters['channels']):
                 match = False
 
             elif (self.filters['search'] and no_case_string
                   and no_case_string not in item['title'].casefold()
-                  and no_case_string not in item[
-                      'channel']['title'].casefold()):
+                  and no_case_string not in item['uploader'].casefold()):
                 match = False
 
             if match:
