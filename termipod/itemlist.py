@@ -54,6 +54,7 @@ class ItemList():
         self.update_mutex = Lock()
         self.download_manager = None
         self.player = None
+        self.nthreads = 8
 
         self.add_channels()
         self.add_media()
@@ -247,21 +248,31 @@ class ItemList():
 
         args = (media, )
         kwargs = {'cb': cb, 'update_db': update_db}
-        if self.wait:
-            media = self.update_media_task(*args, **kwargs)
-            return media
-        else:
+        threads = []
+        enum_media = list(enumerate(media))
+        for t in range(self.nthreads):
+            args = (enum_media, len(media))
             thread = Thread(target=self.update_media_task,
                             args=args, kwargs=kwargs)
             thread.daemon = True
             thread.start()
+            threads.append(thread)
 
-    def update_media_task(self, media, cb=None, update_db=True):
+        if self.wait:
+            for thread in threads:
+                thread.join()
+
+    def update_media_task(self, enum_media, size, cb=None, update_db=True):
         updated_media = []
         nfailed = 0
 
-        for i, medium in enumerate(media):
-            self.print_infos(f'Update media {i+1}/{len(media)}...')
+        while True:
+            try:
+                i, medium = enum_media.pop()
+            except IndexError:
+                break
+
+            self.print_infos(f'Update media {size-i}/{size}...')
             if backends.update_medium(medium, self.print_infos):
                 try:
                     if update_db:
@@ -605,15 +616,11 @@ class ItemList():
         else:
             channels = self.channel_ids_to_objects(origin, channel_ids)
 
-        if wait or self.wait:
-            self.update_task(channels, cb, force_all)
-        else:
-            thread = Thread(target=self.update_task,
-                            args=(channels, cb, force_all))
-            thread.daemon = True
-            thread.start()
+        threads = []
+        enum_channels = list(enumerate(channels))
+        nchannels = len(channels)
+        args = (enum_channels, cb, nchannels, force_all)
 
-    def update_task(self, channels, cb, force_all=False):
         ready = self.update_mutex.acquire(blocking=False)
         if not ready:
             # To prevent auto update from calling it again right away
@@ -622,12 +629,40 @@ class ItemList():
 
         self.print_infos('Update...')
 
+        for t in range(self.nthreads):
+            thread = Thread(target=self.update_task, args=args)
+            thread.daemon = True
+            thread.start()
+            threads.append(thread)
+
+        if self.wait:
+            for thread in threads:
+                thread.join()
+
+        else:
+            def release_mutex(threads):
+                for thread in threads:
+                    thread.join()
+                self.lastupdate = time.time()
+                self.update_mutex.release()
+
+            thread = Thread(target=release_mutex, args=(threads,))
+            thread.daemon = True
+            thread.start()
+
+    def update_task(self, enum_channels, cb, nchannels, force_all=False):
         new_media_num = 0
         updated_channels = []
 
         need_to_wait = False
-        for i, channel in enumerate(channels):
-            self.print_infos(f'Update channel {i+1}/{len(channels)} '
+
+        while True:
+            try:
+                i, channel = enum_channels.pop()
+            except IndexError:
+                break
+
+            self.print_infos(f'Update channel {nchannels-i}/{nchannels} '
                              f'({channel["title"]})...')
 
             opts = {}
@@ -667,12 +702,6 @@ class ItemList():
             self.add_media(new_media)
             cb('channel', 'modified', updated_channels, only=True)
             cb('medium', 'new', new_media, only=True)
-
-        self.print_infos(f'Update channels done ({new_media_num} '
-                         'media added)!')
-
-        self.lastupdate = time.time()
-        self.update_mutex.release()
 
         if self.wait and need_to_wait:
             self.print_infos('Wait for downloads to complete...')

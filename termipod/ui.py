@@ -2341,7 +2341,6 @@ class InfoArea:
             message = self.messages.get()
             self.print_raw_task(message)
             self.messages.task_done()
-            sleep(.1)
 
     def print_raw_task(self, string, mutex=True, need_to_wait=False):
         try:

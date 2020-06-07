@@ -18,6 +18,7 @@
 import re
 from datetime import datetime
 from time import mktime, time
+from threading import Thread
 
 import feedparser as fp
 import youtube_dl as ytdl
@@ -193,8 +194,10 @@ def get_data(source, opts, print_infos, force_all=False):
             data['title'] = title
             data['url'] = info['webpage_url']
 
+            work = []
             c = 0
             i = 0
+            entries = []
             for entry in info['entries']:
                 if 'strict' in opts and opts['strict'] and c == opts['count']:
                     break
@@ -211,9 +214,31 @@ def get_data(source, opts, print_infos, force_all=False):
                         continue
 
                 if c != opts['count']:
+                    work.append((c, entry))
+                    entries.append(entry)
+                    c += 1
+
+                else:
+                    entry['upload_date'] = '19700102'
+                    entry['duration'] = 0
+                    entry['description'] = ''
+                    entry['thumbnail'] = ''
+                    entry['valid'] = True
+                    entries.append(entry)
+
+                i += 1
+
+            # Define task for getting info
+            def extract_info_task(work, size):
+                while True:
+                    try:
+                        c, entry = work.pop()
+                    except IndexError:
+                        break
+
                     if opts['count'] == -1:
                         print_infos(
-                            f'Adding {title}: getting video info #{c+1}...')
+                            f'Adding {title}: getting video info #{size-c}...')
                     else:
                         print_infos(
                             f'Adding {title}: getting info for {opts["count"]}'
@@ -221,12 +246,18 @@ def get_data(source, opts, print_infos, force_all=False):
                     vidinfo = ydl.extract_info(entry['url'], download=False,
                                                process=False)
                     if vidinfo is None:
-                        continue
-                    entry['upload_date'] = vidinfo['upload_date']
-                    entry['duration'] = vidinfo['duration']
-                    entry['description'] = vidinfo['description']
-                    entry['thumbnail'] = vidinfo['thumbnail']
-                    c += 1
+                        entry['upload_date'] = '19700102'
+                        entry['duration'] = 0
+                        entry['description'] = ''
+                        entry['thumbnail'] = ''
+                        entry['valid'] = True
+
+                    else:
+                        entry['upload_date'] = vidinfo['upload_date']
+                        entry['duration'] = vidinfo['duration']
+                        entry['description'] = vidinfo['description']
+                        entry['thumbnail'] = vidinfo['thumbnail']
+                        entry['valid'] = True
 
                     # If update, check not before last update
                     if start_date:
@@ -235,17 +266,27 @@ def get_data(source, opts, print_infos, force_all=False):
                         if entry_timestamp < start_date and not force_all:
                             break
 
-                else:
-                    entry['upload_date'] = '19700102'
-                    entry['duration'] = 0
-                    entry['description'] = ''
-                    entry['thumbnail'] = ''
+            # Run threads to get info
+            nthreads = 8
+            threads = []
+            args = (work, len(work))
+            for t in range(nthreads):
+                thread = Thread(target=extract_info_task, args=args)
+                thread.daemon = True
+                thread.start()
+                threads.append(thread)
 
+            for thread in threads:
+                thread.join()
+
+        # Merge valid info
+        for entry in entries:
+            __import__('pprint').pprint('ho', open('/dev/pts/40', 'w'))
+            if 'valid' in entry:
+                __import__('pprint').pprint('gey', open('/dev/pts/40', 'w'))
                 medium = medium_from_ytdl(entry)
                 medium['channel'] = title
                 data['items'].append(medium)
-
-                i += 1
 
         if opts['count'] == len(data['items']):
             data['addcount'] = opts['count']
@@ -341,15 +382,19 @@ def medium_from_ytdl(data):
         'date': int(mktime(datetime.strptime(
             data['upload_date'], "%Y%m%d").timetuple())),
         'description': data['description'],
-        'uploader': data['uploader'],
         'type': 'youtube',
         'duration': data['duration'],
         'thumbnail': data['thumbnail'],
     }
+
     if 'url' in data:
         medium['link'] = expand_link(data['url'])
     elif 'webpage_url' in data:
         medium['link'] = data['webpage_url']
+
+    if 'uploader' in data:
+        medium['uploader'] = data.get('uploader', '')
+
     return medium
 
 
