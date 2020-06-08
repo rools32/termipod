@@ -220,12 +220,21 @@ def loop():
 
             completer.add_command('ytsearch', 'Search on youtube')
             completer.add_option(
-                ['ytsearch'], 'search_string', '', '.+', 'search_string',
+                ['ytsearch'], 'search string', '', '.+', 'search string',
                 position=0)
 
             completer.add_command('tab', 'Add new media tab')
             completer.add_option(
-                ['tab'], 'shown_name', '', '.+', 'shown_name',
+                ['tab'], 'shown name', '', '.+', 'shown name',
+                position=0)
+
+            completer.add_command('channels', 'Open/Show tab with channels')
+
+            completer.add_command('tabclose', 'Close current tab')
+
+            completer.add_command('tabrename', 'Rename current tab')
+            completer.add_option(
+                ['tabrename'], 'new name', '', '.+', 'new name',
                 position=0)
 
             completer.add_command(
@@ -358,6 +367,32 @@ def loop():
                     name = string[len(command[0])+1:].strip()
                     tabs.add_tab(MediumArea(screen, item_list.media, name))
                     tabs.show_tab(target=-1)
+
+            elif command[0] in ('channels',):
+                if len(command) != 1:
+                    area.show_command_help('channels', error=True)
+                else:
+                    try:
+                        tabs.show_tab(target='channels')
+                    except Tabs.TabBadIndexException:
+                        tabs.add_tab(ChannelArea(screen, item_list.channels,
+                                                 'Channels'))
+                        tabs.show_tab(target='channels')
+
+            elif command[0] in ('tabclose',):
+                if len(command) != 1:
+                    area.show_command_help('tabclose', error=True)
+                else:
+                    if not tabs.remove_tab():
+                        print_infos('Cannot close last tab', mode='error')
+
+            elif command[0] in ('tabrename',):
+                if len(command) == 1:
+                    area.show_command_help('tab', error=True)
+                else:
+                    name = string[len(command[0])+1:].strip()
+                    area.update_name(name)
+                    info_area.show_title(area.get_title_name())
 
             elif command[0] in ('channelDisable',):
                 if len(command) != 1:
@@ -647,7 +682,14 @@ def loop():
             media = item_list.medium_idx_to_objects(sel)
             if media:
                 ids = [m['channel']['id'] for m in media]
-                tabs.show_tab('channels')
+
+                try:
+                    tabs.show_tab(target='channels')
+                except Tabs.TabBadIndexException:
+                    tabs.add_tab(ChannelArea(screen, item_list.channels,
+                                             'Channels'))
+                    tabs.show_tab(target='channels')
+
                 tabs.filter_by_ids(list(set(ids)))
 
         ###################################################################
@@ -716,7 +758,9 @@ def loop():
             sel = tabs.get_user_selection(idx)
             channels = [item_list.channels[s] for s in sel]
             if channels:
-                tabs.show_tab('remote')
+                tabs.add_tab(MediumArea(screen, item_list.media,
+                                        'Media from channels'))
+                tabs.show_tab(target=-1)
                 tabs.filter_by_channels(channels)
 
         elif 'channel_category' == action:
@@ -986,6 +1030,24 @@ class Tabs:
     def add_tab(self, area):
         self.areas.append(area)
 
+    def remove_tab(self, area=None):
+        # Do not close last tab
+        if self.get_tab_number() == 1:
+            return False
+
+        if area is None:
+            area = self.get_current_area()
+        self.current_idx -= 1  # okay if it was 0
+        self.areas.remove(area)
+
+        area.clear()
+        del area
+        tabs.show_tab(0)
+        return True
+
+    def get_tab_number(self):
+        return len(self.areas)
+
     def get_current_area(self):
         return self.get_area(self.current_idx)
 
@@ -1005,13 +1067,16 @@ class Tabs:
     # When target is None refresh current tab
     def show_tab(self, target=None):
         if target is not None:
-            if isinstance(target, str):
+            if isinstance(target, str):  # by class
                 idx = self.get_area_idx(target)
-            else:
+            else:  # by index
                 idx = target
 
+            if idx is None:
+                raise self.TabBadIndexException('Index is None')
+
             # Hide previous tab
-            if -1 != self.current_idx:
+            if self.current_idx != -1:
                 self.get_current_area().shown = False
 
             self.current_idx = idx
@@ -1061,7 +1126,6 @@ class Tabs:
     def filter_by_selection(self):
         area = self.get_current_area()
         area.filter_by_selection()
-
 
     def filter_by_ids(self, ids=None):
         area = self.get_current_area()
@@ -1191,6 +1255,9 @@ class Tabs:
 
         else:
             raise(ValueError(f'Bad state ({state})'))
+
+    class TabBadIndexException(Exception):
+        pass
 
 
 class ItemArea:
@@ -1581,6 +1648,18 @@ class ItemArea:
             'tab': (
                 'Open new media tab',
                 'tab <shown name>'
+            ),
+            'channels': (
+                'Open/Show tab with channels',
+                'channels>'
+            ),
+            'tabclose': (
+                'Close current tab',
+                'tabclose'
+            ),
+            'tabrename': (
+                'Rename current tab',
+                'tabrename <new name>'
             ),
             'messages': (
                 'Print last messages',
@@ -2188,6 +2267,9 @@ class SearchArea(ItemArea):
         self.sortname = 'relevance'
 
         super().__init__(screen, items, name)
+
+    def clear(self):
+        self.itemlist.clear()
 
     def apply_config(self):
         self.reverse = bool(int(Config.media_reverse))
