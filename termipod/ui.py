@@ -1207,7 +1207,6 @@ class ItemArea:
         self.add_filter('selection', self.item_match_selection)
         self.add_filter('search', self.item_match_search)
 
-        self.apply_config()
         self.init()
         self.add_contents()
 
@@ -1865,10 +1864,10 @@ class MediumArea(ItemArea):
         self.sortname = 'date'
 
         super().__init__(screen, items, name, display_name)
+        self.apply_config()
 
     def apply_config(self):
-        if int(Config.media_reverse):
-            self.reverse = True
+        self.reverse = bool(int(Config.media_reverse))
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")
@@ -2062,8 +2061,7 @@ class ChannelArea(ItemArea):
         self.apply_config()
 
     def apply_config(self):
-        if int(Config.channel_reverse):
-            self.reverse = True
+        self.reverse = bool(int(Config.channel_reverse))
 
     def filter_by_categories(self, categories=None):
         if categories is None and self.filters['categories']:
@@ -2184,8 +2182,7 @@ class SearchArea(ItemArea):
         super().__init__(screen, items, name, display_name)
 
     def apply_config(self):
-        if int(Config.media_reverse):
-            self.reverse = True
+        self.reverse = bool(int(Config.media_reverse))
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")
