@@ -95,10 +95,8 @@ def loop():
         exit(1)
 
     # New tabs
-    tabs.add_tab(MediumArea(screen, item_list.media,
-                            'remote',  'Media'))  # remove 'remote'
-    tabs.add_tab(ChannelArea(screen, item_list.channels,
-                             'channels', 'Channels'))
+    tabs.add_tab(MediumArea(screen, item_list.media, 'Media'))
+    tabs.add_tab(ChannelArea(screen, item_list.channels, 'Channels'))
     tabs.show_tab(0)
 
     # Run update thread
@@ -334,8 +332,8 @@ def loop():
                     area_idx = tabs.get_area_idx('search')
                     name = f'Search: {search}'
                     if area_idx is None:
-                        tabs.add_tab(SearchArea(screen, item_list.search,
-                                                'search', name))
+                        tabs.add_tab(
+                            SearchArea(screen, item_list.search, name))
                     else:
                         area = tabs.get_area(area_idx)
                         area.update_name(name)
@@ -967,7 +965,7 @@ class Tabs:
 
     def get_area_idx(self, name):
         for idx, area in enumerate(self.areas):
-            if name == area.name:
+            if area.key_class == name:
                 return idx
         return None
 
@@ -1182,11 +1180,10 @@ class Tabs:
 
 
 class ItemArea:
-    def __init__(self, screen, items, name, display_name):
+    def __init__(self, screen, items, name):
         self.screen = screen
         self.mutex = Lock()
         self.name = name
-        self.display_name = display_name
         self.highlight_on = False
         self.highlight_string = None
         self.old_cursor = 0
@@ -1237,11 +1234,11 @@ class ItemArea:
                     filters.append(f'{k}: {list_to_commastr(self.filters[k])}')
         if not filters:
             filters = ['All shown']
-        return (f'{self.display_name} - {"; ".join(filters)} - '
+        return (f'{self.name} - {"; ".join(filters)} - '
                 f'By {self.sortname}')
 
-    def update_name(self, display_name):
-        self.display_name = display_name
+    def update_name(self, name):
+        self.name = name
 
     def add_to_user_selection(self, idx=None, redraw=True):
         if idx is None:
@@ -1850,7 +1847,7 @@ class ItemArea:
 
 
 class MediumArea(ItemArea):
-    def __init__(self, screen, items, name, display_name):
+    def __init__(self, screen, items, name):
         self.key_class = 'media'
         self.add_filter('state', self.medium_match_state, 'unread')
         self.add_filter('location', self.medium_match_location, 'all')
@@ -1864,7 +1861,7 @@ class MediumArea(ItemArea):
         }
         self.sortname = 'date'
 
-        super().__init__(screen, items, name, display_name)
+        super().__init__(screen, items, name)
         self.apply_config()
 
     def apply_config(self):
@@ -2046,7 +2043,7 @@ class MediumArea(ItemArea):
 
 
 class ChannelArea(ItemArea):
-    def __init__(self, screen, items, name, display_name):
+    def __init__(self, screen, items, name):
         self.key_class = 'channels'
 
         self.add_filter('ids', self.channel_match_ids)
@@ -2058,7 +2055,7 @@ class ChannelArea(ItemArea):
         }
         self.sortname = 'last video'
 
-        super().__init__(screen, items, name, display_name)
+        super().__init__(screen, items, name)
         self.apply_config()
 
     def apply_config(self):
@@ -2171,7 +2168,7 @@ class ChannelArea(ItemArea):
 
 
 class SearchArea(ItemArea):
-    def __init__(self, screen, items, name, display_name):
+    def __init__(self, screen, items, name):
         self.key_class = 'search'
         self.add_filter('channels', self.medium_match_channels)
         self.sort_methods = {
@@ -2180,7 +2177,7 @@ class SearchArea(ItemArea):
         }
         self.sortname = 'date'
 
-        super().__init__(screen, items, name, display_name)
+        super().__init__(screen, items, name)
 
     def apply_config(self):
         self.reverse = bool(int(Config.media_reverse))
