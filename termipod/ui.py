@@ -1381,6 +1381,13 @@ class ItemArea:
         self.redraw()
         info_area.show_title(self.get_title_name())
 
+    def switch_sort(self):
+        sortnames = list(self.sort_methods.keys())
+        idx = sortnames.index(self.sortname)
+        self.sortname = sortnames[(idx+1) % len(sortnames)]
+
+        self.sort_selection()
+
     def sort_reverse(self):
         self.reverse = not self.reverse
         self.sort_selection()
@@ -1873,14 +1880,6 @@ class MediumArea(ItemArea):
             return line.split(u" \u2022 ")[1]
         return ''
 
-    def switch_sort(self):
-        if self.sortname == 'date':
-            self.sortname = 'duration'
-        else:
-            self.sortname = 'date'
-
-        self.sort_selection()
-
     def get_current_channel(self):
         line = self.get_current_line()
         return self.extract_channel_name(line)
@@ -2100,14 +2099,6 @@ class ChannelArea(ItemArea):
                 or not (set(self.filters['categories'])
                         - set(item['categories'])))
 
-    def switch_sort(self):
-        if self.sortname == 'title':
-            self.sortname = 'last video'
-        else:
-            self.sortname = 'title'
-
-        self.sort_selection()
-
     def item_to_string(self, channel, multi_lines=False, width=None):
         nunread_elements = len([m for m in channel['media']
                                if m['state'] == 'unread'])
@@ -2174,8 +2165,9 @@ class SearchArea(ItemArea):
         self.sort_methods = {
             'date': ('date', True),
             'duration': ('duration', True),
+            'relevance': ('index', True),
         }
-        self.sortname = 'date'
+        self.sortname = 'relevance'
 
         super().__init__(screen, items, name)
 
@@ -2187,14 +2179,6 @@ class SearchArea(ItemArea):
         if len(parts) >= 2:
             return line.split(u" \u2022 ")[1]
         return ''
-
-    def switch_sort(self):
-        if self.sortname == 'date':
-            self.sortname = 'duration'
-        else:
-            self.sortname = 'date'
-
-        self.sort_selection()
 
     def get_current_channel(self):
         line = self.get_current_line()
