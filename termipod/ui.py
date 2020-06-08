@@ -27,7 +27,7 @@ from sys import stderr
 from queue import Queue
 from time import sleep
 from datetime import datetime
-from collections import deque
+from collections import deque, OrderedDict
 import subprocess
 
 try:
@@ -501,7 +501,6 @@ def loop():
             sel = tabs.get_user_selection(idx)
             media = item_list.remove(sel)
             tabs.update_areas('medium', 'removed', media)
-            area.user_selection = deque()
 
         elif 'channel_filter' == action:
             tabs.filter_by_channels()
@@ -557,7 +556,6 @@ def loop():
             sel = tabs.get_user_selection(idx)
             media = item_list.switch_read(sel, skip)
             tabs.update_areas('medium', 'modified', media)
-            area.user_selection = deque()
 
         elif 'medium_update' == action:
             sel = tabs.get_user_selection(idx)
@@ -570,7 +568,6 @@ def loop():
                 def cb(m): tabs.update_search_area([m], 'modified')
 
             item_list.update_media(sel, where=where, cb=cb)
-            area.user_selection = deque()
 
         elif 'medium_tag' == action:
             sel = tabs.get_user_selection(idx)
@@ -645,7 +642,6 @@ def loop():
             sel = tabs.get_user_selection(idx)
             media = item_list.download(sel)
             tabs.update_areas('medium', 'modified', media)
-            area.user_selection = deque()
 
         elif 'channel_update' == action:
             # If in channel tab we update only user_selection
@@ -1094,6 +1090,7 @@ class Tabs:
     def select_clear(self):
         area = self.get_current_area()
         area.clear_user_selection()
+        self.redraw()
 
     def get_current_line(self):
         area = self.get_current_area()
@@ -1198,6 +1195,8 @@ class ItemArea:
         self.thumbnail = ''
         self.cursorbg = False
 
+        self.add_filter('search', self.item_match_search)
+
         self.apply_config()
         self.init()
         self.add_contents()
@@ -1208,6 +1207,16 @@ class ItemArea:
         self.width = width-1
         self.win = curses.newwin(self.height+1, self.width, 1, 0)
         self.win.bkgd(Colors.get_color('item', 'normal'))
+
+    def add_filter(self, name, fun, value=None):
+        if not hasattr(self, 'filters'):
+            self.filters = OrderedDict()
+            self.filters_fun = {}
+            self.filters_default = {}
+
+        self.filters[name] = value
+        self.filters_fun[name] = fun
+        self.filters_default[name] = value
 
     def get_title_name(self):
         filters = []
@@ -1256,13 +1265,16 @@ class ItemArea:
 
         self.redraw()
 
-    def clear_user_selection(self):
-        self.user_selection = []
-        self.redraw()
+    def clear_user_selection(self, save_selection=False):
+        self.last_user_selection = deque(self.user_selection)
+        self.user_selection = deque()
 
-    def reset_contents(self):
+    def reset_contents(self, keep_user_selection=False):
         self.mutex.acquire()
         self.contents = None
+        self.selection = deque()
+        if not keep_user_selection:
+            self.clear_user_selection()
         self.mutex.release()
         if self.shown:
             self.redraw()
@@ -1276,8 +1288,6 @@ class ItemArea:
         if items is None:
             items = self.itemlist
             self.contents = deque()
-            self.selection = deque()
-            self.user_selection = deque()
 
         items = self.filter(items)[0]
         if self.reverse:
@@ -1766,9 +1776,57 @@ class ItemArea:
     def get_key_class(self):
         return self.key_class
 
+    def filter_by_search(self):
+        if self.filters['search']:
+            self.filters['search'] = None
+        else:
+            if self.highlight_string:
+                self.filters['search'] = True
+
+        # Update screen
+        self.reset_contents()
+
+    def filter_by_selection(self):
+        if self.filters['selection'] and not self.user_selection:
+            self.filters['selection'] = None
+        else:
+            self.filters['selection'] = True
+
+        # Update screen
+        self.reset_contents(keep_user_selection=True)
+
+    def item_match_search(self, item):
+        if self.filters['search'] and self.highlight_string:
+            if 'string' not in item:
+                return False
+
+            no_case_string = self.highlight_string.casefold()
+            if no_case_string not in item['string'].casefold():
+                return False
+
+        return True
+
+    def filter(self, items):
+        matching_items = []
+        other_items = []
+
+        for item in items:
+            match = True
+            for match_fun in self.filters_fun.values():
+                if not match_fun(item):
+                    match = False
+                    break
+
+            if match:
+                matching_items.append(item)
+            else:
+                other_items.append(item)
+
+        return (matching_items, other_items)
+
     def filter_clear(self):
         for k in self.filters:
-            self.filters[k] = None
+            self.filters[k] = self.filters_default[k]
 
         # Update screen
         self.reset_contents()
@@ -1777,14 +1835,12 @@ class ItemArea:
 class MediumArea(ItemArea):
     def __init__(self, screen, items, name, display_name):
         self.key_class = 'media'
-        self.filters = {
-            'location': 'all',
-            'state': 'unread',
-            'channels': None,
-            'categories': None,
-            'tags': None,
-            'search': None,
-        }
+        self.add_filter('state', self.medium_match_state, 'unread')
+        self.add_filter('location', self.medium_match_location, 'all')
+        self.add_filter('channels', self.medium_match_channels)
+        self.add_filter('categories', self.medium_match_categories)
+        self.add_filter('tags', self.medium_match_tags)
+
         self.sort_methods = {
             'date': ('date', True),
             'duration': ('duration', True),
@@ -1880,16 +1936,6 @@ class MediumArea(ItemArea):
         # Update screen
         self.reset_contents()
 
-    def filter_by_search(self):
-        if self.filters['search']:
-            self.filters['search'] = None
-        else:
-            if self.highlight_string:
-                self.filters['search'] = True
-
-        # Update screen
-        self.reset_contents()
-
     def filter_next_state(self, reverse=False):
         states = ['all', 'unread', 'read', 'skipped']
         idx = states.index(self.filters['state'])
@@ -1908,61 +1954,27 @@ class MediumArea(ItemArea):
         print_infos(f'Show media in {self.filters["location"]}')
         self.reset_contents()
 
-    # if new_items update selection (do not replace)
-    def filter(self, new_items):
-        matching_items = []
-        other_items = []
+    def medium_match_location(self, item):
+        return (self.filters['location'] == 'all'
+                or self.filters['location'] == item['location'])
 
-        # Reinit state filter if cleared
-        if self.filters['state'] is None:
-            self.filters['state'] = 'unread'
-        if self.filters['location'] is None:
-            self.filters['location'] = 'all'
+    def medium_match_state(self, item):
+        return (self.filters['state'] == 'all'
+                or self.filters['state'] == item['state'])
 
-        if self.highlight_string:
-            no_case_string = self.highlight_string.casefold()
-        else:
-            no_case_string = None
+    def medium_match_channels(self, item):
+        return (self.filters['channels'] is None
+                or item['channel']['title'] in self.filters['channels'])
 
-        # Keep matching elements
-        for item in new_items:
-            match = True
+    def medium_match_categories(self, item):
+        return (self.filters['categories'] is None
+                or not (set(self.filters['categories'])
+                        - set(item['channel']['categories'])))
 
-            if (self.filters['location'] != 'all'
-                    and self.filters['location'] != item['location']):
-                match = False
-
-            elif ('all' != self.filters['state']
-                  and self.filters['state'] != item['state']):
-                match = False
-
-            elif (self.filters['channels'] is not None
-                    and item['channel']['title']
-                    not in self.filters['channels']):
-                match = False
-
-            elif (self.filters['categories'] is not None
-                  and (set(self.filters['categories'])
-                       - set(item['channel']['categories']))):
-                match = False
-
-            elif (self.filters['tags'] is not None
-                  and (set(self.filters['tags'])
-                       - set(item['tags']))):
-                match = False
-
-            elif (self.filters['search'] and no_case_string
-                  and no_case_string not in item['title'].casefold()
-                  and no_case_string not in item[
-                      'channel']['title'].casefold()):
-                match = False
-
-            if match:
-                matching_items.append(item)
-            else:
-                other_items.append(item)
-
-        return (matching_items, other_items)
+    def medium_match_tags(self, item):
+        return (self.filters['tags'] is None
+                or not(set(self.filters['tags'])
+                       - set(item['tags'])))
 
     def item_to_string(self, medium, multi_lines=False, width=None):
         if width is None:
@@ -1991,14 +2003,15 @@ class MediumArea(ItemArea):
             string += separator
             string += formatted_item['title']
 
-            string = format_string(
-                string,
-                width-len(separator+formatted_item['duration']))
-            string += separator
-            string += formatted_item['duration']
+            end = separator+formatted_item['duration']
+            complete_string = string+end
+            string = format_string(string, width-len(end))
+            string += end
 
             if self.filters['state'] == 'all' and medium['state'] != 'unread':
                 string = ':g:'+string
+
+            medium['string'] = complete_string
 
         else:
             fields = ['title', 'channel', 'date', 'state', 'location',
@@ -2018,10 +2031,10 @@ class MediumArea(ItemArea):
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name, display_name):
         self.key_class = 'channels'
-        self.filters = {
-            'ids': None,
-            'categories': None,
-        }
+
+        self.add_filter('ids', self.channel_match_ids)
+        self.add_filter('categories', self.channel_match_categories)
+
         self.sort_methods = {
             'last video': (lambda c: c['media'][-1]['date'], True),
             'title': ('title', False),
@@ -2034,27 +2047,6 @@ class ChannelArea(ItemArea):
     def apply_config(self):
         if int(Config.channel_reverse):
             self.reverse = True
-
-    def filter(self, new_items):
-        matching_items = []
-        other_items = []
-        for item in new_items:
-            match = True
-            if (self.filters['categories'] is not None
-                    and (set(self.filters['categories'])
-                         - set(item['categories']))):
-                match = False
-
-            elif (self.filters['ids'] is not None
-                  and item['id'] not in self.filters['ids']):
-                match = False
-
-            if match:
-                matching_items.append(item)
-            else:
-                other_items.append(item)
-
-        return (matching_items, other_items)
 
     def filter_by_categories(self, categories=None):
         if categories is None and self.filters['categories']:
@@ -2085,6 +2077,15 @@ class ChannelArea(ItemArea):
 
         # Update screen
         self.reset_contents()
+
+    def channel_match_ids(self, item):
+        return (self.filters['ids'] is None
+                or item['id'] in self.filters['ids'])
+
+    def channel_match_categories(self, item):
+        return (self.filters['categories'] is None
+                or not (set(self.filters['categories'])
+                        - set(item['categories'])))
 
     def switch_sort(self):
         if self.sortname == 'title':
@@ -2122,6 +2123,8 @@ class ChannelArea(ItemArea):
             string += separator
             string += f'{last_medium_date} ({updated_date})'
 
+            channel['string'] = string
+
         else:
             formatted_item = dict(channel)
             formatted_item['updated'] = updated_date
@@ -2154,10 +2157,7 @@ class ChannelArea(ItemArea):
 class SearchArea(ItemArea):
     def __init__(self, screen, items, name, display_name):
         self.key_class = 'search'
-        self.filters = {
-            'search': None,
-            'channels': None,
-        }
+        self.add_filter('channels', self.medium_match_channels)
         self.sort_methods = {
             'date': ('date', True),
             'duration': ('duration', True),
@@ -2210,45 +2210,9 @@ class SearchArea(ItemArea):
         # Update screen
         self.reset_contents()
 
-    def filter_by_search(self):
-        if self.filters['search']:
-            self.filters['search'] = None
-        else:
-            if self.highlight_string:
-                self.filters['search'] = True
-
-        # Update screen
-        self.reset_contents()
-
-    def filter(self, new_items):
-        matching_items = []
-        other_items = []
-
-        if self.highlight_string:
-            no_case_string = self.highlight_string.casefold()
-        else:
-            no_case_string = None
-
-        # Keep matching elements
-        for item in new_items:
-            match = True
-
-            if (self.filters['channels'] is not None
-                    and item['uploader']
-                    not in self.filters['channels']):
-                match = False
-
-            elif (self.filters['search'] and no_case_string
-                  and no_case_string not in item['title'].casefold()
-                  and no_case_string not in item['uploader'].casefold()):
-                match = False
-
-            if match:
-                matching_items.append(item)
-            else:
-                other_items.append(item)
-
-        return (matching_items, other_items)
+    def medium_match_channels(self, item):
+        return (self.filters['channels'] is None
+                or item['uploader'] in self.filters['channels'])
 
     def item_to_string(self, medium, multi_lines=False, width=None):
         if width is None:
@@ -2282,6 +2246,7 @@ class SearchArea(ItemArea):
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
                 string.append(s)
 
+        medium['string'] = string
         return string
 
     def item_get_thumbnail(self, item):

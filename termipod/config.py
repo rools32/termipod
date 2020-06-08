@@ -187,7 +187,6 @@ def default_keymap_to_config():
 
         ('*', 'q', 'quit'),
 
-        ('*', 'u', 'channel_update'),
         ('*', 'i', 'infos'),
         ('*', 'v', 'thumbnail'),
         ('*', 'V', 'show_cursor_bg'),
@@ -196,19 +195,24 @@ def default_keymap_to_config():
         ('*', '$', 'select_until'),
         ('*', '^', 'select_clear'),
 
-        ('*', 'e', 'category_filter'),
 
         ('*', 's', 'sort'),
         ('*', 'S', 'sort_reverse'),
 
         ('*', 'y', 'url_copy'),
 
+        ('*', '%%', 'search_filter'),
+        ('o', '%%', 'selection_filter'),
+
         ('media,search', 'l', 'medium_play'),
         ('media,search', '\n', 'medium_playadd'),
         ('media,search', 'U', 'medium_update'),
-        ('media,search', '%%', 'search_filter'),
+        ('media,search', 'o', 'selection_filter'),
         ('media,search', 'p', 'save_as_playlist'),
         ('media,search', 'I', 'description'),
+
+        ('media,channels', 'e', 'category_filter'),
+        ('media,channels', 'u', 'channel_update'),
 
         ('media', '*', 'search_channel'),
         ('media', 'h', 'medium_stop'),
