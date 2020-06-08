@@ -1382,6 +1382,7 @@ class ItemArea:
         self.contents = deque([self.contents[p] for p in permutation])
         print_infos(f'Sort by {self.sortname}', mode='direct')
         self.redraw()
+        info_area.show_title(self.get_title_name())
 
     def sort_reverse(self):
         self.reverse = not self.reverse

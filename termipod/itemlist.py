@@ -65,13 +65,25 @@ class ItemList():
                     not os.path.isfile(medium['filename'])):
                 self.remove(medium=medium, unlink=False)
 
-    def media_update_index(self):
-        for i, medium in enumerate(self.media):
-            medium['index'] = i
+    def media_update_index(self, media=None):
+        if media is None:
+            media = self.media
+            start = 0
+        else:
+            start = len(self.media)
 
-    def channel_update_index(self):
-        for i, channel in enumerate(self.channels):
-            channel['index'] = i
+        for i, medium in enumerate(media):
+            medium['index'] = start+i
+
+    def channel_update_index(self, channels=None):
+        if channels is None:
+            channels = self.channels
+            start = 0
+        else:
+            start = len(self.channels)
+
+        for i, channel in enumerate(channels):
+            channel['index'] = start+i
 
     def channel_get_categories(self):
         categories = Counter()
@@ -84,10 +96,10 @@ class ItemList():
         if channels is None:
             channels = self.db.select_channels()
 
-        self.channels.extendleft(channels)
+        self.channel_update_index(channels)
+        self.channels.extend(channels)
         for c in channels:
             c['media'] = deque()
-        self.channel_update_index()
 
         return channels
 
@@ -137,12 +149,13 @@ class ItemList():
             for c in self.channels:
                 c['media'] = deque()
             media = self.db.select_media()
-            media.reverse()
-            self.media.extend(media)
+            self.media.extendleft(media)
             self.media_update_index()
         else:
+            media.reverse()
             for i, m in enumerate(media):
                 m['index'] = len(self.media)+i
+            self.media_update_index(media)
             self.media.extend(media)
 
         for m in media:
