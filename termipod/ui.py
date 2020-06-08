@@ -2354,12 +2354,16 @@ class InfoArea:
                 self.mutex.release()
 
     def print_raw(self, string, mutex=True, need_to_wait=False):
-        print_handler = Thread(target=self.print_raw_task,
-                               args=(string, ),
-                               kwargs={'mutex': mutex,
-                                       'need_to_wait': need_to_wait})
-        print_handler.daemon = True
-        print_handler.start()
+        args = (string, )
+        kwargs = {'mutex': mutex, 'need_to_wait': need_to_wait}
+        if need_to_wait:
+            print_handler = Thread(target=self.print_raw_task,
+                                   args=args, kwargs=kwargs)
+            print_handler.daemon = True
+            print_handler.start()
+
+        else:
+            self.print_raw_task(*args, **kwargs)
 
     def print(self, value, mode=None, mutex=True):
         if mode not in (None, 'direct', 'error', 'prompt', 'clear'):
@@ -2378,7 +2382,7 @@ class InfoArea:
             short_string = string
 
         if mode in ('direct', 'error', 'prompt', 'clear'):
-            if mode == 'prompt':
+            if mode in ('prompt', 'clear'):
                 need_to_wait = False
             else:
                 need_to_wait = True

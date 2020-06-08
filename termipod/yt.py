@@ -281,9 +281,7 @@ def get_data(source, opts, print_infos, force_all=False):
 
         # Merge valid info
         for entry in entries:
-            __import__('pprint').pprint('ho', open('/dev/pts/40', 'w'))
             if 'valid' in entry:
-                __import__('pprint').pprint('gey', open('/dev/pts/40', 'w'))
                 medium = medium_from_ytdl(entry)
                 medium['channel'] = title
                 data['items'].append(medium)
