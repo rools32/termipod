@@ -223,6 +223,11 @@ def loop():
                 ['ytsearch'], 'search_string', '', '.+', 'search_string',
                 position=0)
 
+            completer.add_command('tab', 'Add new media tab')
+            completer.add_option(
+                ['tab'], 'shown_name', '', '.+', 'shown_name',
+                position=0)
+
             completer.add_command(
                 'channelRemove',
                 'Remove selected channels (and all associated media)')
@@ -334,16 +339,25 @@ def loop():
                     if area_idx is None:
                         tabs.add_tab(
                             SearchArea(screen, item_list.search, name))
+                        tabs.show_tab(target=-1)
                     else:
                         area = tabs.get_area(area_idx)
                         area.update_name(name)
                         tabs.update_search_area(media, 'new')
-                    tabs.show_tab(target='search')
+                        tabs.show_tab(target=area_idx)
 
                     # Get all info
                     indices = [m['index'] for m in media]
                     def cb(m): tabs.update_search_area([m], 'modified')
                     item_list.update_media(indices, where='search', cb=cb)
+
+            elif command[0] in ('tab',):
+                if len(command) == 1:
+                    area.show_command_help('tab', error=True)
+                else:
+                    name = string[len(command[0])+1:].strip()
+                    tabs.add_tab(MediumArea(screen, item_list.media, name))
+                    tabs.show_tab(target=-1)
 
             elif command[0] in ('channelDisable',):
                 if len(command) != 1:
@@ -1563,6 +1577,10 @@ class ItemArea:
             'ytsearch': (
                 'Search on youtube',
                 'ytsearch search_string'
+            ),
+            'tab': (
+                'Open new media tab',
+                'tab <shown name>'
             ),
             'messages': (
                 'Print last messages',
