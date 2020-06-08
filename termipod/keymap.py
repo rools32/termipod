@@ -207,7 +207,7 @@ descriptions = {
         'medium_tag': 'Set tags for media',
         'tag_filter': 'Filter by tag',
         'search_filter': 'Filter matching items',
-        'selection_filter': 'Filter selected items',
+        'selection_filter': 'Filter from selected items',
         'medium_show_channel': 'Jump to corresponding channel',
 
         'medium_download': 'Download / Cancel downloading / Remove file',

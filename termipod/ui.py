@@ -627,6 +627,9 @@ def loop():
         elif 'search_filter' == action:
             tabs.filter_by_search()
 
+        elif 'selection_filter' == action:
+            tabs.filter_by_selection()
+
         elif 'medium_show_channel' == action:
             sel = tabs.get_user_selection(idx)
             media = item_list.medium_idx_to_objects(sel)
@@ -1043,6 +1046,11 @@ class Tabs:
         area = self.get_current_area()
         area.filter_by_search()
 
+    def filter_by_selection(self):
+        area = self.get_current_area()
+        area.filter_by_selection()
+
+
     def filter_by_ids(self, ids=None):
         area = self.get_current_area()
         area.filter_by_ids(ids)
@@ -1191,10 +1199,12 @@ class ItemArea:
         self.itemlist = items
         self.selection = deque()
         self.user_selection = deque()
+        self.last_user_selection = deque()
         self.reverse = False
         self.thumbnail = ''
         self.cursorbg = False
 
+        self.add_filter('selection', self.item_match_selection)
         self.add_filter('search', self.item_match_search)
 
         self.apply_config()
@@ -1802,6 +1812,13 @@ class ItemArea:
 
             no_case_string = self.highlight_string.casefold()
             if no_case_string not in item['string'].casefold():
+                return False
+
+        return True
+
+    def item_match_selection(self, item):
+        if self.filters['selection'] and self.user_selection:
+            if item['index'] not in self.user_selection:
                 return False
 
         return True
