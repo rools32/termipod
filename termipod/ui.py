@@ -1386,7 +1386,7 @@ class ItemArea:
 
     def sort_reverse(self):
         self.reverse = not self.reverse
-        self.reset_contents()
+        self.sort_selection()
 
     def show_cursor_bg(self):
         self.cursorbg = not self.cursorbg
