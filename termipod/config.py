@@ -16,7 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
-import configparser
+import yaml
 import os
 from os.path import expanduser
 
@@ -25,6 +25,8 @@ import sys
 
 # This is a pointer to the module object instance itself
 this = sys.modules[__name__]
+
+config = {}
 
 
 def init(**kwargs):
@@ -57,15 +59,16 @@ def init(**kwargs):
     else:  # default config_path
         if not os.path.exists(default_config_dir):
             os.makedirs(default_config_dir)
-        this.config_path = '%s/%s.ini' % (default_config_dir, appname)
+        this.config_path = '%s/%s.yaml' % (default_config_dir, appname)
 
     # If config file exists, we read it and set found values
-    config_parser = configparser.ConfigParser()
     if os.path.exists(this.config_path):
-        config_parser.read(this.config_path)
+        with open(this.config_path, 'r') as stream:
+            config.update(yaml.safe_load(stream))
+
         for param in params:
-            if param in config_parser['Global']:
-                setattr(this, param, config_parser['Global'][param])
+            if param in config['Global']:
+                setattr(this, param, config['Global'][param])
 
     # We use values given as parameters or default values
     for param in params:
@@ -89,27 +92,26 @@ def init(**kwargs):
     # If config file does not exist, we create it
     default_keymap_config = default_keymap_to_config()
     if not os.path.exists(this.config_path):
-        config_parser['Global'] = {}
+        config['Global'] = {}
         for param in params:
-            config_parser['Global'][param] = getattr(this, param)
+            config['Global'][param] = getattr(this, param)
 
-        config_parser['Keymap'] = default_keymap_config
+        config['Keymap'] = default_keymap_config
 
         # We create the config file
-        with open(this.config_path, 'w') as f:
-            config_parser.write(f)
+        write()
 
     # If we already have a config file, we still check there is no new
     # parameters available or we add them
     else:
         new_param = False
         for param in params:
-            if param not in config_parser['Global']:
+            if param not in config['Global']:
                 new_param = True
-                config_parser['Global'][param] = getattr(this, param)
+                config['Global'][param] = getattr(this, param)
 
         # Keymap
-        keymap_config = config_parser.setdefault('Keymap', {})
+        keymap_config = config.setdefault('Keymap', {})
 
         # Add new actions
         new_actions = [a for a in default_keymap_config
@@ -140,19 +142,24 @@ def init(**kwargs):
         old_actions = [a for a in keymap_config
                        if a not in default_keymap_config]
         for action in old_actions:
-            del config_parser['Keymap'][action]
+            del config['Keymap'][action]
 
         if new_param or new_actions or old_actions:
             # We update the config file
-            with open(this.config_path, 'w') as f:
-                config_parser.write(f)
+            write()
 
-    this.keys = config_parser['Keymap']
+    this.keys = config['Keymap']
 
     # Cast integer parameters
     for p in ('update_minutes', 'media_reverse', 'channel_reverse',
               'httpserver_port', 'httpserver_start', 'thumbnail_max_total_mb'):
         setattr(this, p, int(getattr(this, p)))
+
+
+def write():
+    with open(this.config_path, 'w') as f:
+        yaml.dump(config, f,
+                  default_flow_style=False, allow_unicode=False)
 
 
 def default_keymap_to_config():
