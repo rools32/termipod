@@ -156,6 +156,11 @@ def init(**kwargs):
         setattr(this, p, int(getattr(this, p)))
 
 
+def save_tabs(params):
+    config['Tabs'] = params
+    write()
+
+
 def write():
     with open(this.config_path, 'w') as f:
         yaml.dump(config, f,
@@ -183,6 +188,7 @@ def default_keymap_to_config():
         ('*', '?', 'help'),
 
         ('*', '^L', 'refresh'),
+        ('*', '^R', 'reset'),
         ('*', '^G', 'screen_infos'),
 
         ('*', ':', 'command_get'),
@@ -208,13 +214,12 @@ def default_keymap_to_config():
 
         ('*', 'y', 'url_copy'),
 
-        ('*', '%%', 'search_filter'),
-        ('o', '%%', 'selection_filter'),
+        ('*', '%', 'search_filter'),
+        ('*', 'o', 'selection_filter'),
 
         ('media,search', 'l', 'medium_play'),
         ('media,search', '\n', 'medium_playadd'),
         ('media,search', 'U', 'medium_update'),
-        ('media,search', 'o', 'selection_filter'),
         ('media,search', 'p', 'save_as_playlist'),
         ('media,search', 'I', 'description'),
 

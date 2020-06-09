@@ -95,8 +95,11 @@ def loop():
         exit(1)
 
     # New tabs
-    tabs.add_tab(MediumArea(screen, item_list.media, 'Media'))
-    tabs.add_tab(ChannelArea(screen, item_list.channels, 'Channels'))
+    if not tabs.set_config(item_list.media, item_list.channels):
+        tabs.add_tab(MediumArea(screen, item_list.media, 'Media'))
+        tabs.add_tab(ChannelArea(screen, item_list.channels, 'Channels'))
+    else:
+        refresh(reset=True)
     tabs.show_tab(0)
 
     # Run update thread
@@ -288,8 +291,7 @@ def loop():
                 continue
 
             if command[0] in ('q', 'quit'):
-                curses.endwin()
-                exit()
+                break
 
             elif command[0] in ('h', 'help'):
                 area.show_command_help()
@@ -823,6 +825,7 @@ def loop():
     item_list.player.stop()  # To prevent segfault in some cases
     termimage.clear()
     curses.endwin()
+    Config.save_tabs(tabs.get_config())
 
 
 def print_infos(*args, **kwargs):
@@ -849,7 +852,9 @@ def refresh(reset=False):
 
 
 def reset():
+    global screen_size
     refresh(reset=True)
+    screen_size = screen.getmaxyx()
 
 
 def tabredraw():
@@ -1260,6 +1265,31 @@ class Tabs:
     class TabBadIndexException(Exception):
         pass
 
+    def get_config(self):
+        config = []
+        for a in self.areas:
+            config.append(a.get_config())
+
+        return config
+
+    def set_config(self, media, channels):
+        if 'Tabs' in Config.config:
+            for tab_config in Config.config['Tabs']:
+                name = tab_config['name']
+                key_class = tab_config['class']
+                if key_class == 'media':
+                    area = MediumArea(screen, media, name)
+                elif key_class == 'channels':
+                    area = ChannelArea(screen, channels, name)
+                else:
+                    continue
+
+                area.set_config(tab_config)
+                tabs.add_tab(area)
+            return True
+        else:
+            return False
+
 
 class ItemArea:
     def __init__(self, screen, items, name):
@@ -1288,6 +1318,33 @@ class ItemArea:
 
         self.init()
         self.add_contents()
+
+    def get_config(self):
+        config = {}
+        config['name'] = self.name
+        config['class'] = self.key_class
+        config['sort'] = self.sortname
+        config['sort_reverse'] = self.reverse
+        config['filters'] = dict(self.filters)
+        config['cursor'] = self.cursor
+        config['highlight'] = [self.highlight_on, self.highlight_string]
+        config['thumbnail'] = self.thumbnail
+        if self.filters['selection']:
+            config['selection_filter'] = self.selection_filter
+
+        return config
+
+    def set_config(self, config):
+        self.name = config['name']
+        self.sortname = config['sort']
+        self.reverse = config['sort_reverse']
+        for k, v in config['filters'].items():
+            self.filters[k] = v
+        self.cursor = config['cursor']
+        self.highlight_on, self.highlight_string = config['highlight']
+        self.thumbnail = config['thumbnail']
+        if self.filters['selection']:
+            self.selection_filter = config['selection_filter']
 
     def init(self):
         height, width = self.screen.getmaxyx()
@@ -1353,16 +1410,14 @@ class ItemArea:
 
         self.redraw()
 
-    def clear_user_selection(self, save_selection=False):
-        self.last_user_selection = deque(self.user_selection)
+    def clear_user_selection(self):
         self.user_selection = deque()
 
-    def reset_contents(self, keep_user_selection=False):
+    def reset_contents(self):
         self.mutex.acquire()
         self.contents = None
         self.selection = deque()
-        if not keep_user_selection:
-            self.clear_user_selection()
+        self.clear_user_selection()
         self.mutex.release()
         if self.shown:
             self.redraw()
@@ -1905,7 +1960,8 @@ class ItemArea:
             self.filters['selection'] = True
 
         # Update screen
-        self.reset_contents(keep_user_selection=True)
+        self.selection_filter = list(self.user_selection)
+        self.reset_contents()
 
     def item_match_search(self, item):
         if self.filters['search'] and self.highlight_string:
@@ -1919,8 +1975,8 @@ class ItemArea:
         return True
 
     def item_match_selection(self, item):
-        if self.filters['selection'] and self.user_selection:
-            if item['index'] not in self.user_selection:
+        if self.filters['selection'] and self.selection_filter:
+            if item['index'] not in self.selection_filter:
                 return False
 
         return True
