@@ -857,13 +857,14 @@ def tabredraw():
 
 
 def resize():
-    screen_size = screen.getmaxyx()
-    if screen_size != screen_size:
-        if screen_size[1] != screen_size[1]:
-            refresh(reset=True)
+    global screen_size
+    new_screen_size = screen.getmaxyx()
+    if new_screen_size != screen_size:
+        if new_screen_size[1] != screen_size[1]:
+            reset()
         else:
             refresh(reset=False)
-        screen_size = screen.getmaxyx()
+            screen_size = new_screen_size
 
 
 def print_terminal(message, mutex=None, pager=True):
