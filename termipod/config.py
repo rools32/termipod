@@ -43,19 +43,59 @@ def init(**kwargs):
     default_cache_dir = appdirs.user_cache_dir(appname, appauthor)
 
     default = {
-        'Global.log_path': f'{default_cache_dir}/{appname}.log',
-        'Global.db_path': f'{default_config_dir}/{appname}.db',
-        'Global.thumbnail_path': f'{default_cache_dir}/thumbnails',
-        'Global.media_path': expanduser("~")+'/'+appname,
-        'Global.update_minutes': 30,
-        'Global.httpserver_port': 8195,
-        'Global.httpserver_start': False,
-        'Global.media_reverse': False,
-        'Global.channel_reverse': False,
-        'Global.thumbnail_max_total_mb': 256,
-        'Tabs': {'current': -1, 'list': []},
-        'youtube.ip_version': 0,
-        'youtube.format': '',
+        'Global.log_path': (
+            f'{default_cache_dir}/{appname}.log',
+            'Absolute  path'
+        ),
+        'Global.db_path': (
+            f'{default_config_dir}/{appname}.db',
+            'Absolute  path'
+        ),
+        'Global.thumbnail_path': (
+            f'{default_cache_dir}/thumbnails',
+            'Absolute  path'
+        ),
+        'Global.media_path': (
+            expanduser("~")+'/'+appname,
+            'Absolute  path'
+        ),
+        'Global.update_minutes': (
+            30,
+            'Minute interval between updates (0 to disable)'
+        ),
+        'Global.httpserver_port': (
+            8195,
+            'Port of HTTP server'
+        ),
+        'Global.httpserver_start': (
+            False,
+            '1 to start HTTP server automatically'
+        ),
+        'Global.media_reverse': (
+            False,
+            'Reverse sort order'
+        ),
+        'Global.channel_reverse': (
+            False,
+            'Reverse sort order'
+        ),
+        'Global.thumbnail_max_total_mb': (
+            256,
+            'Max total size (in MB) before removing oldest files'
+        ),
+        'Tabs': (
+            {'current': -1, 'list': []},
+            '** Automatic variable to save layout **'
+        ),
+        'youtube.ip_version': (
+            0,
+            'IP version: 4 or 6. 0 for automatic value. '
+            'Can be useful in case of "HTTP error 429 Too Many Requests"'
+        ),
+        'youtube.format': (
+            '',
+            'Format of youtube video'
+        ),
     }
     default_params.update(default)
 
@@ -79,7 +119,7 @@ def init(**kwargs):
 
     # Fill config with default values
     for param in params:
-        this.set(param, default_params[param], create=True)
+        this.set(param, default_params[param][0], create=True)
 
     # Add default keymap
     default_keymap_config = default_keymap_to_config()
@@ -247,13 +287,13 @@ def str_to_config_path(what, create=False):
 
 def get(what):
     if what in flat_commandline_config:
-        return type(default_params[what])(flat_commandline_config[what])
+        return type(default_params[what][0])(flat_commandline_config[what])
 
     target, field = str_to_config_path(what)
 
     if what in default_params:
         # From string to right type
-        return type(default_params[what])(target[field])
+        return type(default_params[what][0])(target[field])
     else:
         return target[field]
 
@@ -261,7 +301,7 @@ def get(what):
 def set(what, value, create=False):
     # From string to right type
     try:
-        value = type(default_params[what])(value)
+        value = type(default_params[what][0])(value)
     except KeyError:
         raise ValueError(f"Unknown option '{what}'")
 

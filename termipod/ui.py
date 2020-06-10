@@ -276,12 +276,15 @@ def loop():
             completer.add_command('quit', 'Quit termipod')
 
             completer.add_command(
-                'set', 'Change parameter (see config file for list)')
+                'set', 'See/Change parameter (see config file for list)')
+            for param, value in Config.default_params.items():
+                if param == 'Tabs':
+                    continue
+                desc = value[1]
+                completer.add_option(
+                    ['set'], param, param+' ', param, desc, position=0)
             completer.add_option(
-                ['set'], 'parameter', '', '[^ ]+',
-                'parameter (eg: Global.db_path)', position=0)
-            completer.add_option(['set'],
-                                 'value', '', '.+', 'value', position=1)
+                ['set'], 'value', '', '.+', 'value', position=1)
 
             # TODO generate help for show_command_help from completer
             string = run_command(':', completer=completer)
@@ -463,12 +466,16 @@ def loop():
                     httpserver.status()
 
             elif command[0] in ('set',):
-                if len(command) != 3:
+                if len(command) not in (2, 3):
                     area.show_command_help('set', error=True)
                 else:
                     param = command[1]
-                    value = command[2]
-                    Config.set(param, value)
+                    if len(command) == 2:
+                        value = Config.get(param)
+                        print_infos(f'{param}: {value}')
+                    else:
+                        value = command[2]
+                        Config.set(param, value)
 
             else:
                 print_infos('Command "%s" not found' % command[0],
@@ -1779,7 +1786,7 @@ class ItemArea:
             ),
             'set': (
                 'Change parameter (see config file for list)',
-                'set <parameter> <value>'
+                'set <parameter> [value]'
             ),
             'quit': (
                 'Quit',
@@ -2625,6 +2632,7 @@ class Textbox:
 
     def handle_key(self, key):
         start = self.start
+        sep = u" \u2022 "
 
         if get_key_name(key) == '^?':
             y, x = self.win.getyx()
@@ -2663,7 +2671,8 @@ class Textbox:
                 else:
                     if not self.desc:
                         self.desc = ['Nothing to complete!']
-                    print_popup(self.desc, close_on_repeat=False)
+                    lines = [sep+' '+v for i, v in enumerate(self.desc)]
+                    print_popup(lines, close_on_repeat=False)
 
             # Direct next tab press
             if self.completion and self.compls:
@@ -2691,7 +2700,7 @@ class Textbox:
                 except curses.error:
                     pass
 
-                lines = [v if i != self.complidx else '> '+v
+                lines = [sep+' '+v if i != self.complidx else '> '+v
                          for i, v in enumerate(self.desc)]
                 print_popup(lines, close_on_repeat=False)
 
