@@ -228,12 +228,12 @@ def loop():
                 ['open'], 'count', 'count=', 'count=[-0-9]+',
                 'Maximal number of elements to retrieve info')
 
-            completer.add_command('ytsearch', 'Search on youtube')
+            completer.add_command('search', 'Search on youtube')
             completer.add_option(
-                ['ytsearch'], 'search string', '', '.+', 'search string',
+                ['search'], 'search string', '', '.+', 'search string',
                 position=0)
             completer.add_option(
-                ['ytsearch'], 'count', 'count=', 'count=[-0-9]+',
+                ['search'], 'count', 'count=', 'count=[-0-9]+',
                 'Maximal number of elements to retrieve info')
 
             completer.add_command('tab', 'Add new media tab')
@@ -383,9 +383,9 @@ def loop():
                         tabs.update_open_area(media, 'new')
                         tabs.show_tab(target=area_idx)
 
-            elif command[0] in ('ytsearch',):
+            elif command[0] in ('search',):
                 if len(command) == 1:
-                    area.show_command_help('ytsearch', error=True)
+                    area.show_command_help('search', error=True)
                 else:
                     search = string[len(command[0])+1:].strip()
 
@@ -1804,9 +1804,9 @@ class ItemArea:
                 'Open url',
                 'open <url> [count=<max items>]'
             ),
-            'ytsearch': (
+            'search': (
                 'Search on youtube',
-                'ytsearch search_string [count=<max items>]'
+                'search search_string [count=<max items>]'
             ),
             'tab': (
                 'Open new media tab',
