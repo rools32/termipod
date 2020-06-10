@@ -1508,6 +1508,9 @@ class ItemArea:
         if self.shown:
             self.redraw()  # TODO depending on changes
 
+    def clear(self):
+        pass
+
     def sort_selection(self):
         col, reverse = self.sort_methods[self.sortname]
         reverse = reverse != self.reverse
