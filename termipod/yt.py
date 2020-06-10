@@ -166,8 +166,10 @@ def get_feed_url(url):
     return feed_url
 
 
-def get_data(source, opts, print_infos, force_all=False, allow_video=False):
+def get_data(source, opts, print_infos, force_all=False):
     new = 'update' not in opts or not opts['update']
+    allow_video = 'type' in opts and opts['type'] in ('video', 'all')
+    allow_channel = 'type' not in opts or opts['type'] in ('channel', 'all')
 
     mask = False
     if 'mask' in opts and opts['mask']:
@@ -220,6 +222,9 @@ def get_data(source, opts, print_infos, force_all=False, allow_video=False):
                 channel_data['items'].append(medium)
 
                 return channel_data
+
+            elif not allow_channel:
+                raise ValueError(f'{url} is a channel not a video')
 
             # If not a playlist no info
             if info['_type'] == 'url':
@@ -407,7 +412,8 @@ def get_new_data(channel, opts, print_infos, force_all=False):
 
 
 def get_video_data_only(url, opts, print_infos):
-    data = get_data(url, opts, print_infos, allow_video=True)
+    opts['type'] = 'video'
+    data = get_data(url, opts, print_infos)
     return data
 
 
@@ -429,6 +435,9 @@ def medium_from_ytdl(data):
 
     if 'uploader' in data:
         medium['uploader'] = data.get('uploader', '')
+
+    if 'uploader_url' in data:
+        medium['uploader_url'] = data.get('uploader_url', '')
 
     return medium
 
@@ -484,15 +493,17 @@ def shrink_link(link):
     return re.sub(r'^https://www.youtube.com/watch\?v=', '', link)
 
 
-def search_media(search, print_infos, get_info=False):
+def search_media(search, print_infos, get_info=False, count=30):
     ydl_opts = {'logger': SearchLogger(print_infos, 'search: {search}'),
                 'ignoreerrors': True}
     ydl_opts.update(get_user_config())
 
+    search_count = count if count > 0 else 'all'
+
     media = []
     with ytdl.YoutubeDL(ydl_opts) as ydl:
-        info = ydl.extract_info('ytsearchall:'+search, download=False,
-                                process=False)
+        info = ydl.extract_info(f'ytsearch{search_count}:{search}',
+                                download=False, process=False)
 
         for entry in info['entries']:
             if get_info:
@@ -504,6 +515,7 @@ def search_media(search, print_infos, get_info=False):
                 entry['upload_date'] = '19700102'
                 entry['duration'] = 0
                 entry['uploader'] = ''
+                entry['uploader_url'] = ''
                 entry['description'] = ''
                 entry['thumbnail'] = ''
 

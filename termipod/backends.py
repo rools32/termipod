@@ -300,9 +300,10 @@ class DownloadManager():
         self.db.update_medium(medium)
 
 
-def search_media(search, source, print_infos, get_info=False):
+def search_media(search, source, print_infos, get_info=False, count=50):
     if source == 'youtube':
-        items = yt.search_media(search, print_infos, get_info)
+        items = yt.search_media(search, print_infos,
+                                get_info=get_info, count=count)
     else:
         raise NotImplementedError('Not supported yet')
 

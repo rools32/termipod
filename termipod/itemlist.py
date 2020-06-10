@@ -50,6 +50,7 @@ class ItemList():
         self.media = deque()
         self.channels = deque()
         self.search = deque()
+        self.open = deque()
         self.lastupdate = 0  # time of last channel update
         self.update_mutex = Lock()
         self.download_manager = None
@@ -250,6 +251,8 @@ class ItemList():
             medialist = self.media
         elif where == 'search':
             medialist = self.search
+        elif where == 'open':
+            medialist = self.open
         else:
             raise ValueError('Bad "where"')
 
@@ -450,6 +453,36 @@ class ItemList():
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
         if cb is not None:
             cb('channel', 'new', [data])
+
+    def open_url(self, url, sopts=None):
+        opts = {
+            'count': -1,
+            'strict': 0,
+        }
+        self.apply_user_add_options(opts, sopts)
+
+        self.print_infos(f'Open {url} ({opts["count"]} elements requested)')
+
+        # Retrieve url feed
+        opts['type'] = 'all'
+        data = backends.get_all_data(url, opts, self.print_infos)
+
+        if data is None:
+            return False
+
+        media = data['items']
+        if not media:
+            return False
+
+        for i, m in enumerate(media):
+            m['uploader'] = data['title']
+            m['uploader_url'] = data['url']
+            m['index'] = len(self.open)+i
+        self.open.extend(media)
+
+        self.print_infos(f'{data["title"]} opened ({len(media)} media)')
+
+        return media
 
     def new_video(self, url, sopts=None, cb=None):
         opts = {
@@ -728,8 +761,9 @@ class ItemList():
             self.print_infos('Wait for downloads to complete...')
             self.download_manager.wait_done()
 
-    def add_search_media(self, search, source):
-        media = backends.search_media(search, source, self.print_infos)
+    def add_search_media(self, search, source, count=50):
+        media = backends.search_media(search, source, self.print_infos,
+                                      count=count)
 
         if not media:
             return

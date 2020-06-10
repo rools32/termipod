@@ -39,7 +39,7 @@ except ModuleNotFoundError:
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
                             commastr_to_list, list_to_commastr,
-                            screen_reset)
+                            options_string_to_dict, screen_reset)
 from termipod.itemlist import ItemList, ItemListException
 from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
                              get_last_key, init_key_tables, get_keymap)
@@ -124,7 +124,7 @@ def loop():
             continue
 
         area = tabs.get_current_area()
-        area_key_class = area.get_key_class()
+        area_key_class = area.key_class
         idx = area.get_idx()
 
         action = keymap.get_action(area_key_class, key_name)
@@ -221,10 +221,20 @@ def loop():
                 ['addvideo'], 'name', 'name=', 'name=[^ ]+',
                 'Alternative name of the channel')
 
+            completer.add_command('open', 'Open a URL')
+            completer.add_option(
+                ['open'], 'url', '', '[^ ]+', 'URL', position=0)
+            completer.add_option(
+                ['open'], 'count', 'count=', 'count=[-0-9]+',
+                'Maximal number of elements to retrieve info')
+
             completer.add_command('ytsearch', 'Search on youtube')
             completer.add_option(
                 ['ytsearch'], 'search string', '', '.+', 'search string',
                 position=0)
+            completer.add_option(
+                ['ytsearch'], 'count', 'count=', 'count=[-0-9]+',
+                'Maximal number of elements to retrieve info')
 
             completer.add_command('tab', 'Add new media tab')
             completer.add_option(
@@ -349,15 +359,52 @@ def loop():
 
                     item_list.new_video(url, opts, callback)
 
+            elif command[0] in ('open',):
+                if len(command) == 1:
+                    area.show_command_help('open', error=True)
+                else:
+                    url = command[1]
+
+                    name = f'Browse: {url}'
+
+                    start = len(command[0])+1
+                    sopts = string[start:].lstrip()[len(url)+1:].lstrip()
+
+                    media = item_list.open_url(url, sopts)
+
+                    area_idx = tabs.get_area_idx('open')
+                    if area_idx is None:
+                        tabs.add_tab(
+                            OpenArea(screen, item_list.open, name))
+                        tabs.show_tab(target=-1)
+                    else:
+                        area = tabs.get_area(area_idx)
+                        area.update_name(name)
+                        tabs.update_open_area(media, 'new')
+                        tabs.show_tab(target=area_idx)
+
             elif command[0] in ('ytsearch',):
                 if len(command) == 1:
                     area.show_command_help('ytsearch', error=True)
                 else:
                     search = string[len(command[0])+1:].strip()
-                    media = item_list.add_search_media(search, 'youtube')
 
-                    area_idx = tabs.get_area_idx('search')
+                    # Check if count option
+                    # We use a different way here to be able to have a search
+                    # string without quotes
+                    end = search.split(' ')[-1]
+                    if end.startswith('count='):
+                        opts = options_string_to_dict(end, ('count', ))
+                        count = int(opts['count'])
+                        search = search[:-len(end)-1].strip()
+                    else:
+                        count = 30
+
+                    media = item_list.add_search_media(
+                        search, 'youtube', count)
+
                     name = f'Search: {search}'
+                    area_idx = tabs.get_area_idx('search')
                     if area_idx is None:
                         tabs.add_tab(
                             SearchArea(screen, item_list.search, name))
@@ -368,10 +415,11 @@ def loop():
                         tabs.update_search_area(media, 'new')
                         tabs.show_tab(target=area_idx)
 
+                    indices = [m['index'] for m in media if not m['duration']]
                     # Get all info
-                    indices = [m['index'] for m in media]
-                    def cb(m): tabs.update_search_area([m], 'modified')
-                    item_list.update_media(indices, where='search', cb=cb)
+                    item_list.update_media(
+                        indices, where='search',
+                        cb=lambda m: tabs.update_search_area([m], 'modified'))
 
             elif command[0] in ('tab',):
                 if len(command) == 1:
@@ -632,7 +680,7 @@ def loop():
         elif 'medium_update' == action:
             sel = tabs.get_user_selection(idx)
 
-            where = area.get_key_class()
+            where = area._key_class
 
             if where == 'media':
                 def cb(m): tabs.update_areas('medium', 'modified', [m])
@@ -1052,7 +1100,7 @@ class Tabs:
 
     def get_area_idx(self, name):
         for idx, area in enumerate(self.areas):
-            if area.key_class == name:
+            if area.area_class == name:
                 return idx
         return None
 
@@ -1110,6 +1158,7 @@ class Tabs:
 
             self.current_idx = idx
             area = self.get_area(idx)
+
         else:
             area = self.get_current_area()
 
@@ -1270,6 +1319,21 @@ class Tabs:
         else:
             raise(ValueError(f'Bad state ({state})'))
 
+    def update_open_area(self, items, state):
+        area_idx = self.get_area_idx('open')
+        area = self.get_area(area_idx)
+        if state == 'new':
+            area.add_contents(items)
+
+        elif state == 'modified':
+            area.update_contents(items)
+
+        elif state == 'removed':
+            area.reset_contents()
+
+        else:
+            raise(ValueError(f'Bad state ({state})'))
+
     def update_search_area(self, items, state):
         area_idx = self.get_area_idx('search')
         area = self.get_area(area_idx)
@@ -1302,10 +1366,10 @@ class Tabs:
         if config['list']:
             for tab in config['list']:
                 name = tab['name']
-                key_class = tab['class']
-                if key_class == 'media':
+                area_class = tab['class']
+                if area_class == 'media':
                     area = MediumArea(screen, media, name)
-                elif key_class == 'channels':
+                elif area_class == 'channels':
                     area = ChannelArea(screen, channels, name)
                 else:
                     continue
@@ -1314,7 +1378,13 @@ class Tabs:
                 tabs.add_tab(area)
 
             self.current_idx = config['current']
-            self.show_tab()
+            try:
+                self.show_tab()
+            except IndexError:
+                # If had tabs not restored
+                self.current_idx = 0
+                self.show_tab()
+
             return True
 
         else:
@@ -1352,7 +1422,7 @@ class ItemArea:
     def get_config(self):
         config = {}
         config['name'] = self.name
-        config['class'] = self.key_class
+        config['class'] = self.area_class
         config['sort'] = self.sortname
         config['sort_reverse'] = self.reverse
         config['filters'] = dict(self.filters)
@@ -1730,9 +1800,13 @@ class ItemArea:
                 'add <url> [categories=<category1,category2>] '
                 '[force[=<0|1]> [name=<new name>]'
             ),
+            'open': (
+                'Open url',
+                'open <url> [count=<max items>]'
+            ),
             'ytsearch': (
                 'Search on youtube',
-                'ytsearch search_string'
+                'ytsearch search_string [count=<max items>]'
             ),
             'tab': (
                 'Open new media tab',
@@ -2046,6 +2120,7 @@ class ItemArea:
 
 class MediumArea(ItemArea):
     def __init__(self, screen, items, name):
+        self.area_class = 'media'
         self.key_class = 'media'
         self.add_filter('state', self.medium_match_state, 'unread')
         self.add_filter('location', self.medium_match_location, 'all')
@@ -2234,6 +2309,7 @@ class MediumArea(ItemArea):
 
 class ChannelArea(ItemArea):
     def __init__(self, screen, items, name):
+        self.area_class = 'channels'
         self.key_class = 'channels'
 
         self.add_filter('ids', self.channel_match_ids)
@@ -2349,16 +2425,10 @@ class ChannelArea(ItemArea):
                                   print_infos)
 
 
-class SearchArea(ItemArea):
+class BrowseArea(ItemArea):
     def __init__(self, screen, items, name):
-        self.key_class = 'search'
+        self.key_class = 'browse'
         self.add_filter('channels', self.medium_match_channels)
-        self.sort_methods = {
-            'date': ('date', True),
-            'duration': ('duration', True),
-            'relevance': ('index', True),
-        }
-        self.sortname = 'relevance'
 
         super().__init__(screen, items, name)
 
@@ -2429,8 +2499,8 @@ class SearchArea(ItemArea):
             string += formatted_item['duration']
 
         else:
-            fields = ['title', 'uploader', 'date', 'duration',
-                      'link', 'thumbnail']
+            fields = ['title', 'uploader', 'uploader_url', 'date',
+                      'duration', 'link', 'thumbnail']
             string = []
             for f in fields:
                 s = '%s%s: %s' % (separator, f, formatted_item[f])
@@ -2442,6 +2512,30 @@ class SearchArea(ItemArea):
     def item_get_thumbnail(self, item):
         return item_get_cache(item, 'thumbnail', print_infos)
 
+
+class OpenArea(BrowseArea):
+    def __init__(self, screen, items, name):
+        self.area_class = 'open'
+        self.sort_methods = {
+            'duration': ('duration', True),
+            'date': ('index', True),
+        }
+        self.sortname = 'date'
+
+        super().__init__(screen, items, name)
+
+
+class SearchArea(BrowseArea):
+    def __init__(self, screen, items, name):
+        self.area_class = 'search'
+        self.sort_methods = {
+            'date': ('date', True),
+            'duration': ('duration', True),
+            'relevance': ('index', True),
+        }
+        self.sortname = 'relevance'
+
+        super().__init__(screen, items, name)
 
 class InfoArea:
     def __init__(self, screen):
