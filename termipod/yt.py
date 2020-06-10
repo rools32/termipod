@@ -166,7 +166,7 @@ def get_feed_url(url):
     return feed_url
 
 
-def get_data(source, opts, print_infos, force_all=False):
+def get_data(source, opts, print_infos, force_all=False, allow_video=False):
     new = 'update' not in opts or not opts['update']
 
     mask = False
@@ -204,6 +204,22 @@ def get_data(source, opts, print_infos, force_all=False):
         data['items'] = []
         with ytdl.YoutubeDL(ydl_opts) as ydl:
             info = ydl.extract_info(url, download=False, process=False)
+
+            # If it is a video
+            if info['extractor'] == 'youtube':
+                if not allow_video:
+                    raise ValueError(f'{url} is a video, not a channel')
+                channel_data = {}
+                channel_data['title'] = info['uploader']
+                channel_data['url'] = info['uploader_url']
+                channel_data['updated'] = 0
+                channel_data['items'] = []
+                channel_data['type'] = 'youtube'
+
+                medium = medium_from_ytdl(info)
+                channel_data['items'].append(medium)
+
+                return channel_data
 
             # If not a playlist no info
             if info['_type'] == 'url':
@@ -391,18 +407,8 @@ def get_new_data(channel, opts, print_infos, force_all=False):
 
 
 def get_video_data_only(url, opts, print_infos):
-    medium_data = get_medium_data(url, url, print_infos)
-    channel_data = {}
-    channel_data['title'] = medium_data['uploader']
-    channel_data['url'] = medium_data['uploader_url']
-    channel_data['updated'] = 0
-    channel_data['items'] = []
-    channel_data['type'] = 'youtube'
-
-    medium = medium_from_ytdl(medium_data)
-    channel_data['items'].append(medium)
-
-    return channel_data
+    data = get_data(url, opts, print_infos, allow_video=True)
+    return data
 
 
 def medium_from_ytdl(data):
@@ -454,12 +460,17 @@ def get_clean_url(url):
     ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False, process=False)
-        if info['_type'] == 'url':
-            return info['url']
-        elif info['_type'] == 'playlist':
-            return info['webpage_url']
-        else:
-            return ''
+
+        try:
+            if info['_type'] == 'url':
+                return info['url']
+            elif info['_type'] == 'playlist':
+                return info['webpage_url']
+            else:
+                raise ValueError(f'Bad URL {url}')
+
+        except KeyError:
+            raise ValueError(f'Bad URL {url}')
 
 
 def expand_link(link):

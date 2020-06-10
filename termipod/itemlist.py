@@ -398,9 +398,10 @@ class ItemList():
         self.apply_user_add_options(opts, sopts)
 
         # Check not already present in db
-        cleanurl = backends.get_clean_url(url)
-        if not cleanurl:
-            self.print_infos(f'Unsupported address \"{url}\"')
+        try:
+            cleanurl = backends.get_clean_url(url)
+        except ValueError as e:
+            self.print_infos(e)
             return False
 
         channels = self.db.find_channels(cleanurl)
