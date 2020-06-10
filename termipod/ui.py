@@ -98,9 +98,9 @@ def loop():
     if not tabs.set_config(item_list.media, item_list.channels):
         tabs.add_tab(MediumArea(screen, item_list.media, 'Media'))
         tabs.add_tab(ChannelArea(screen, item_list.channels, 'Channels'))
+        tabs.show_tab(0)
     else:
         refresh(reset=True)
-    tabs.show_tab(0)
 
     # Run update thread
     thread = Thread(target=update_channels_task)
@@ -1282,17 +1282,20 @@ class Tabs:
         pass
 
     def get_config(self):
-        config = []
+        config = {}
+        config['list'] = []
         for a in self.areas:
-            config.append(a.get_config())
+            config['list'].append(a.get_config())
+        config['current'] = self.current_idx
 
         return config
 
     def set_config(self, media, channels):
-        if Config.get('Tabs'):
-            for tab_config in Config.get('Tabs'):
-                name = tab_config['name']
-                key_class = tab_config['class']
+        config = Config.get('Tabs')
+        if config['list']:
+            for tab in config['list']:
+                name = tab['name']
+                key_class = tab['class']
                 if key_class == 'media':
                     area = MediumArea(screen, media, name)
                 elif key_class == 'channels':
@@ -1300,9 +1303,13 @@ class Tabs:
                 else:
                     continue
 
-                area.set_config(tab_config)
+                area.set_config(tab)
                 tabs.add_tab(area)
+
+            self.current_idx = config['current']
+            self.show_tab()
             return True
+
         else:
             return False
 

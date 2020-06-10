@@ -53,7 +53,7 @@ def init(**kwargs):
         'Global.media_reverse': False,
         'Global.channel_reverse': False,
         'Global.thumbnail_max_total_mb': 256,
-        'Tabs': [],
+        'Tabs': {'current': -1, 'list': []},
         'youtube.ip_version': 0,
         'youtube.format': '',
     }
@@ -74,7 +74,7 @@ def init(**kwargs):
     # We use values given as parameters
     for param in kwargs:
         if param not in params:
-            raise ValueError(f"Unknown option '{param}")
+            raise ValueError(f"Unknown option '{param}'")
         flat_commandline_config[param] = kwargs[param]
 
     # Fill config with default values
@@ -222,7 +222,7 @@ def default_keymap_to_config():
 def update_config(d, u):
     for k, v in u.items():
         if k not in d:
-            raise ValueError(f"Unknown option '{k}")
+            raise ValueError(f"Unknown option '{k}'")
         if isinstance(v, collections.abc.Mapping):
             d[k] = update_config(d.get(k, {}), v)
         else:
@@ -263,7 +263,7 @@ def set(what, value, create=False):
     try:
         value = type(default_params[what])(value)
     except KeyError:
-        raise ValueError(f"Unknown option '{what}")
+        raise ValueError(f"Unknown option '{what}'")
 
     if what in flat_commandline_config:
         del flat_commandline_config[what]
