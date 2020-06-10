@@ -19,6 +19,7 @@
 import yaml
 import os
 from os.path import expanduser
+import collections.abc
 
 import appdirs
 import sys
@@ -26,7 +27,10 @@ import sys
 # This is a pointer to the module object instance itself
 this = sys.modules[__name__]
 
+flat_commandline_config = {}
 config = {}
+
+default_params = {}
 
 
 def init(**kwargs):
@@ -38,122 +42,67 @@ def init(**kwargs):
     default_config_dir = appdirs.user_config_dir(appname, appauthor)
     default_cache_dir = appdirs.user_cache_dir(appname, appauthor)
 
-    default_params = {
-        'log_path': f'{default_cache_dir}/{appname}.log',
-        'db_path': f'{default_config_dir}/{appname}.db',
-        'thumbnail_path': f'{default_cache_dir}/thumbnails',
-        'media_path': expanduser("~")+'/'+appname,
-        'update_minutes': '30',
-        'httpserver_port': '8195',
-        'httpserver_start': '0',
-        'media_reverse': '0',
-        'channel_reverse': '0',
-        'thumbnail_max_total_mb': '256',
+    default = {
+        'Global.log_path': f'{default_cache_dir}/{appname}.log',
+        'Global.db_path': f'{default_config_dir}/{appname}.db',
+        'Global.thumbnail_path': f'{default_cache_dir}/thumbnails',
+        'Global.media_path': expanduser("~")+'/'+appname,
+        'Global.update_minutes': 30,
+        'Global.httpserver_port': 8195,
+        'Global.httpserver_start': False,
+        'Global.media_reverse': False,
+        'Global.channel_reverse': False,
+        'Global.thumbnail_max_total_mb': 256,
+        'Tabs': [],
     }
+    default_params.update(default)
 
     params = default_params.keys()
 
     # We set config_path (for config file)
     if 'config_path' in kwargs:  # If config_path is specified by user
         this.config_path = kwargs['config_path']
+        del kwargs['config_path']
     else:  # default config_path
         if not os.path.exists(default_config_dir):
             os.makedirs(default_config_dir)
         this.config_path = '%s/%s.yaml' % (default_config_dir, appname)
 
+    # Check no unknown option given in command line
+    # We use values given as parameters
+    for param in kwargs:
+        if param not in params:
+            raise ValueError('Unknown options: '+param)
+        flat_commandline_config[param] = kwargs[param]
+
+    # Fill config with default values
+    for param in params:
+        this.set(param, default_params[param], create=True)
+
+    # Add default keymap
+    default_keymap_config = default_keymap_to_config()
+    config['Keymap'] = default_keymap_config
+    this.keys = config['Keymap']
+
     # If config file exists, we read it and set found values
     if os.path.exists(this.config_path):
         with open(this.config_path, 'r') as stream:
-            config.update(yaml.safe_load(stream))
-
-        for param in params:
-            if param in config['Global']:
-                setattr(this, param, config['Global'][param])
-
-    # We use values given as parameters or default values
-    for param in params:
-        if param in kwargs:
-            setattr(this, param, kwargs[param])
-        else:
-            if not hasattr(this, param):
-                setattr(this, param, default_params[param])
+            config_from_file = yaml.safe_load(stream)
+            update_config(config, config_from_file)
+    # TODO check keys appear only once
 
     # We create missing directories
     dirs = [
-        os.path.dirname(this.log_path),
-        os.path.dirname(this.db_path),
-        this.media_path,
-        this.thumbnail_path
+        os.path.dirname(config['Global']['log_path']),
+        os.path.dirname(config['Global']['db_path']),
+        config['Global']['media_path'],
+        config['Global']['thumbnail_path']
     ]
     for d in dirs:
         if not os.path.exists(d):
             os.makedirs(d)
 
-    # If config file does not exist, we create it
-    default_keymap_config = default_keymap_to_config()
-    if not os.path.exists(this.config_path):
-        config['Global'] = {}
-        for param in params:
-            config['Global'][param] = getattr(this, param)
-
-        config['Keymap'] = default_keymap_config
-
-        # We create the config file
-        write()
-
-    # If we already have a config file, we still check there is no new
-    # parameters available or we add them
-    else:
-        new_param = False
-        for param in params:
-            if param not in config['Global']:
-                new_param = True
-                config['Global'][param] = getattr(this, param)
-
-        # Keymap
-        keymap_config = config.setdefault('Keymap', {})
-
-        # Add new actions
-        new_actions = [a for a in default_keymap_config
-                       if a not in keymap_config]
-        for action in new_actions:
-            key_seqs = default_keymap_config[action].split(' ')
-
-            new_key_seqs = []
-            for key_seq in key_seqs:
-                # If key sequence is available, we add it
-                found = False
-                for value in keymap_config.values():
-                    if key_seq in value.split(' '):
-                        found = True
-                        break
-                if not found:
-                    new_key_seqs.append(key_seq)
-
-            if new_key_seqs:
-                keymap_config[action] = ' '.join(new_key_seqs)
-            # If no key sequence available, we set an empty sequence with
-            # the area of the first key sequence
-            else:
-                key_seq = key_seqs[0]
-                keymap_config[action] = key_seq[:key_seq.index('/')+1]
-
-        # Remove deleted actions
-        old_actions = [a for a in keymap_config
-                       if a not in default_keymap_config]
-        for action in old_actions:
-            del config['Keymap'][action]
-
-        if new_param or new_actions or old_actions:
-            # We update the config file
-            write()
-
-    this.keys = config['Keymap']
-
-    # Cast integer parameters
-    for p in ('update_minutes', 'media_reverse', 'channel_reverse',
-              'httpserver_port', 'httpserver_start', 'thumbnail_max_total_mb'):
-        setattr(this, p, int(getattr(this, p)))
+    write()
 
 
 def save_tabs(params):
@@ -264,9 +213,55 @@ def default_keymap_to_config():
     return keys
 
 
-def get_path(what):
-    return this.__getattribute__(what+'_path')
+def update_config(d, u):
+    for k, v in u.items():
+        if k not in d:
+            raise ValueError('Unknown option: '+k)
+        if isinstance(v, collections.abc.Mapping):
+            d[k] = update_config(d.get(k, {}), v)
+        else:
+            d[k] = v
+    return d
 
 
-def get_size(what):
-    return this.__getattribute__(what+'_max_total_mb')
+def str_to_config_path(what, create=False):
+    target = config
+    path = what.split('.')
+    last = path[-1]
+    path = path[:-1]
+
+    for p in path:
+        if create:
+            target = target.setdefault(p, {})
+        else:
+            target = target[p]
+
+    return target, last
+
+
+def get(what):
+    # From string to right type
+    try:
+        caster = type(default_params[what])
+    except KeyError:
+        raise ValueError('Unknown option '+what)
+
+    if what in flat_commandline_config:
+        return caster(flat_commandline_config[what])
+
+    target, field = str_to_config_path(what)
+    return caster(target[field])
+
+
+def set(what, value, create=False):
+    # From string to right type
+    try:
+        value = type(default_params[what])(value)
+    except KeyError:
+        raise ValueError('Unknown option '+what)
+
+    if what in flat_commandline_config:
+        del flat_commandline_config[what]
+
+    target, field = str_to_config_path(what, create)
+    target[field] = value

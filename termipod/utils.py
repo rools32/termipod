@@ -48,13 +48,13 @@ def printable_str(string):
 
 def print_log(string):
     string = str(string)
-    if Config.log_path:
+    if Config.get('Global.log_path'):
         if print_log.reset:
             mode = 'w'
             print_log.reset = False
         else:
             mode = 'a'
-        with open(Config.log_path, mode) as myfile:
+        with open(Config.get('Global.log_path'), mode) as myfile:
             myfile.write(string+"\n")
     else:
         print(string)

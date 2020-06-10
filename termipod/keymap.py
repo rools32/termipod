@@ -160,6 +160,7 @@ descriptions = {
 
         'refresh': 'Redraw screen',
         'resize': 'Resize screen',
+        'reset': 'Reset screen',
 
         'screen_infos': 'Show screen information',
 

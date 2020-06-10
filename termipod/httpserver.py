@@ -69,9 +69,9 @@ if _has_twisted:
 class HTTPServer():
     def __init__(self, port=None, start=None, print_infos=print):
         if port is None:
-            port = Config.httpserver_port
+            port = Config.get('Global.httpserver_port')
         if start is None:
-            start = Config.httpserver_start,
+            start = Config.get('Global.httpserver_start'),
 
         self.port = port
         self.print_infos = print_infos

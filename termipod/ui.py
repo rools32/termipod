@@ -40,7 +40,7 @@ from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
                             commastr_to_list, list_to_commastr,
                             screen_reset)
-from termipod.itemlist import ItemList
+from termipod.itemlist import ItemList, ItemListException
 from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
                              get_last_key, init_key_tables, get_keymap)
 from termipod.httpserver import HTTPServer
@@ -69,9 +69,9 @@ def init():
 def loop():
     def update_channels_task():
         while True:
-            if Config.update_minutes:
+            if Config.get('Global.update_minutes'):
                 if (time.time()-item_list.lastupdate >
-                        Config.update_minutes*60):
+                        Config.get('Global.update_minutes')*60):
                     item_list.update_channels(
                         'ui', wait=True, cb=tabs.update_areas)
 
@@ -89,7 +89,7 @@ def loop():
 
     try:
         item_list = ItemList(print_infos=print_infos)
-    except ItemList.ItemListException as e:
+    except ItemListException as e:
         curses.endwin()
         print(e, file=stderr)
         exit(1)
@@ -275,6 +275,14 @@ def loop():
 
             completer.add_command('quit', 'Quit termipod')
 
+            completer.add_command(
+                'set', 'Change parameter (see config file for list)')
+            completer.add_option(
+                ['set'], 'parameter', '', '[^ ]+',
+                'parameter (eg: Global.db_path)', position=0)
+            completer.add_option(['set'],
+                                 'value', '', '.+', 'value', position=1)
+
             # TODO generate help for show_command_help from completer
             string = run_command(':', completer=completer)
             if string is None:
@@ -453,6 +461,14 @@ def loop():
                     area.show_command_help('httpServerStatus', error=True)
                 else:
                     httpserver.status()
+
+            elif command[0] in ('set',):
+                if len(command) != 3:
+                    area.show_command_help('set', error=True)
+                else:
+                    param = command[1]
+                    value = command[2]
+                    Config.set(param, value)
 
             else:
                 print_infos('Command "%s" not found' % command[0],
@@ -1273,8 +1289,8 @@ class Tabs:
         return config
 
     def set_config(self, media, channels):
-        if 'Tabs' in Config.config:
-            for tab_config in Config.config['Tabs']:
+        if Config.get('Tabs'):
+            for tab_config in Config.get('Tabs'):
                 name = tab_config['name']
                 key_class = tab_config['class']
                 if key_class == 'media':
@@ -1751,6 +1767,10 @@ class ItemArea:
                 'Get streaming server status',
                 'httpServerStatus'
             ),
+            'set': (
+                'Change parameter (see config file for list)',
+                'set <parameter> <value>'
+            ),
             'quit': (
                 'Quit',
                 'q[uit]'
@@ -2026,7 +2046,7 @@ class MediumArea(ItemArea):
         self.apply_config()
 
     def apply_config(self):
-        self.reverse = bool(int(Config.media_reverse))
+        self.reverse = Config.get('Global.media_reverse')
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")
@@ -2212,7 +2232,7 @@ class ChannelArea(ItemArea):
         self.apply_config()
 
     def apply_config(self):
-        self.reverse = bool(int(Config.channel_reverse))
+        self.reverse = Config.get('Global.channel_reverse')
 
     def filter_by_categories(self, categories=None):
         if categories is None and self.filters['categories']:
@@ -2329,7 +2349,7 @@ class SearchArea(ItemArea):
         self.itemlist.clear()
 
     def apply_config(self):
-        self.reverse = bool(int(Config.media_reverse))
+        self.reverse = Config.get('Global.media_reverse')
 
     def extract_channel_name(self, line):
         parts = line.split(u" \u2022 ")

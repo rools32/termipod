@@ -30,9 +30,9 @@ total_file_size = {}
 
 def filename_get_path(what, filename=''):
     if filename:
-        return Config.get_path(what)+'/'+filename
+        return Config.get('Global.'+what+'_path')+'/'+filename
     else:
-        return Config.get_path(what)
+        return Config.get('Global.'+what+'_path')
 
 
 def item_get_filename(item, what):
@@ -74,7 +74,7 @@ def item_get_cache(item, what, print_infos):
             files[what][filename] = file_size
 
             total_file_size[what] += file_size
-            max_size = 1024**2*Config.get_size(what)
+            max_size = 1024**2*Config.get('Global.'+what+'_max_total_mb')
             while total_file_size[what] > max_size and len(files[what]) > 1:
                 f, size = files[what].popitem(last=False)
                 try:

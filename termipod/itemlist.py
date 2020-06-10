@@ -38,7 +38,7 @@ class ItemListException(Exception):
 
 class ItemList():
     def __init__(self, print_infos, wait=False, updatedb=False):
-        self.db_name = Config.db_path
+        self.db_name = Config.get('Global.db_path')
         self.wait = wait
 
         try:

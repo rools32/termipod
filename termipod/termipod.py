@@ -71,7 +71,7 @@ def main():
     if args.f:
         config_params['config_path'] = args.f
     Config.init(**config_params)
-    os.chdir(Config.media_path)
+    os.chdir(Config.get('Global.media_path'))
 
     # Ensure only one instance is running
     instance_file = open('/tmp/termipod.lock', 'w')
