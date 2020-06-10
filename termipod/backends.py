@@ -309,3 +309,10 @@ def search_media(search, source, print_infos, get_info=False):
     for item in items:
         media_add_missing_fields(item)
     return items
+
+
+def get_mpv_config():
+    mpv_config = {}
+    mpv_config.update(yt.get_mpv_config())
+
+    return mpv_config

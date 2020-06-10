@@ -24,6 +24,8 @@ import feedparser as fp
 import youtube_dl as ytdl
 
 from termipod.utils import printable_str
+import termipod.config as Config
+# printable_str = print
 
 
 class DownloadLogger(object):
@@ -105,9 +107,36 @@ class MediumDataLogger(object):
         self.print_infos('[YTDL error] %s' % msg)
 
 
+def get_user_config():
+    config = {}
+    ytopts = Config.get('youtube')
+    if ytopts['ip_version']:
+        config['source_address'] = (
+            '::' if ytopts['ip_version'] == 6 else '0.0.0.0')
+
+    if ytopts['format']:
+        config['format'] = ytopts['format']
+
+    return config
+
+
+def get_mpv_config():
+    ytconfig = get_user_config()
+
+    config = {}
+    if 'format' in ytconfig:
+        config['ytdl_format'] = ytconfig['format']
+        del ytconfig['format']
+
+    options = [f'{k.replace("_", "-")}={v}' for k, v in ytconfig.items()]
+    config['ytdl_raw_options'] = ','.join(options)
+    return config
+
+
 def download(url, filename, print_infos):
     ydl_opts = {'logger': DownloadLogger(print_infos, url),
                 'outtmpl': filename, 'format': 'mp4'}
+    ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         try:
             return ydl.download([url])
@@ -117,6 +146,7 @@ def download(url, filename, print_infos):
 
 def get_title(url):
     ydl_opts = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+    ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False, process=False)
         if 'entries' not in info and 'url' in info:
@@ -165,6 +195,7 @@ def get_data(source, opts, print_infos, force_all=False):
         title = None
         ydl_opts = {'logger': DataLogger(print_infos, url),
                     'ignoreerrors': True}
+        ydl_opts.update(get_user_config())
 
         data = {}
         data['updated'] = int(time())
@@ -399,6 +430,7 @@ def medium_from_ytdl(data):
 def get_medium_data(url, title, print_infos):
     ydl_opts = {'logger': MediumDataLogger(print_infos, title),
                 'ignoreerrors': True}
+    ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         data = ydl.extract_info(url, download=False, process=False)
     return data
@@ -419,6 +451,7 @@ def get_clean_url(url):
     url = re.sub(r'watch\?v=.*&list=', 'playlist?list=', url)
 
     ydl_opts = {'quiet': True, 'no_warnings': True, 'ignoreerrors': True}
+    ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         info = ydl.extract_info(url, download=False, process=False)
         if info['_type'] == 'url':
@@ -443,6 +476,7 @@ def shrink_link(link):
 def search_media(search, print_infos, get_info=False):
     ydl_opts = {'logger': SearchLogger(print_infos, 'search: {search}'),
                 'ignoreerrors': True}
+    ydl_opts.update(get_user_config())
 
     media = []
     with ytdl.YoutubeDL(ydl_opts) as ydl:

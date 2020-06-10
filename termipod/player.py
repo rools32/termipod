@@ -20,6 +20,7 @@ import os
 import mpv
 
 from termipod.utils import print_log
+import termipod.backends as Backends
 
 
 class Player():
@@ -37,7 +38,8 @@ class Player():
             ytdl=True,
             input_default_bindings=True,
             input_vo_keyboard=True,
-            osc=True, config=True
+            osc=True, config=True,
+            **Backends.get_mpv_config()
         )
         self.player.force_window = True
         self.player.keep_open = 'always'
