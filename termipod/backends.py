@@ -312,9 +312,7 @@ def search_media(search, source, print_infos, get_info=False, count=50):
 
     for item in items:
         media_add_missing_fields(item, browse=True)
-        item['channel'] = {
-            'type': source,
-        }
+        item.setdefault('channel', {})['type'] = source
 
     return items
 

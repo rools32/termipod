@@ -433,11 +433,9 @@ def medium_from_ytdl(data):
     elif 'webpage_url' in data:
         medium['link'] = data['webpage_url']
 
-    if 'uploader' in data:
-        medium['uploader'] = data.get('uploader', '')
-
-    if 'uploader_url' in data:
-        medium['uploader_url'] = data.get('uploader_url', '')
+    medium['channel'] = {}
+    medium['channel']['title'] = data.get('uploader', '')
+    medium['channel']['url'] = data.get('uploader_url', '')
 
     return medium
 

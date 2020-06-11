@@ -213,7 +213,8 @@ descriptions = {
 
         'medium_download': 'Download / Cancel downloading / Remove file',
 
-        'save_as_playlist': 'Save selection as m3u playlist',
+        'send_to_playlist': 'Send selection to a m3u playlist',
+        'send_to_last_playlist': 'Send selection to last m3u playlist',
 
         'channel_auto': 'Set channel as auto',
         'channel_auto_custom': 'Set custom value for auto',

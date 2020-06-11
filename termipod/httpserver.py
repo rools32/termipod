@@ -37,12 +37,19 @@ if _has_twisted:
                 self.remote_m3u = file
                 with self.open() as f:
                     for line in f:
-                        line = line[:-1]
-                        # If local file, we make him a URL
-                        if b'://' not in line:
+                        line = line.strip()
+
+                        # Directive
+                        if line.startswith('#'):
+                            pass
+
+                        # If local file, we make a URL
+                        elif b'://' not in line:
                             line = urllib.parse.quote(line).encode()
                             line = self.prefix+line
+
                         file.write(line+b'\n')
+
                 self.remote_m3u_size = file.seek(0, SEEK_CUR)
                 file.seek(0)
                 return self.remote_m3u

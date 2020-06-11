@@ -215,7 +215,8 @@ def default_keymap_to_config():
         ('media,browse', 'l', 'medium_play'),
         ('media,browse', '\n', 'medium_playadd'),
         ('media,browse', 'U', 'medium_update'),
-        ('media,browse', 'p', 'save_as_playlist'),
+        ('media,browse', 'p', 'send_to_last_playlist'),
+        ('media,browse', 'P', 'send_to_playlist'),
         ('media,browse', 'I', 'description'),
 
         ('media,channels', 'e', 'category_filter'),

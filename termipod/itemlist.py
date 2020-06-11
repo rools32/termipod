@@ -30,6 +30,7 @@ from termipod.database import DataBase, DataBaseUpdateException
 from termipod.utils import (options_string_to_dict, commastr_to_list,
                             noop, run_all)
 import termipod.config as Config
+import termipod.playlist as Playlist
 from termipod.database import DataBaseVersionException
 
 
@@ -41,6 +42,22 @@ class CallbackDeque(deque):
     def __init__(self, *args, **kwargs):
         self.callbacks = []
         super().__init__(*args, **kwargs)
+
+    def extend(self, items):
+        shift = len(self)
+        for i, m in enumerate(items):
+            m['index'] = shift+i
+        super().extend(items)
+
+        run_all(self.callbacks, ('new', items))
+
+    def extendleft(self, items):
+        shift = len(self)
+        for i, m in enumerate(items):
+            m['index'] = shift+len(items)-1-i
+        super().extendleft(items)
+
+        run_all(self.callbacks, ('new', items))
 
 
 class ItemLists():
@@ -185,18 +202,13 @@ class ItemLists():
                 c['media'] = deque()
             media = self.db.select_media()
             self.media.extendleft(media)
-            self.media_update_index()
         else:
             media.reverse()
-            for i, m in enumerate(media):
-                m['index'] = len(self.media)+i
-            self.media_update_index(media)
             self.media.extend(media)
 
         for m in media:
             m['channel']['media'].append(m)
 
-        run_all(self.get_callbacks(self.media), ('new', media))
         return media
 
     def download_manager_init(self, dl_marked=False):
@@ -508,11 +520,9 @@ class ItemLists():
             return False
 
         for i, m in enumerate(media):
-            m['uploader'] = data['title']
-            m['uploader_url'] = data['url']
+            m['channel'] = data
             m['index'] = len(itemlist)+i
         itemlist.extend(media)
-        run_all(self.get_callbacks(itemlist), ('new', media))
 
         self.print_infos(f'{data["title"]} opened ({len(media)} media)')
 
@@ -795,16 +805,29 @@ class ItemLists():
     def add_search_media(self, itemlist, search, source, count=30):
         media = backends.search_media(search, source, self.print_infos,
                                       count=count)
+        if not media:
+            return
+
+        itemlist.extend(media)
+        self.print_infos(f'Search done ({len(media)} media added)!')
+        return media
+
+    def add_playlist_media(self, itemlist, name):
+        media = Playlist.to_media(name)
 
         if not media:
             return
 
-        for i, m in enumerate(media):
-            m['index'] = len(itemlist)+i
         itemlist.extend(media)
+        self.print_infos(f'Playlist read ({len(media)} media added)!')
+        return media
 
-        self.print_infos(f'Search done ({len(media)} media added)!')
+    def add_to_other_itemlist(self, src_itemlist, dst_itemlist, sel):
+        media = self.medium_idx_to_objects(src_itemlist, sel)
+        media = [dict(m) for m in media]
 
+        dst_itemlist.extend(media)
+        self.print_infos(f'Sent to playlist ({len(media)} media added)!')
         return media
 
     def export_channels(self):

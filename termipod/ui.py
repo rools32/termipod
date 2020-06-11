@@ -50,6 +50,7 @@ import termipod.image as termimage
 from termipod.cache import item_get_cache
 import termipod.colors as Colors
 import termipod.config as Config
+import termipod.playlist as Playlist
 
 
 def init():
@@ -117,6 +118,8 @@ def loop():
 
     # Prepare http server (do not run it)
     httpserver = HTTPServer(print_infos=print_infos)
+
+    last_playlist_area = None
 
     while True:
         # Wait for key
@@ -258,6 +261,12 @@ def loop():
             completer.add_option(
                 ['tabopen'], 'count', 'count=', 'count=[-0-9]+',
                 'Maximal number of elements to retrieve info')
+
+            completer.add_command('playlist',
+                                  'Open a m3u playlist')
+            completer.add_option(
+                ['playlist'], 'playlist name', '', '.+', 'playlist name',
+                position=0)
 
             completer.add_command('channels', 'Open/Show tab with channels')
 
@@ -442,6 +451,24 @@ def loop():
                     itemlist = area.get_list()
                     media = item_lists.add_search_media(
                         itemlist, search, 'youtube', count)
+
+                    indices = [m['index'] for m in media if not m['duration']]
+                    # Get all info
+                    item_lists.update_media(indices, itemlist=itemlist)
+
+            elif command[0] in ('playlist'):
+                if len(command) == 1:
+                    area.show_command_help('playlist', error=True)
+                else:
+                    name = string[len(command[0])+1:].strip()
+
+                    area = PlaylistArea(screen, name)
+                    tabs.add_tab(area)
+                    last_playlist_area = area
+
+                    itemlist = area.get_list()
+                    media = item_lists.add_playlist_media(
+                        itemlist, name)
 
                     indices = [m['index'] for m in media if not m['duration']]
                     # Get all info
@@ -791,30 +818,31 @@ def loop():
                 sel = None
             item_lists.update_channels('ui', channel_ids=sel)
 
-        ###################################################################
-        # Local medium commands
-        ###################################################################
-        elif 'save_as_playlist' == action:
+        elif ('send_to_last_playlist' == action
+              or 'send_to_playlist' == action):
             sel = tabs.get_user_selection(idx)
             itemlist = area.get_list()
-            media = item_lists.medium_idx_to_objects(itemlist, sel)
-            filenames = [m['filename'] if m['filename']
-                         else m['link'] for m in media]
 
-            # Choose base name
-            text = 'Playlist name: '
-            destfile = run_command(text)
-            if destfile is None:
-                continue
-            destfile += '.m3u'
+            if last_playlist_area is None or action == 'send_to_playlist':
+                # Choose base name
+                text = 'Playlist name: '
+                name = run_command(text)
+                if name is None:
+                    continue
 
-            try:
-                with open(destfile, 'w') as f:
-                    for filename in filenames:
-                        f.write(f'{filename}\n')
-            except FileNotFoundError as e:
-                print_infos(e, mode='error')
-                continue
+                area_idx, area = tabs.get_area_idx('playlist', name=name)
+
+                if area is None:
+                    area = PlaylistArea(screen, name)
+                    tabs.add_tab(area)
+
+                last_playlist_area = area
+
+            else:
+                area = last_playlist_area
+
+            pl_itemlist = area.get_list()
+            item_lists.add_to_other_itemlist(itemlist, pl_itemlist, sel)
 
         ###################################################################
         # Downloading medium commands
@@ -1102,10 +1130,11 @@ class Tabs:
         self.current_idx = -1
         self.areas = []
 
-    def get_area_idx(self, name):
+    def get_area_idx(self, class_name, name=None):
         for idx, area in enumerate(self.areas):
-            if area.area_class == name:
-                return idx, area
+            if area.area_class == class_name:
+                if name is None or area.get_name() == name:
+                    return idx, area
         return None, None
 
     def add_tab(self, area, show=True):
@@ -1752,6 +1781,10 @@ class ItemArea:
                 'Open url in a new tab',
                 'tabopen <url> [count=<max items>]'
             ),
+            'playlist': (
+                'Open a m3u playlist',
+                'tabopen <playlist name>'
+            ),
             'channels': (
                 'Open/Show tab with channels',
                 'channels>'
@@ -1956,7 +1989,8 @@ class ItemArea:
 
             else:
                 self.first_line, self.cursor = (0, 0)
-                self.last_selected_item = self.itemlist[self.selection[0]]
+                if self.selection:
+                    self.last_selected_item = self.itemlist[self.selection[0]]
 
         # Check cursor position
         idx = self.position_to_idx(self.first_line, self.cursor)
@@ -2070,6 +2104,9 @@ class ItemArea:
 
         else:
             raise(ValueError(f'Bad state ({state})'))
+
+    def get_name(self):
+        return self.name
 
 
 class MediumArea(ItemArea):
@@ -2427,7 +2464,7 @@ class BrowseArea(ItemArea):
 
     def medium_match_channels(self, item):
         return (self.filters['channels'] is None
-                or item['uploader'] in self.filters['channels'])
+                or item['channel']['title'] in self.filters['channels'])
 
     def item_to_string(self, medium, multi_lines=False, width=None):
         if width is None:
@@ -2438,12 +2475,12 @@ class BrowseArea(ItemArea):
         formatted_item['duration'] = duration_to_str(medium['duration'])
         # formatted_item['channel'] = formatted_item['channel']['title']
 
-        separator = u" \u2022 "
+        separator = u"\u2022 "
 
         if not multi_lines:
             string = formatted_item['date']
             string += separator
-            string += formatted_item['uploader']
+            string += formatted_item['channel']['title']
             string += separator
             string += formatted_item['title']
 
@@ -2454,11 +2491,16 @@ class BrowseArea(ItemArea):
             string += formatted_item['duration']
 
         else:
-            fields = ['title', 'uploader', 'uploader_url', 'date',
-                      'duration', 'link', 'thumbnail']
             string = []
+
+            channel_fields = ['title', 'url']
+            for f in channel_fields:
+                s = f'{separator}channel_{f}: {formatted_item["channel"][f]}'
+                string.append(s)
+
+            fields = ['title', 'date', 'duration', 'link', 'thumbnail']
             for f in fields:
-                s = '%s%s: %s' % (separator, f, formatted_item[f])
+                s = f'{separator}{f}: {formatted_item[f]}'
                 string.append(s)
 
         medium['string'] = string
@@ -2496,6 +2538,27 @@ class SearchArea(BrowseArea):
         self.sortname = 'relevance'
 
         super().__init__(screen, name)
+
+
+class PlaylistArea(BrowseArea):
+    def __init__(self, screen, name):
+        self.area_class = 'playlist'
+        self.sort_methods = {
+            'date': ('date', True),
+            'duration': ('duration', True),
+            'index': ('index', True),
+        }
+        self.sortname = 'index'
+        self.playlist_name = name
+
+        super().__init__(screen, 'Playlist: '+name)
+
+    def get_name(self):
+        return self.playlist_name
+
+    def update(self, state, items):
+        super().update(state, items)
+        Playlist.from_media(self.itemlist, self.get_name(), print_infos)
 
 
 class InfoArea:
