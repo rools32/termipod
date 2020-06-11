@@ -498,7 +498,7 @@ class ItemLists():
 
         # Retrieve url feed
         opts['type'] = 'all'
-        data = backends.get_all_data(url, opts, self.print_infos)
+        data = backends.get_all_data(url, opts, self.print_infos, browse=True)
 
         if data is None:
             return False

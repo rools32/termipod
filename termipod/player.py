@@ -99,14 +99,16 @@ class Player():
         db = self.item_list.db
         medium = self.playlist[self.current_filename]
         medium['state'] = 'read'
-        self.print_infos('Mark as read %s' % medium['filename'])
+        self.print_infos('Mark as read %s' % medium['title'])
 
         if unlink and medium['filename']:
             self.print_infos('Remove %s' % medium['filename'])
             os.unlink(medium['filename'])
             medium['location'] = 'remote'
 
-        db.update_medium(medium)
+        if medium['location'] != 'browse':
+            db.update_medium(medium)
+
         run_all(self.cb, ('modified', [medium]))
 
     def play(self, medium, now=True):
@@ -118,7 +120,7 @@ class Player():
         if not self.player:
             self.start()
 
-        if 'local' == medium['location'] and '' != medium['filename']:
+        if medium['location'] == 'local' and medium['filename'] != '':
             target = medium['filename']
         else:
             if (medium['channel']['type'] == 'youtube'

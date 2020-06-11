@@ -37,7 +37,7 @@ class DownloadError(Exception):
     pass
 
 
-def media_add_missing_fields(data):
+def media_add_missing_fields(data, browse=False):
     fields = (
         ('date', 0),
         ('duration', 0),
@@ -49,8 +49,12 @@ def media_add_missing_fields(data):
         if f not in data:
             data[f] = v
 
+    if browse:
+        data['location'] = 'browse'
+        data['filename'] = ''
 
-def channel_add_missing_fields(data):
+
+def channel_add_missing_fields(data, browse=False):
     fields = (
         ('addcount', -1),
         ('thumbnail', ''),
@@ -61,10 +65,10 @@ def channel_add_missing_fields(data):
             data[f] = v
 
     for item in data['items']:
-        media_add_missing_fields(item)
+        media_add_missing_fields(item, browse)
 
 
-def get_all_data(url, opts, print_infos):
+def get_all_data(url, opts, print_infos, browse=False):
     if 'youtube' in url:
         data = yt.get_all_data(url, opts, print_infos)
 
@@ -74,7 +78,7 @@ def get_all_data(url, opts, print_infos):
     if 'mask' in opts and opts['mask']:
         apply_mask(data, re.compile(opts['mask']))
 
-    channel_add_missing_fields(data)
+    channel_add_missing_fields(data, browse)
     return data
 
 
@@ -307,7 +311,11 @@ def search_media(search, source, print_infos, get_info=False, count=50):
         raise NotImplementedError('Not supported yet')
 
     for item in items:
-        media_add_missing_fields(item)
+        media_add_missing_fields(item, browse=True)
+        item['channel'] = {
+            'type': source,
+        }
+
     return items
 
 

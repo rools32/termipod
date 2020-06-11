@@ -212,11 +212,11 @@ def default_keymap_to_config():
         ('*', '%', 'search_filter'),
         ('*', 'o', 'selection_filter'),
 
-        ('media,search', 'l', 'medium_play'),
-        ('media,search', '\n', 'medium_playadd'),
-        ('media,search', 'U', 'medium_update'),
-        ('media,search', 'p', 'save_as_playlist'),
-        ('media,search', 'I', 'description'),
+        ('media,browse', 'l', 'medium_play'),
+        ('media,browse', '\n', 'medium_playadd'),
+        ('media,browse', 'U', 'medium_update'),
+        ('media,browse', 'p', 'save_as_playlist'),
+        ('media,browse', 'I', 'description'),
 
         ('media,channels', 'e', 'category_filter'),
         ('media,channels', 'u', 'channel_update'),
