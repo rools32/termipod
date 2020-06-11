@@ -242,6 +242,22 @@ def loop():
                 ['tab'], 'shown name', '', '.+', 'shown name',
                 position=0)
 
+            completer.add_command('tabsearch',
+                                  'Search on youtube in a new tab')
+            completer.add_option(
+                ['tabsearch'], 'search string', '', '.+', 'search string',
+                position=0)
+            completer.add_option(
+                ['tabsearch'], 'count', 'count=', 'count=[-0-9]+',
+                'Maximal number of elements to retrieve info')
+
+            completer.add_command('tabopen', 'Open a URL in a new tab')
+            completer.add_option(
+                ['tabopen'], 'url', '', '[^ ]+', 'URL', position=0)
+            completer.add_option(
+                ['tabopen'], 'count', 'count=', 'count=[-0-9]+',
+                'Maximal number of elements to retrieve info')
+
             completer.add_command('channels', 'Open/Show tab with channels')
 
             completer.add_command('tabclose', 'Close current tab')
@@ -359,32 +375,38 @@ def loop():
 
                     item_lists.new_video(url, opts)
 
-            elif command[0] in ('open',):
+            elif command[0] in ('open', 'tabopen'):
                 if len(command) == 1:
                     area.show_command_help('open', error=True)
                 else:
                     url = command[1]
 
-                    name = f'Browse: {url}'
-
                     start = len(command[0])+1
                     sopts = string[start:].lstrip()[len(url)+1:].lstrip()
 
-                    area_idx = tabs.get_area_idx('open')
-                    if area_idx is None:
+                    if command[0] == 'tabopen':
+                        area = None
+                    else:
+                        if area.area_class == 'open':
+                            area_idx = None
+                        else:
+                            area_idx, area = tabs.get_area_idx('open')
+
+                    name = f'Browse: {url}'
+                    if area is None:
                         area = OpenArea(screen, name)
                         tabs.add_tab(area)
                     else:
-                        area = tabs.get_area(area_idx)
-                        area.update_name(name)
-                        tabs.show_tab(target=area_idx)
+                        area.update_name_if_auto(name)
+                        if area_idx is not None:
+                            tabs.show_tab(target=area_idx)
 
                     itemlist = area.get_list()
                     media = item_lists.open_url(itemlist, url, sopts)
 
-            elif command[0] in ('search',):
+            elif command[0] in ('search', 'tabsearch'):
                 if len(command) == 1:
-                    area.show_command_help('search', error=True)
+                    area.show_command_help(command[0], error=True)
                 else:
                     search = string[len(command[0])+1:].strip()
 
@@ -399,15 +421,22 @@ def loop():
                     else:
                         count = 30
 
+                    if command[0] == 'tabsearch':
+                        area = None
+                    else:
+                        if area.area_class == 'search':
+                            area_idx = None
+                        else:
+                            area_idx, area = tabs.get_area_idx('search')
+
                     name = f'Search: {search}'
-                    area_idx = tabs.get_area_idx('search')
-                    if area_idx is None:
+                    if area is None:
                         area = SearchArea(screen, name)
                         tabs.add_tab(area)
                     else:
-                        area = tabs.get_area(area_idx)
-                        area.update_name(name)
-                        tabs.show_tab(target=area_idx)
+                        area.update_name_if_auto(name)
+                        if area_idx is not None:
+                            tabs.show_tab(target=area_idx)
 
                     itemlist = area.get_list()
                     media = item_lists.add_search_media(
@@ -1073,8 +1102,8 @@ class Tabs:
     def get_area_idx(self, name):
         for idx, area in enumerate(self.areas):
             if area.area_class == name:
-                return idx
-        return None
+                return idx, area
+        return None, None
 
     def add_tab(self, area, show=True):
         self.areas.append(area)
@@ -1124,10 +1153,11 @@ class Tabs:
                         idx = i
 
             elif isinstance(target, str):  # by class
-                idx = self.get_area_idx(target)
+                idx, area = self.get_area_idx(target)
 
             else:  # by index
                 idx = target
+                area = self.get_area(idx)
 
             if idx is None:
                 raise self.TabBadIndexException('Index is None')
@@ -1137,7 +1167,6 @@ class Tabs:
                 self.get_current_area().shown = False
 
             self.current_idx = idx
-            area = self.get_area(idx)
 
         else:
             area = self.get_current_area()
@@ -1711,6 +1740,14 @@ class ItemArea:
             'tab': (
                 'Open new media tab',
                 'tab <shown name>'
+            ),
+            'tabsearch': (
+                'Search on youtube in a new tab',
+                'tabsearch search_string [count=<max items>]'
+            ),
+            'tabopen': (
+                'Open url in a new tab',
+                'tabopen <url> [count=<max items>]'
             ),
             'channels': (
                 'Open/Show tab with channels',
@@ -2345,6 +2382,7 @@ class BrowseArea(ItemArea):
         self.key_class = 'browse'
         self.category = 'media'
         self.add_filter('channels', self.medium_match_channels)
+        self.name_auto = name
 
         super().__init__(screen, name)
 
@@ -2425,6 +2463,11 @@ class BrowseArea(ItemArea):
     def item_get_thumbnail(self, item):
         return item_get_cache(item, 'thumbnail', print_infos)
 
+    def update_name_if_auto(self, name):
+        if self.name == self.name_auto:
+            self.name = name
+            self.name_auto = name
+
 
 class OpenArea(BrowseArea):
     def __init__(self, screen, name):
@@ -2449,6 +2492,7 @@ class SearchArea(BrowseArea):
         self.sortname = 'relevance'
 
         super().__init__(screen, name)
+
 
 class InfoArea:
     def __init__(self, screen):
