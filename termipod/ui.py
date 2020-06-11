@@ -18,6 +18,7 @@
 import curses
 import curses.textpad
 import os
+import tempfile
 import re
 import time
 import shlex
@@ -908,7 +909,7 @@ def run_command(prefix, init='', completer=None):
     return info_area.run_command(prefix, init, completer)
 
 
-def refresh(reset=False):
+def refresh(reset=False, mutex=True):
     screen.clear()
 
     current_area = tabs.get_current_area()
@@ -919,7 +920,7 @@ def refresh(reset=False):
             area.reset_contents()
 
     tabs.show_tab()
-    info_area.init()
+    info_area.init(mutex=mutex)
     current_area.show_thumbnail(force_clear=True)
 
 
@@ -964,13 +965,15 @@ def print_terminal(message, mutex=None, pager=True):
             if nlines < screenlines:
                 message += '\n'*(screenlines-nlines)
 
-        subprocess.call([f'echo "{message}" | {pager_bin}'], shell=True)
+        with tempfile.NamedTemporaryFile(buffering=0) as f:
+            f.write(message.encode())
+            subprocess.call([f'{pager_bin} {f.name}'], shell=True)
 
     else:
         print(message)
         input("-- Press Enter to continue --")
     screen = curses.initscr()
-    refresh()
+    refresh(mutex=False)
     if mutex is not None:
         mutex.release()
 
@@ -2512,7 +2515,7 @@ class InfoArea:
 
         self.init()
 
-    def init(self):
+    def init(self, mutex=True):
         height, width = self.screen.getmaxyx()
         self.width = width-1
 
@@ -2520,7 +2523,7 @@ class InfoArea:
         self.status_win = curses.newwin(1, self.width, height-1, 0)
         self.status_win.bkgd(Colors.get_color('status', 'normal'))
         self.status_win.keypad(1)
-        self.print('', mode='clear')
+        self.print('', mode='clear', mutex=mutex)
 
         # Init title
         self.title_win = curses.newwin(1, self.width, 0, 0)
