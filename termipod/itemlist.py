@@ -850,7 +850,7 @@ class ItemLists():
                         remove_tags):
         media = []
         for medium_id in medium_ids:
-            medium = self.medium_idx_to_object(medium_id)
+            medium = self.medium_idx_to_object(self.media, medium_id)
             media.append(medium)
 
             add_tag_str = ', '.join(list(add_tags))
