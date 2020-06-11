@@ -23,7 +23,7 @@ import os
 import fcntl
 from sys import stderr
 
-from termipod.itemlist import ItemList
+from termipod.itemlist import ItemLists
 import termipod.config as Config
 from termipod.database import DataBaseVersionException
 
@@ -89,35 +89,35 @@ def main():
     else:
         updatedb = True if args.updatedb else False
         try:
-            item_list = ItemList(print_infos, wait=True,
+            item_lists = ItemLists(print_infos, wait=True,
                                  updatedb=updatedb)
         except DataBaseVersionException as e:
             print(e, file=stderr)
             exit(1)
 
         if args.add:
-            ret = item_list.new_channel(args.add, args.add_opts)
+            ret = item_lists.new_channel(args.add, args.add_opts)
             if not ret:
                 sys.exit(-1)
 
         if args.auto:
             url, auto = args.auto
-            item_list.channel_set_auto('cmd', [url], auto)
+            item_lists.channel_set_auto('cmd', [url], auto)
 
         if args.up:
             if isinstance(args.up, bool):
-                item_list.update_channels('cmd')
+                item_lists.update_channels('cmd')
             else:
-                item_list.update_channels('cmd', [args.up])
+                item_lists.update_channels('cmd', [args.up])
 
         if args.disable_channel:
-            item_list.disable_channels('cmd', [args.disable_channel])
+            item_lists.disable_channels('cmd', [args.disable_channel])
 
         if args.remove_channel:
-            item_list.remove_channels('cmd', [args.remove_channel])
+            item_lists.remove_channels('cmd', [args.remove_channel])
 
         if args.export_channels:
-            channels = item_list.export_channels()
+            channels = item_lists.export_channels()
             if isinstance(args.export_channels, bool):
                 print(channels)
             else:

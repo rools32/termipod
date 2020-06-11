@@ -30,7 +30,7 @@ import os.path
 
 import termipod.rss as rss
 import termipod.yt as yt
-from termipod.utils import ts_to_date, str_to_filename
+from termipod.utils import ts_to_date, str_to_filename, noop, run_all
 
 
 class DownloadError(Exception):
@@ -164,7 +164,7 @@ def get_duration(medium):
 
 
 class DownloadManager():
-    def __init__(self, db, print_infos, wait=False, cb=None):
+    def __init__(self, db, print_infos, wait=False, cb=noop):
         self.nthreads = 2
         self.print_infos = print_infos
         self.queue = Queue()
@@ -288,8 +288,7 @@ class DownloadManager():
             self.print_infos('Download cancelled %s' % link)
 
         self.db.update_medium(medium)
-        if self.cb is not None:
-            self.cb('medium', 'modified', [medium])
+        run_all(self.cb, ('modified', [medium]))
 
     def download_task(self, ret, args):
         ret.put(args[0](*args[1:]))

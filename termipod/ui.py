@@ -40,7 +40,7 @@ from termipod.utils import (duration_to_str, ts_to_date, print_log,
                             format_string, printable_str,
                             commastr_to_list, list_to_commastr,
                             options_string_to_dict, screen_reset)
-from termipod.itemlist import ItemList, ItemListException
+from termipod.itemlist import ItemLists, ItemListException
 from termipod.keymap import (Keymap, get_key, get_key_name, get_key_code,
                              get_last_key, init_key_tables, get_keymap)
 from termipod.httpserver import HTTPServer
@@ -67,13 +67,14 @@ def init():
 
 
 def loop():
+    global item_lists
+
     def update_channels_task():
         while True:
             if Config.get('Global.update_minutes'):
-                if (time.time()-item_list.lastupdate >
+                if (time.time()-item_lists.lastupdate >
                         Config.get('Global.update_minutes')*60):
-                    item_list.update_channels(
-                        'ui', wait=True, cb=tabs.update_areas)
+                    item_lists.update_channels('ui', wait=True)
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
@@ -88,16 +89,16 @@ def loop():
         exit(1)
 
     try:
-        item_list = ItemList(print_infos=print_infos)
+        item_lists = ItemLists(print_infos=print_infos)
     except ItemListException as e:
         curses.endwin()
         print(e, file=stderr)
         exit(1)
 
     # New tabs
-    if not tabs.set_config(item_list.media, item_list.channels):
-        tabs.add_tab(MediumArea(screen, item_list.media, 'Media'))
-        tabs.add_tab(ChannelArea(screen, item_list.channels, 'Channels'))
+    if not tabs.set_config(item_lists.media, item_lists.channels):
+        tabs.add_tab(MediumArea(screen, 'Media'), show=False)
+        tabs.add_tab(ChannelArea(screen, 'Channels'), show=False)
         tabs.show_tab(0)
     else:
         refresh(reset=True)
@@ -108,10 +109,10 @@ def loop():
     thread.start()
 
     # Run download manager
-    item_list.download_manager_init(cb=tabs.update_areas, dl_marked=False)
+    item_lists.download_manager_init(dl_marked=False)
 
     # Init player
-    item_list.player_init(cb=tabs.update_areas)
+    item_lists.player_init()
 
     # Prepare http server (do not run it)
     httpserver = HTTPServer(print_infos=print_infos)
@@ -345,8 +346,8 @@ def loop():
                     url = command[1]
                     start = len(command[0])+1
                     opts = string[start:].lstrip()[len(url)+1:].lstrip()
-                    callback = tabs.update_areas
-                    item_list.new_channel(url, opts, callback)
+
+                    item_lists.new_channel(url, opts)
 
             elif command[0] in ('addvideo',):
                 if len(command) == 1:
@@ -355,9 +356,8 @@ def loop():
                     url = command[1]
                     start = len(command[0])+1
                     opts = string[start:].lstrip()[len(url)+1:].lstrip()
-                    callback = tabs.update_areas
 
-                    item_list.new_video(url, opts, callback)
+                    item_lists.new_video(url, opts)
 
             elif command[0] in ('open',):
                 if len(command) == 1:
@@ -370,18 +370,17 @@ def loop():
                     start = len(command[0])+1
                     sopts = string[start:].lstrip()[len(url)+1:].lstrip()
 
-                    media = item_list.open_url(url, sopts)
-
                     area_idx = tabs.get_area_idx('open')
                     if area_idx is None:
-                        tabs.add_tab(
-                            OpenArea(screen, item_list.open, name))
-                        tabs.show_tab(target=-1)
+                        area = OpenArea(screen, name)
+                        tabs.add_tab(area)
                     else:
                         area = tabs.get_area(area_idx)
                         area.update_name(name)
-                        tabs.update_open_area(media, 'new')
                         tabs.show_tab(target=area_idx)
+
+                    itemlist = area.get_list()
+                    media = item_lists.open_url(itemlist, url, sopts)
 
             elif command[0] in ('search',):
                 if len(command) == 1:
@@ -400,34 +399,30 @@ def loop():
                     else:
                         count = 30
 
-                    media = item_list.add_search_media(
-                        search, 'youtube', count)
-
                     name = f'Search: {search}'
                     area_idx = tabs.get_area_idx('search')
                     if area_idx is None:
-                        tabs.add_tab(
-                            SearchArea(screen, item_list.search, name))
-                        tabs.show_tab(target=-1)
+                        area = SearchArea(screen, name)
+                        tabs.add_tab(area)
                     else:
                         area = tabs.get_area(area_idx)
                         area.update_name(name)
-                        tabs.update_search_area(media, 'new')
                         tabs.show_tab(target=area_idx)
+
+                    itemlist = area.get_list()
+                    media = item_lists.add_search_media(
+                        itemlist, search, 'youtube', count)
 
                     indices = [m['index'] for m in media if not m['duration']]
                     # Get all info
-                    item_list.update_media(
-                        indices, where='search',
-                        cb=lambda m: tabs.update_search_area([m], 'modified'))
+                    item_lists.update_media(indices, itemlist=itemlist)
 
             elif command[0] in ('tab',):
                 if len(command) == 1:
                     area.show_command_help('tab', error=True)
                 else:
                     name = string[len(command[0])+1:].strip()
-                    tabs.add_tab(MediumArea(screen, item_list.media, name))
-                    tabs.show_tab(target=-1)
+                    tabs.add_tab(MediumArea(screen, name))
 
             elif command[0] in ('channels',):
                 if len(command) != 1:
@@ -436,9 +431,7 @@ def loop():
                     try:
                         tabs.show_tab(target='channels')
                     except Tabs.TabBadIndexException:
-                        tabs.add_tab(ChannelArea(screen, item_list.channels,
-                                                 'Channels'))
-                        tabs.show_tab(target='channels')
+                        tabs.add_tab(ChannelArea(screen, 'Channels'))
 
             elif command[0] in ('tabclose',):
                 if len(command) != 1:
@@ -463,9 +456,7 @@ def loop():
 
                 else:
                     sel = tabs.get_user_selection(idx)
-                    channels = item_list.disable_channels('ui', sel)
-                    tabs.update_areas('channel', 'removed', channels,
-                                      only=True)
+                    channels = item_lists.disable_channels('ui', sel)
 
             elif command[0] in ('channelEnable',):
                 if len(command) != 1:
@@ -475,10 +466,8 @@ def loop():
 
                 else:
                     sel = tabs.get_user_selection(idx)
-                    channels = item_list.disable_channels(
+                    channels = item_lists.disable_channels(
                         'ui', sel, enable=True)
-                    tabs.update_areas('channel', 'removed', channels,
-                                      only=True)
 
             elif command[0] in ('channelRemove',):
                 if len(command) != 1:
@@ -487,8 +476,7 @@ def loop():
                     print_infos('Not in channel area')
                 else:
                     sel = tabs.get_user_selection(idx)
-                    channels = item_list.remove_channels('ui', sel)
-                    tabs.update_areas('channel', 'removed', channels)
+                    channels = item_lists.remove_channels('ui', sel)
 
             # HTTP server
             elif command[0] in ('httpServerStart',):
@@ -573,17 +561,16 @@ def loop():
             if not sel:
                 continue
 
-            if isinstance(area, MediumArea):
-                media = item_list.medium_idx_to_objects(sel)
+            if area.category == 'media':
+                itemlist = area.get_list()
+                media = item_lists.medium_idx_to_objects(itemlist, sel)
                 urls = [m['link'] for m in media]
-            elif isinstance(area, SearchArea):
-                search = item_list.search_idx_to_objects(sel)
-                urls = [m['link'] for m in search]
-            elif isinstance(area, ChannelArea):
-                channels = item_list.channel_ids_to_objects('ui', sel)
+            elif area.category == 'channels':
+                channels = item_lists.channel_ids_to_objects('ui', sel)
                 urls = [c['url'] for c in channels]
             else:
-                raise ValueError('URL copy not implemented for this area')
+                raise NotImplementedError(
+                    'URL copy not implemented for this area')
 
             if _has_pyperclip:
                 pyperclip.copy('\n'.join(urls))
@@ -606,21 +593,22 @@ def loop():
             tabs.highlight(channel)
 
         elif 'medium_play' == action:
+            itemlist = area.get_list()
             sel = tabs.get_user_selection(idx)
-            item_list.play(sel)
+            item_lists.play(itemlist, sel)
 
         elif 'medium_playadd' == action:
+            itemlist = area.get_list()
             sel = tabs.get_user_selection(idx)
-            item_list.playadd(sel)
+            item_lists.playadd(itemlist, sel)
 
         elif 'medium_stop' == action:
-            item_list.stop()
+            item_lists.stop()
 
         elif 'medium_remove' == action:
-            # TODO if is being played: self.item_list.stop()
+            # TODO if is being played: self.item_lists.stop()
             sel = tabs.get_user_selection(idx)
-            media = item_list.remove(sel)
-            tabs.update_areas('medium', 'removed', media)
+            media = item_lists.remove_media(sel)
 
         elif 'channel_filter' == action:
             tabs.filter_by_channels()
@@ -628,10 +616,11 @@ def loop():
         elif 'category_filter' == action:
             sel = tabs.get_user_selection(idx)
             if isinstance(area, MediumArea):
-                media = item_list.medium_idx_to_objects(sel)
+                itemlist = area.get_list()
+                media = item_lists.medium_idx_to_objects(itemlist, sel)
                 channels = [medium['channel'] for medium in media]
             else:
-                channels = item_list.channel_ids_to_objects('ui', sel)
+                channels = item_lists.channel_ids_to_objects('ui', sel)
 
             if channels:
                 categories = set(channels[0]['categories'])
@@ -641,7 +630,7 @@ def loop():
             else:
                 init = ''
 
-            all_categories = item_list.channel_get_categories()
+            all_categories = item_lists.channel_get_categories()
             completer = CommaListSizeCompleter(all_categories)
             category_str = run_command(
                 'category filter: ', init=init, completer=completer)
@@ -674,24 +663,16 @@ def loop():
                 skip = False
 
             sel = tabs.get_user_selection(idx)
-            media = item_list.switch_read(sel, skip)
-            tabs.update_areas('medium', 'modified', media)
+            media = item_lists.switch_read(sel, skip)
 
         elif 'medium_update' == action:
             sel = tabs.get_user_selection(idx)
-
-            where = area._key_class
-
-            if where == 'media':
-                def cb(m): tabs.update_areas('medium', 'modified', [m])
-            elif where == 'search':
-                def cb(m): tabs.update_search_area([m], 'modified')
-
-            item_list.update_media(sel, where=where, cb=cb)
+            item_lists.update_media(sel, itemlist=area.get_list())
 
         elif 'medium_tag' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.medium_idx_to_objects(sel)
+            itemlist = area.get_list()
+            media = item_lists.medium_idx_to_objects(itemlist, sel)
 
             # Shared tags
             shared_tags = set.intersection(
@@ -703,7 +684,7 @@ def loop():
             if init:
                 init += ', '
 
-            all_tags = item_list.medium_get_tags()
+            all_tags = item_lists.medium_get_tags()
             completer = CommaListSizeCompleter(all_tags)
             tag_str = (
                 run_command(text, init=init, completer=completer))
@@ -714,13 +695,13 @@ def loop():
             add_tags = tags-shared_tags
             remove_tags = shared_tags-tags
 
-            media = item_list.medium_set_tags(
+            media = item_lists.medium_set_tags(
                 'ui', sel, add_tags, remove_tags)
-            tabs.update_areas('medium', 'modified', media, only=True)
 
         elif 'tag_filter' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.medium_idx_to_objects(sel)
+            itemlist = area.get_list()
+            media = item_lists.medium_idx_to_objects(itemlist, sel)
 
             if media:
                 tags = set(media[0]['tags'])
@@ -730,7 +711,7 @@ def loop():
             else:
                 init = ''
 
-            all_tags = item_list.medium_get_tags()
+            all_tags = item_lists.medium_get_tags()
             completer = CommaListSizeCompleter(all_tags)
             tag_str = run_command(
                 'tag filter: ', init=init, completer=completer)
@@ -752,16 +733,15 @@ def loop():
 
         elif 'medium_show_channel' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.medium_idx_to_objects(sel)
+            itemlist = area.get_list()
+            media = item_lists.medium_idx_to_objects(itemlist, sel)
             if media:
                 ids = [m['channel']['id'] for m in media]
 
                 try:
                     tabs.show_tab(target='channels')
                 except Tabs.TabBadIndexException:
-                    tabs.add_tab(ChannelArea(screen, item_list.channels,
-                                             'Channels'))
-                    tabs.show_tab(target='channels')
+                    tabs.add_tab(ChannelArea(screen, 'Channels'))
 
                 tabs.filter_by_ids(list(set(ids)))
 
@@ -770,8 +750,7 @@ def loop():
         ###################################################################
         elif 'medium_download' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.download(sel)
-            tabs.update_areas('medium', 'modified', media)
+            media = item_lists.download(sel)
 
         elif 'channel_update' == action:
             # If in channel tab we update only user_selection
@@ -780,15 +759,15 @@ def loop():
             # We update all channels
             else:
                 sel = None
-            item_list.update_channels('ui', channel_ids=sel,
-                                      cb=tabs.update_areas)
+            item_lists.update_channels('ui', channel_ids=sel)
 
         ###################################################################
         # Local medium commands
         ###################################################################
         elif 'save_as_playlist' == action:
             sel = tabs.get_user_selection(idx)
-            media = item_list.medium_idx_to_objects(sel)
+            itemlist = area.get_list()
+            media = item_lists.medium_idx_to_objects(itemlist, sel)
             filenames = [m['filename'] if m['filename']
                          else m['link'] for m in media]
 
@@ -816,29 +795,25 @@ def loop():
         ###################################################################
         elif 'channel_auto' == action:
             sel = tabs.get_user_selection(idx)
-            channels = item_list.channel_set_auto('ui', sel)
-            tabs.update_areas('channel', 'modified', channels, only=True)
+            channels = item_lists.channel_set_auto('ui', sel)
 
         elif 'channel_auto_custom' == action:
             sel = tabs.get_user_selection(idx)
             auto = run_command('auto: ')
             if auto is None:
                 continue
-            channels = item_list.channel_set_auto('ui', sel, auto)
-            tabs.update_areas('channel', 'modified', channels, only=True)
+            channels = item_lists.channel_set_auto('ui', sel, auto)
 
         elif 'channel_show_media' == action:
             sel = tabs.get_user_selection(idx)
-            channels = [item_list.channels[s] for s in sel]
+            channels = [item_lists.channels[s] for s in sel]
             if channels:
-                tabs.add_tab(MediumArea(screen, item_list.media,
-                                        'Media from channels'))
-                tabs.show_tab(target=-1)
+                tabs.add_tab(MediumArea(screen, 'Media from channels'))
                 tabs.filter_by_channels(channels)
 
         elif 'channel_category' == action:
             sel = tabs.get_user_selection(idx)
-            channels = item_list.channel_ids_to_objects('ui', sel)
+            channels = item_lists.channel_ids_to_objects('ui', sel)
 
             # Shared categories
             shared_categories = set.intersection(
@@ -850,7 +825,7 @@ def loop():
             if init:
                 init += ', '
 
-            all_categories = item_list.channel_get_categories()
+            all_categories = item_lists.channel_get_categories()
             completer = CommaListSizeCompleter(all_categories)
             category_str = (
                 run_command(text, init=init, completer=completer))
@@ -861,13 +836,12 @@ def loop():
             add_categories = categories-shared_categories
             remove_categories = shared_categories-categories
 
-            channels = item_list.channel_set_categories(
+            channels = item_lists.channel_set_categories(
                 'ui', sel, add_categories, remove_categories)
-            tabs.update_areas('channel', 'modified', channels, only=True)
 
         elif 'channel_mask' == action:
             sel = tabs.get_user_selection(idx)
-            channels = item_list.channel_ids_to_objects('ui', sel)
+            channels = item_lists.channel_ids_to_objects('ui', sel)
             if len(channels) != 1:
                 print_infos('Cannot change mask of several channels',
                             mode='error')
@@ -881,19 +855,17 @@ def loop():
             if mask is None:
                 continue
 
-            channel = item_list.channel_set_mask('ui', sel, mask)
-            tabs.update_areas('channel', 'modified', [channel], only=True)
+            channel = item_lists.channel_set_mask('ui', sel, mask)
 
         elif 'channel_force_update' == action:
             sel = tabs.get_user_selection(idx)
-            item_list.update_channels('ui', channel_ids=sel, force_all=True,
-                                      cb=tabs.update_areas)
+            item_lists.update_channels('ui', channel_ids=sel, force_all=True)
 
         # Action not recognized
         else:
             print_infos(f'Unknown action "{action}"', mode='error')
 
-    item_list.player.stop()  # To prevent segfault in some cases
+    item_lists.player.stop()  # To prevent segfault in some cases
     termimage.clear()
     curses.endwin()
     Config.save_tabs(tabs.get_config())
@@ -1104,8 +1076,9 @@ class Tabs:
                 return idx
         return None
 
-    def add_tab(self, area):
+    def add_tab(self, area, show=True):
         self.areas.append(area)
+        self.show_tab(target=len(self.areas)-1)
 
     def remove_tab(self, area=None):
         # Do not close last tab
@@ -1117,7 +1090,7 @@ class Tabs:
         self.current_idx -= 1  # okay if it was 0
         self.areas.remove(area)
 
-        area.clear()
+        area.close()
         del area
         tabs.show_tab(0)
         return True
@@ -1144,8 +1117,15 @@ class Tabs:
     # When target is None refresh current tab
     def show_tab(self, target=None):
         if target is not None:
-            if isinstance(target, str):  # by class
+            if isinstance(target, ItemArea):  # by area
+                idx = None
+                for i, area in enumerate(self.areas):
+                    if area is target:
+                        idx = i
+
+            elif isinstance(target, str):  # by class
                 idx = self.get_area_idx(target)
+
             else:  # by index
                 idx = target
 
@@ -1264,90 +1244,6 @@ class Tabs:
     def get_channel_areas(self):
         return [a for a in self.areas if isinstance(a, ChannelArea)]
 
-    def update_areas(self, item_type, state, items=None, only=False):
-        if items is None:
-            for area in self.areas:
-                area.reset_contents()
-
-        else:
-            if item_type == 'channel':
-                self.update_channel_areas(items, state)
-                if not only:
-                    media = [m for c in items for m in c['media']]
-                    self.update_medium_areas(media, state)
-            elif item_type == 'medium':
-                self.update_medium_areas(items, state)
-                if not only:
-                    # Channels without duplicates
-                    channels = {m['channel']['id']: m['channel']
-                                for m in items}.values()
-                    self.update_channel_areas(channels, 'modified')
-            else:
-                raise(ValueError(f'Bad item_type ({item_type})'))
-
-    def update_medium_areas(self, items, state):
-        if state == 'new':
-            for area in self.get_medium_areas():
-                area.add_contents(items)
-
-        elif state == 'modified':
-            for area in self.get_medium_areas():
-                area.update_contents(items)
-
-        elif state == 'removed':
-            for area in self.get_medium_areas():
-                # TODO add remove_contents function
-                area.reset_contents()
-
-        else:
-            raise(ValueError(f'Bad state ({state})'))
-
-    def update_channel_areas(self, items, state):
-        if state == 'new':
-            for area in self.get_channel_areas():
-                area.add_contents(items)
-
-        elif state == 'modified':
-            for area in self.get_channel_areas():
-                area.update_contents(items)
-
-        elif state == 'removed':
-            for area in self.get_channel_areas():
-                # TODO add remove_contents function
-                area.reset_contents()
-
-        else:
-            raise(ValueError(f'Bad state ({state})'))
-
-    def update_open_area(self, items, state):
-        area_idx = self.get_area_idx('open')
-        area = self.get_area(area_idx)
-        if state == 'new':
-            area.add_contents(items)
-
-        elif state == 'modified':
-            area.update_contents(items)
-
-        elif state == 'removed':
-            area.reset_contents()
-
-        else:
-            raise(ValueError(f'Bad state ({state})'))
-
-    def update_search_area(self, items, state):
-        area_idx = self.get_area_idx('search')
-        area = self.get_area(area_idx)
-        if state == 'new':
-            area.add_contents(items)
-
-        elif state == 'modified':
-            area.update_contents(items)
-
-        elif state == 'removed':
-            area.reset_contents()
-
-        else:
-            raise(ValueError(f'Bad state ({state})'))
 
     class TabBadIndexException(Exception):
         pass
@@ -1368,14 +1264,14 @@ class Tabs:
                 name = tab['name']
                 area_class = tab['class']
                 if area_class == 'media':
-                    area = MediumArea(screen, media, name)
+                    area = MediumArea(screen, name)
                 elif area_class == 'channels':
-                    area = ChannelArea(screen, channels, name)
+                    area = ChannelArea(screen, name)
                 else:
                     continue
 
                 area.set_config(tab)
-                tabs.add_tab(area)
+                tabs.add_tab(area, show=False)
 
             self.current_idx = config['current']
             try:
@@ -1392,7 +1288,7 @@ class Tabs:
 
 
 class ItemArea:
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.screen = screen
         self.mutex = Lock()
         self.name = name
@@ -1405,7 +1301,6 @@ class ItemArea:
         self.last_selected_item = None
         self.contents = None
         self.shown = False
-        self.itemlist = items
         self.selection = deque()
         self.user_selection = deque()
         self.last_user_selection = deque()
@@ -1413,11 +1308,16 @@ class ItemArea:
         self.thumbnail = ''
         self.cursorbg = False
 
+        self.itemlist = item_lists.get_list(self.key_class, self.update)
+
         self.add_filter('selection', self.item_match_selection)
         self.add_filter('search', self.item_match_search)
 
         self.init()
         self.add_contents()
+
+    def get_list(self):
+        return self.itemlist
 
     def get_config(self):
         config = {}
@@ -1585,8 +1485,8 @@ class ItemArea:
         if self.shown:
             self.redraw()  # TODO depending on changes
 
-    def clear(self):
-        pass
+    def close(self):
+        item_lists.close_list(self.itemlist, self.update)
 
     def sort_selection(self):
         col, reverse = self.sort_methods[self.sortname]
@@ -2117,11 +2017,25 @@ class ItemArea:
         # Update screen
         self.reset_contents()
 
+    def update(self, state, items):
+        if state == 'new':
+            self.add_contents(items)
+
+        elif state == 'modified':
+            self.update_contents(items)
+
+        elif state == 'removed':
+            self.reset_contents()
+
+        else:
+            raise(ValueError(f'Bad state ({state})'))
+
 
 class MediumArea(ItemArea):
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.area_class = 'media'
         self.key_class = 'media'
+        self.category = 'media'
         self.add_filter('state', self.medium_match_state, 'unread')
         self.add_filter('location', self.medium_match_location, 'all')
         self.add_filter('channels', self.medium_match_channels)
@@ -2134,7 +2048,7 @@ class MediumArea(ItemArea):
         }
         self.sortname = 'date'
 
-        super().__init__(screen, items, name)
+        super().__init__(screen, name)
         self.apply_config()
 
     def apply_config(self):
@@ -2308,9 +2222,10 @@ class MediumArea(ItemArea):
 
 
 class ChannelArea(ItemArea):
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.area_class = 'channels'
         self.key_class = 'channels'
+        self.category = 'channels'
 
         self.add_filter('ids', self.channel_match_ids)
         self.add_filter('categories', self.channel_match_categories)
@@ -2321,7 +2236,7 @@ class ChannelArea(ItemArea):
         }
         self.sortname = 'last video'
 
-        super().__init__(screen, items, name)
+        super().__init__(screen, name)
         self.apply_config()
 
     def apply_config(self):
@@ -2426,14 +2341,12 @@ class ChannelArea(ItemArea):
 
 
 class BrowseArea(ItemArea):
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.key_class = 'browse'
+        self.category = 'media'
         self.add_filter('channels', self.medium_match_channels)
 
-        super().__init__(screen, items, name)
-
-    def clear(self):
-        self.itemlist.clear()
+        super().__init__(screen, name)
 
     def apply_config(self):
         self.reverse = Config.get('Global.media_reverse')
@@ -2514,7 +2427,7 @@ class BrowseArea(ItemArea):
 
 
 class OpenArea(BrowseArea):
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.area_class = 'open'
         self.sort_methods = {
             'duration': ('duration', True),
@@ -2522,11 +2435,11 @@ class OpenArea(BrowseArea):
         }
         self.sortname = 'date'
 
-        super().__init__(screen, items, name)
+        super().__init__(screen, name)
 
 
 class SearchArea(BrowseArea):
-    def __init__(self, screen, items, name):
+    def __init__(self, screen, name):
         self.area_class = 'search'
         self.sort_methods = {
             'date': ('date', True),
@@ -2535,7 +2448,7 @@ class SearchArea(BrowseArea):
         }
         self.sortname = 'relevance'
 
-        super().__init__(screen, items, name)
+        super().__init__(screen, name)
 
 class InfoArea:
     def __init__(self, screen):
@@ -2866,3 +2779,4 @@ screen = None
 screen_size = None
 tabs = None
 info_area = None
+item_lists = None

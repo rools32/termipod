@@ -19,12 +19,12 @@ import os
 
 import mpv
 
-from termipod.utils import print_log
+from termipod.utils import print_log, noop, run_all
 import termipod.backends as Backends
 
 
 class Player():
-    def __init__(self, item_list, print_infos, cb=None):
+    def __init__(self, item_list, print_infos, cb=noop):
         self.item_list = item_list
         self.print_infos = print_infos
         self.cb = cb
@@ -107,8 +107,7 @@ class Player():
             medium['location'] = 'remote'
 
         db.update_medium(medium)
-        if self.cb is not None:
-            self.cb('medium', 'modified', [medium])
+        run_all(self.cb, ('modified', [medium]))
 
     def play(self, medium, now=True):
         if now:

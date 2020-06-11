@@ -157,3 +157,12 @@ def screen_reset():
     # For better OSs
     else:
         system('reset')
+
+
+def noop(*args, **kwargs):
+    pass
+
+
+def run_all(cb, arglist):
+    for f in cb:
+        f(*arglist)

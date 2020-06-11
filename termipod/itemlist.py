@@ -27,7 +27,8 @@ import os.path
 import termipod.backends as backends
 import termipod.player as player
 from termipod.database import DataBase, DataBaseUpdateException
-from termipod.utils import options_string_to_dict, commastr_to_list
+from termipod.utils import (options_string_to_dict, commastr_to_list,
+                            noop, run_all)
 import termipod.config as Config
 from termipod.database import DataBaseVersionException
 
@@ -36,7 +37,13 @@ class ItemListException(Exception):
     pass
 
 
-class ItemList():
+class CallbackDeque(deque):
+    def __init__(self, *args, **kwargs):
+        self.callbacks = []
+        super().__init__(*args, **kwargs)
+
+
+class ItemLists():
     def __init__(self, print_infos, wait=False, updatedb=False):
         self.db_name = Config.get('Global.db_path')
         self.wait = wait
@@ -47,15 +54,15 @@ class ItemList():
             raise ItemListException(e)
 
         self.print_infos = print_infos
-        self.media = deque()
-        self.channels = deque()
-        self.search = deque()
-        self.open = deque()
         self.lastupdate = 0  # time of last channel update
         self.update_mutex = Lock()
         self.download_manager = None
         self.player = None
         self.nthreads = 8
+
+        # item lists
+        self.media = CallbackDeque()
+        self.channels = CallbackDeque()
 
         self.add_channels()
         self.add_media()
@@ -64,7 +71,32 @@ class ItemList():
         for medium in self.media:
             if ('local' == medium['location'] and
                     not os.path.isfile(medium['filename'])):
-                self.remove(medium=medium, unlink=False)
+                self.remove_media(medium=medium, unlink=False)
+
+    def get_list(self, list_class, callback=noop):
+        if list_class == 'media':
+            itemlist = self.media
+
+        elif list_class == 'channels':
+            itemlist = self.channels
+
+        elif list_class == 'browse':
+            itemlist = CallbackDeque()
+
+        itemlist.callbacks.append(callback)
+        return itemlist
+
+    def close_list(self, itemlist, callback=noop):
+        itemlist.callbacks.remove(callback)
+        if itemlist is self.media:
+            pass
+        elif itemlist is self.channels:
+            pass
+        elif not itemlist.callbacks:
+            del itemlist
+
+    def get_callbacks(self, itemlist):
+        return itemlist.callbacks
 
     def media_update_index(self, media=None):
         if media is None:
@@ -102,6 +134,7 @@ class ItemList():
         for c in channels:
             c['media'] = deque()
 
+        run_all(self.get_callbacks(self.channels), ('new', channels))
         return channels
 
     def disable_channels(self, origin, channel_ids, enable=False):
@@ -112,6 +145,7 @@ class ItemList():
             else:
                 channel['disabled'] = True
             self.db.update_channel(channel)
+        run_all(self.get_callbacks(self.channels), ('modified', channels))
         return channels
 
     def remove_channels(self, origin, channel_ids):
@@ -142,11 +176,11 @@ class ItemList():
         else:
             self.print_infos(f'{len(cids)} channel(s) removed')
 
+        run_all(self.get_callbacks(self.channels), ('removed', channels))
         return channels
 
     def add_media(self, media=None):
         if media is None:
-            self.media = deque()
             for c in self.channels:
                 c['media'] = deque()
             media = self.db.select_media()
@@ -162,26 +196,28 @@ class ItemList():
         for m in media:
             m['channel']['media'].append(m)
 
+        run_all(self.get_callbacks(self.media), ('new', media))
         return media
 
-    def download_manager_init(self, dl_marked=False, cb=None):
+    def download_manager_init(self, dl_marked=False):
         if self.download_manager is None:
             self.download_manager = backends.DownloadManager(
-                self.db, self.print_infos, wait=self.wait, cb=cb)
+                self.db, self.print_infos, wait=self.wait,
+                cb=self.get_callbacks(self.media))
 
         if dl_marked:
             self.download_marked()
 
-    def download_marked(self, cb=None):
+    def download_marked(self):
         for medium in self.media:
             if 'download' == medium['location']:
                 self.download_manager.add(medium, update=False)
         if self.wait:
             self.wait_done()
 
-    def download(self, indices, cb=None):
+    def download(self, indices):
         if self.download_manager is None:
-            self.download_manager_init(cb=cb)
+            self.download_manager_init()
 
         if isinstance(indices, int):
             indices = [indices]
@@ -194,28 +230,31 @@ class ItemList():
             elif medium['location'] == 'download':
                 self.download_manager.cancel_download(medium)
             else:
-                self.remove(medium=medium, mark_as_read=False)
+                self.remove_media(medium=medium, mark_as_read=False)
             media.append(medium)
+
+        run_all(self.get_callbacks(self.media), ('modified', media))
         return media
 
-    def player_init(self, cb=None):
-        self.player = player.Player(self, self.print_infos, cb=cb)
+    def player_init(self):
+        self.player = player.Player(self, self.print_infos,
+                                    cb=self.get_callbacks(self.media))
 
-    def play(self, indices):
+    def play(self, itemlist, indices):
         if not indices:
             return
         # Play first item
         idx = indices[0]
-        medium = self.media[idx]
+        medium = itemlist[idx]
         self.player.play(medium)
         # Enqueue next items
         if len(indices) > 1:
             next_elems = [indices[i] for i in range(1, len(indices))]
-            self.playadd(next_elems)
+            self.playadd(itemlist, next_elems)
 
-    def playadd(self, indices):
+    def playadd(self, itemlist, indices):
         for idx in indices:
-            medium = self.media[idx]
+            medium = itemlist[idx]
             self.player.add(medium)
 
     def stop(self):
@@ -241,33 +280,28 @@ class ItemList():
             except DataBaseUpdateException:
                 self.print_infos('Update media failed!', mode='error')
 
+        run_all(self.get_callbacks(self.media), ('modified', media))
         return media
 
-    def update_media(self, indices, where='media', cb=None):
-        if isinstance(indices, int):
-            indices = [indices]
-
-        if where == 'media':
-            medialist = self.media
-        elif where == 'search':
-            medialist = self.search
-        elif where == 'open':
-            medialist = self.open
-        else:
-            raise ValueError('Bad "where"')
-
-        media = [medialist[idx] for idx in indices]
-        if where == 'media':
+    def update_media(self, indices, itemlist=None):
+        if itemlist is None:
+            itemlist = self.media
             update_db = True
         else:
             update_db = False
 
-        args = (media, )
-        kwargs = {'cb': cb, 'update_db': update_db}
+        if isinstance(indices, int):
+            indices = [indices]
+
+        media = [itemlist[idx] for idx in indices]
+
+        kwargs = {
+            'update_db': update_db
+        }
         threads = []
         enum_media = list(enumerate(media))
         for t in range(self.nthreads):
-            args = (enum_media, len(media))
+            args = (enum_media, len(media), itemlist)
             thread = Thread(target=self.update_media_task,
                             args=args, kwargs=kwargs)
             thread.daemon = True
@@ -278,7 +312,7 @@ class ItemList():
             for thread in threads:
                 thread.join()
 
-    def update_media_task(self, enum_media, size, cb=None, update_db=True):
+    def update_media_task(self, enum_media, size, itemlist, update_db=True):
         updated_media = []
         nfailed = 0
 
@@ -294,8 +328,8 @@ class ItemList():
                     if update_db:
                         self.db.update_medium(medium)
                     updated_media.append(medium)
-                    if cb:
-                        cb(medium)
+                    run_all(self.get_callbacks(itemlist),
+                            ("modified", [medium]))
                 except DataBaseUpdateException:
                     nfailed += 1
 
@@ -305,8 +339,8 @@ class ItemList():
 
         return updated_media
 
-    def remove(self, indices=None, medium=None, unlink=True,
-               mark_as_read=True):
+    def remove_media(self, indices=None, medium=None, unlink=True,
+                     mark_as_read=True):
         media = None
         if indices is not None:
             media = [self.media[idx] for idx in indices]
@@ -359,6 +393,7 @@ class ItemList():
                 self.print_infos(f'Update media "{media["title"]}" failed!',
                                  mode='error')
 
+        run_all(self.get_callbacks(self.media), ('removed', updated_media))
         return updated_media
 
     def apply_user_add_options(self, opts, sopts):
@@ -388,7 +423,7 @@ class ItemList():
             # Merge options
             opts.update(uopts)
 
-    def new_channel(self, url, sopts=None, cb=None):
+    def new_channel(self, url, sopts=None):
         opts = {
             'count': -1,
             'strict': 0,
@@ -422,13 +457,13 @@ class ItemList():
         self.print_infos(f'Add {url} ({opts["count"]} elements requested)')
 
         thread = Thread(target=self.new_channel_task,
-                        args=(cleanurl, opts, cb))
+                        args=(cleanurl, opts))
         thread.daemon = True
         thread.start()
         if self.wait:
             thread.join()
 
-    def new_channel_task(self, url, opts, cb):
+    def new_channel_task(self, url, opts):
         # Retrieve url feed
         data = backends.get_all_data(url, opts, self.print_infos)
 
@@ -451,10 +486,8 @@ class ItemList():
         self.add_media(media)
 
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
-        if cb is not None:
-            cb('channel', 'new', [data])
 
-    def open_url(self, url, sopts=None):
+    def open_url(self, itemlist, url, sopts=None):
         opts = {
             'count': -1,
             'strict': 0,
@@ -477,14 +510,15 @@ class ItemList():
         for i, m in enumerate(media):
             m['uploader'] = data['title']
             m['uploader_url'] = data['url']
-            m['index'] = len(self.open)+i
-        self.open.extend(media)
+            m['index'] = len(itemlist)+i
+        itemlist.extend(media)
+        run_all(self.get_callbacks(itemlist), ('new', media))
 
         self.print_infos(f'{data["title"]} opened ({len(media)} media)')
 
         return media
 
-    def new_video(self, url, sopts=None, cb=None):
+    def new_video(self, url, sopts=None):
         opts = {
             'categories': '',
             'force': False,
@@ -526,9 +560,8 @@ class ItemList():
                     self.add_media(new_media)
                     self.print_infos(
                         f'\"{channel["title"]}\" updated with video')
-                    if cb is not None:
-                        cb('channel', 'modified', [channel], only=True)
-                        cb('medium', 'new', new_media, only=True)
+                    run_all(self.get_callbacks(self.channels),
+                            ('modified', [channel]))
 
         # We create a new disabled channel
         else:
@@ -546,22 +579,13 @@ class ItemList():
             self.add_media(media)
 
             self.print_infos(f'{data["title"]} added ({len(media)} media)')
-            if cb is not None:
-                cb('channel', 'new', [data])
 
-    def medium_idx_to_object(self, idx):
-        return self.media[idx]
+    def medium_idx_to_object(self, itemlist, idx):
+        return itemlist[idx]
 
-    def medium_idx_to_objects(self, idx):
-        medium = [self.medium_idx_to_object(m) for m in idx]
+    def medium_idx_to_objects(self, itemlist, idx):
+        medium = [self.medium_idx_to_object(itemlist, m) for m in idx]
         return [m for m in medium if m is not None]
-
-    def search_idx_to_object(self, idx):
-        return self.search[idx]
-
-    def search_idx_to_objects(self, idx):
-        search = [self.search_idx_to_object(s) for s in idx]
-        return [s for s in search if s is not None]
 
     def channel_id_to_object(self, origin, channel_id):
         if origin == 'ui':
@@ -630,6 +654,7 @@ class ItemList():
 
             self.db.update_channel(channel)
 
+        run_all(self.get_callbacks(self.channels), ('modified', channels))
         return channels
 
     def channel_set_categories(self, origin, channel_ids, add_categories,
@@ -652,6 +677,7 @@ class ItemList():
         self.print_infos(f'Categories: add "{add_category_str}" '
                          f'remove "{remove_category_str}"')
 
+        run_all(self.get_callbacks(self.channels), ('modified', channels))
         return channels
 
     def channel_set_mask(self, origin, channel_id, mask):
@@ -660,10 +686,11 @@ class ItemList():
         self.db.update_channel(channel)
         self.print_infos('Mask updated')
 
+        run_all(self.get_callbacks(self.channels), ('modified', [channel]))
         return channel
 
     def update_channels(self, origin, channel_ids=None, wait=False,
-                        force_all=False, cb=None):
+                        force_all=False):
         if channel_ids is None:
             channels = self.db.select_channels()
             channels = [c for c in channels if not c['disabled']]
@@ -673,7 +700,8 @@ class ItemList():
         threads = []
         enum_channels = list(enumerate(channels))
         nchannels = len(channels)
-        args = (enum_channels, cb, nchannels, force_all)
+        args = (enum_channels, nchannels)
+        kwargs = {'force_all': force_all}
 
         ready = self.update_mutex.acquire(blocking=False)
         if not ready:
@@ -684,7 +712,8 @@ class ItemList():
         self.print_infos('Update...')
 
         for t in range(self.nthreads):
-            thread = Thread(target=self.update_task, args=args)
+            thread = Thread(target=self.update_channels_task,
+                            args=args, kwargs=kwargs)
             thread.daemon = True
             thread.start()
             threads.append(thread)
@@ -704,11 +733,14 @@ class ItemList():
             thread.daemon = True
             thread.start()
 
-    def update_task(self, enum_channels, cb, nchannels, force_all=False):
+    def update_channels_task(self, enum_channels, nchannels, force_all=False):
         new_media_num = 0
         updated_channels = []
 
         need_to_wait = False
+
+        media_cb = self.get_callbacks(self.media)
+        channel_cb = self.get_callbacks(self.channels)
 
         while True:
             try:
@@ -746,22 +778,21 @@ class ItemList():
                 sub_media = [medium for medium in new_media
                              if regex.match(medium['title'])]
                 if sub_media:
-                    self.download_manager_init(cb=cb)
+                    self.download_manager_init()
                     for s in sub_media:
                         self.download_manager.add(s)
                         need_to_wait = True
-                    cb('medium', 'modified', sub_media, only=True)
+                    run_all(media_cb, ('modified', sub_media))
 
             new_media.sort(key=operator.itemgetter('date'), reverse=False)
             self.add_media(new_media)
-            cb('channel', 'modified', updated_channels, only=True)
-            cb('medium', 'new', new_media, only=True)
+            run_all(channel_cb, ('modified', updated_channels))
 
         if self.wait and need_to_wait:
             self.print_infos('Wait for downloads to complete...')
             self.download_manager.wait_done()
 
-    def add_search_media(self, search, source, count=50):
+    def add_search_media(self, itemlist, search, source, count=30):
         media = backends.search_media(search, source, self.print_infos,
                                       count=count)
 
@@ -769,8 +800,8 @@ class ItemList():
             return
 
         for i, m in enumerate(media):
-            m['index'] = len(self.search)+i
-        self.search.extend(media)
+            m['index'] = len(itemlist)+i
+        itemlist.extend(media)
 
         self.print_infos(f'Search done ({len(media)} media added)!')
 
@@ -812,4 +843,5 @@ class ItemList():
         self.print_infos(f'tags: add "{add_tag_str}" '
                          f'remove "{remove_tag_str}"')
 
+        run_all(self.get_callbacks(self.media), ('modified', media))
         return media
