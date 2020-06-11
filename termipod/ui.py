@@ -988,19 +988,19 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
     text_width = width-inner_margin*2
 
     flines = []
-    for l in lines:
-        flines.extend(format_string(l, text_width, truncate=False))
+    for line in lines:
+        flines.extend(format_string(line, text_width, truncate=False))
 
     height = len(flines)+2  # for border
     if fit:
-        max_text_width = max([len(l.strip()) for l in flines])
+        max_text_width = max([len(line.rstrip()) for line in flines])
         fit_size = max_text_width+inner_margin*2
         if fit_size < width:
             width = fit_size
             text_width = max_text_width
             flines = []
-            for l in lines:
-                flines.extend(format_string(l, text_width, truncate=False))
+            for line in lines:
+                flines.extend(format_string(line, text_width, truncate=False))
 
     # Compute first line position
     if height > max_height:
@@ -1805,15 +1805,16 @@ class ItemArea:
             ),
         }
 
+        sep = u"\u2022 "
         lines = []
         if cmd is None:
             for key, desc in commands.items():
-                lines.append(f'{key} - {desc[0]}')
-                lines.append(f'  Usage: {desc[1]}')
+                lines.append(f'{sep}{key} - {desc[0]}')
+                lines.append(f'    Usage: {desc[1]}')
         else:
             desc = commands[cmd]
             lines.append(f'{cmd} - {desc[0]}')
-            lines.append(f'  Usage: {desc[1]}')
+            lines.append(f'    Usage: {desc[1]}')
 
         print_popup(lines)
 

@@ -84,7 +84,7 @@ def format_string(string, width, truncate=True):
     '''
 
     # If line is too long
-    string = string.strip()
+    string = string.rstrip()
     if truncate:
         space = width-len(string)
         if 0 > space:
