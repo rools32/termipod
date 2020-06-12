@@ -41,6 +41,7 @@ def init(**kwargs):
 
     default_config_dir = appdirs.user_config_dir(appname, appauthor)
     default_cache_dir = appdirs.user_cache_dir(appname, appauthor)
+    default_data_dir = appdirs.user_data_dir(appname, appauthor)
 
     default = {
         'Global.log_path': (
@@ -48,7 +49,7 @@ def init(**kwargs):
             'Absolute  path'
         ),
         'Global.db_path': (
-            f'{default_config_dir}/{appname}.db',
+            f'{default_data_dir}/{appname}.db',
             'Absolute  path'
         ),
         'Global.thumbnail_path': (
