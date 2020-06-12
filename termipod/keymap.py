@@ -24,13 +24,26 @@ keycodes = {}
 keynames = {}
 lastkey = None
 keymap = None
+mousecodes = {}
 
 
 def get_key(screen):
     global lastkey
     key = screen.getch()
     lastkey = key
-    return key
+
+    key_name = get_key_name(key)
+
+    mouse = None
+    if key_name == 'KEY_MOUSE':
+        try:
+            mouse = curses.getmouse()
+            key = mouse[4]
+            key_name = get_mouse_codes(key)
+        except curses.error:
+            return None
+
+    return key, key_name, mouse
 
 
 def get_last_key():
@@ -56,9 +69,54 @@ def init_key_tables(screen):
             keycodes[keyname] = i
             keynames[i] = keyname
 
+    keys = (
+        'BUTTON1_PRESSED',
+        'BUTTON1_RELEASED',
+        'BUTTON1_CLICKED',
+        'BUTTON1_DOUBLE_CLICKED',
+        'BUTTON1_TRIPLE_CLICKED',
+        'BUTTON2_PRESSED',
+        'BUTTON2_RELEASED',
+        'BUTTON2_CLICKED',
+        'BUTTON2_DOUBLE_CLICKED',
+        'BUTTON2_TRIPLE_CLICKED',
+        'BUTTON3_PRESSED',
+        'BUTTON3_RELEASED',
+        'BUTTON3_CLICKED',
+        'BUTTON3_DOUBLE_CLICKED',
+        'BUTTON3_TRIPLE_CLICKED',
+        'BUTTON4_PRESSED',
+        'BUTTON4_RELEASED',
+        'BUTTON4_CLICKED',
+        'BUTTON4_DOUBLE_CLICKED',
+        'BUTTON4_TRIPLE_CLICKED',
+        'BUTTON_SHIFT',
+        'BUTTON_CTRL',
+        'BUTTON_ALT',
+    )
+    for k in keys:
+        mousecodes[getattr(curses, k)] = k
+
+
+def get_mouse_codes(state):
+    try:
+        return mousecodes[state]
+    except KeyError:  # weird behavior of curses
+        # We use state value directly
+        return f'KEY_MOUSE:{state}'
+
 
 def get_key_code(key_name):
-    return keycodes[key_name]
+    try:
+        return keycodes[key_name]
+    except KeyError:
+        # If we have a mouse code
+        km_prefix = 'KEY_MOUSE:'
+        if key_name.startswith(km_prefix):
+            return int(key_name[len(km_prefix):])
+
+        else:
+            return getattr(curses, key_name)
 
 
 def get_key_name(key_code):
@@ -73,7 +131,7 @@ def get_keymap():
 
 class Keymap():
     def __init__(self):
-        self.keymaps = self.load_keymap(Config.keys)
+        self.keymaps = self.load_keymap(Config.get('Keymap'))
 
         self.keys = {}
         self.actions = {}
@@ -84,10 +142,13 @@ class Keymap():
 
     def add_key(self, area_type, key, action):
         if key not in keycodes:
-            raise ValueError(
-                f"Key '{key}' for {action} is not handled, "
-                "please fix your config file (or remove Keymap section "
-                "to have default key binding")
+            # If not mouse button
+            if (not hasattr(curses, key)
+                    and not key.startswith('KEY_MOUSE:')):
+                raise ValueError(
+                    f"Key '{key}' for {action} is not handled, "
+                    "please fix your config file (or remove Keymap section "
+                    "to have default key binding")
         self.keys[(area_type, key)] = action
         if action not in self.actions:
             self.actions[action] = []
@@ -121,6 +182,9 @@ class Keymap():
 
         lines = []
         for action, key_list in keys.items():
+            if action[0] == '~':
+                action = action[1:]
+
             if not key_list:
                 key_list = '<empty>'
             num_spaces = max_len-len(key_list)+1
@@ -140,6 +204,7 @@ class Keymap():
 
                 key = value[value.index('/')+1:]
                 key = bytes(key, "utf-8").decode("unicode_escape")
+
                 for w in where.split(','):
                     keymaps.append((w, key, action))
 
@@ -154,6 +219,7 @@ descriptions = {
         'page_up': 'Go one page up',
         'top': 'Go top',
         'bottom': 'Go bottom',
+        'move_line': 'Move to mouse position',
         'tab_next': 'Go next tab',
         'tab_prev': 'Go previous tab',
         'help': 'Show help',

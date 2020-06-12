@@ -66,6 +66,8 @@ def init():
     screen.refresh()
     tabs = Tabs(screen)
     info_area = InfoArea(screen)
+    if Config.get('Global.use_mouse'):
+        curses.mousemask(curses.ALL_MOUSE_EVENTS)
 
 
 def loop():
@@ -123,10 +125,10 @@ def loop():
 
     while True:
         # Wait for key
-        key_code = get_key(screen)
-        key_name = get_key_name(key_code)
-        if key_name is None:
+        key_info = get_key(screen)
+        if key_info is None:
             continue
+        key_code, key_name, mouse = key_info
 
         area = tabs.get_current_area()
         area_key_class = area.key_class
@@ -138,6 +140,18 @@ def loop():
         if action is None:
             print_infos("Key '%r' not mapped for %s" %
                         (key_name, area_key_class))
+            continue
+
+        ###################################################################
+        # Mouse commands
+        ###################################################################
+        if action[0] == '~':
+            tabs.move_screen('line', 'set', mouse[2]-1)
+            action = action[1:]
+            idx = area.get_idx()
+
+        if action == 'move_line':
+            tabs.move_screen('line', 'set', mouse[2]-1)
 
         ###################################################################
         # All tab commands
@@ -1081,6 +1095,7 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
             'page_up',
             'top',
             'bottom',
+            'move_line',
             'search_next',
             'search_prev',
             'thumbnail',
@@ -1088,7 +1103,11 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
         for k in keymap.get_keys(a)
     }
 
-    key = get_key(screen)
+    key_info = get_key(screen)
+    if key_info is None:
+        curses.ungetch(this_popup_key)
+        return
+    key, key_name, mouse = key_info
 
     if key in [get_key_code(k) for k in keymap.get_keys('search_get')]:
         print_popup.popup_search = run_command('/')
@@ -1098,13 +1117,22 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
         if key == this_popup_key:
             pass
         elif key not in move_keys:
-            curses.ungetch(key)
+            if mouse is None:
+                curses.ungetch(key)
+            else:
+                curses.ungetmouse(*mouse)
         else:
             curses.ungetch(this_popup_key)
-            curses.ungetch(key)
+            if mouse is None:
+                curses.ungetch(key)
+            else:
+                curses.ungetmouse(*mouse)
     else:
         if key != this_popup_key or not close_on_repeat:
-            curses.ungetch(key)
+            if mouse is None:
+                curses.ungetch(key)
+            else:
+                curses.ungetmouse(*mouse)
 
     tabredraw()
 
@@ -1206,9 +1234,9 @@ class Tabs:
             way = 1
         self.show_tab((self.current_idx+1*way) % len(self.areas))
 
-    def move_screen(self, what, way):
+    def move_screen(self, what, way, number=1):
         area = self.get_current_area()
-        area.move_screen(what, way)
+        area.move_screen(what, way, number)
 
     def highlight(self, search_string):
         area = self.get_current_area()
@@ -1918,23 +1946,31 @@ class ItemArea:
         redraw = False
         # Move one line down
         idx = self.position_to_idx(self.first_line, self.cursor)
-        if what == 'line' and way == 'down':
-            # More lines below
-            idx += number
-        # Move one line up
-        elif what == 'line' and way == 'up':
-            # More lines above
-            idx -= number
-        # Move one page down
-        elif what == 'page' and way == 'down':
-            idx += self.height*number
-        # Move one page up
-        elif what == 'page' and way == 'up':
-            idx -= self.height*number
-        elif what == 'all' and way == 'up':
-            idx = 0
-        elif what == 'all' and way == 'down':
-            idx = len(self.contents)-1
+
+        # Move with line granularity
+        if what == 'line':
+            if way == 'down':
+                # More lines below
+                idx += number
+            elif way == 'up':
+                # More lines above
+                idx -= number
+            elif way == 'set':
+                idx = self.first_line+number
+
+        # Move with page granularity
+        elif what == 'page':
+            if way == 'down':
+                idx += self.height*number
+            elif way == 'up':
+                idx -= self.height*number
+
+        # Move top/bottom
+        elif what == 'all':
+            if way == 'up':
+                idx = 0
+            elif way == 'down':
+                idx = len(self.contents)-1
 
         if 0 > idx:
             idx = 0

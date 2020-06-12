@@ -20,6 +20,7 @@ import yaml
 import os
 from os.path import expanduser
 import collections.abc
+import curses
 
 import appdirs
 import sys
@@ -80,6 +81,10 @@ def init(**kwargs):
             False,
             'Reverse sort order'
         ),
+        'Global.use_mouse': (
+            True,
+            'Enable mouse usage (restart to apply)'
+        ),
         'Global.thumbnail_max_total_mb': (
             256,
             'Max total size (in MB) before removing oldest files'
@@ -123,9 +128,7 @@ def init(**kwargs):
         this.set(param, default_params[param][0], create=True)
 
     # Add default keymap
-    default_keymap_config = default_keymap_to_config()
-    config['Keymap'] = default_keymap_config
-    this.keys = config['Keymap']
+    config['Keymap'] = default_keymap_to_config()
 
     # If config file exists, we read it and set found values
     if os.path.exists(this.config_path):
@@ -244,6 +247,11 @@ def default_keymap_to_config():
         ('channels', 'E', 'channel_category'),
         ('channels', 'm', 'channel_mask'),
         ('channels', 'U', 'channel_force_update'),
+
+        ('*', 'BUTTON1_CLICKED', 'move_line'),
+        ('*', 'BUTTON1_DOUBLE_CLICKED', '~medium_playadd'),
+        ('*', 'KEY_MOUSE:2097152', 'page_down'),
+        ('*', 'BUTTON4_PRESSED', 'page_up'),
     ]
 
     # Write default keymaps
