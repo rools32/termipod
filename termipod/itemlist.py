@@ -176,6 +176,7 @@ class ItemLists():
             num_media = 0
 
             # Update channels and media
+            media = []
             for channel in channels:
                 channel_idx = self.channels.index(channel)
                 del self.channels[channel_idx]
@@ -184,6 +185,7 @@ class ItemLists():
                 mi_to_remove.sort(reverse=True)
                 num_media += len(mi_to_remove)
                 for mi in mi_to_remove:
+                    media.append(self.media[mi])
                     del self.media[mi]
 
             self.media_update_index()
@@ -194,6 +196,7 @@ class ItemLists():
             self.print_infos(f'{len(cids)} channel(s) removed')
 
         run_all(self.get_callbacks(self.channels), ('removed', channels))
+        run_all(self.get_callbacks(self.media), ('removed', media))
         return channels
 
     def add_media(self, media=None):
