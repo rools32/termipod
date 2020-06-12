@@ -195,9 +195,9 @@ class DownloadManager():
             sleep(2)
 
         while True:
-            medium = q.get()
+            medium, cb = q.get()
             try:
-                self.download(medium)
+                self.download(medium, cb)
                 q.task_done()
             except DownloadError:
                 if not medium['link'] in self.handle_queue.retries:
@@ -212,7 +212,7 @@ class DownloadManager():
                 self.add(medium, update=False)
     handle_queue.retries = {}
 
-    def add(self, medium, update=True):
+    def add(self, medium, cb=noop, update=True):
         if update:
             self.print_infos('Add to download: %s' % medium['title'])
             medium['location'] = 'download'
@@ -221,12 +221,12 @@ class DownloadManager():
         if medium['link'] in self.cancel_requests:
             del self.cancel_requests[medium['link']]
 
-        self.queue.put(medium)
+        self.queue.put((medium, cb))
 
     def wait_done(self):
         self.queue.join()
 
-    def download(self, medium):
+    def download(self, medium, cb):
         link = medium['link']
         channel = medium['channel']
 

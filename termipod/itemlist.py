@@ -241,7 +241,8 @@ class ItemLists():
         for idx in indices:
             medium = self.media[idx]
             if medium['location'] == 'remote':
-                self.download_manager.add(medium)
+                self.download_manager.add(medium,
+                                          cb=self.get_callbacks(self.media))
             elif medium['location'] == 'download':
                 self.download_manager.cancel_download(medium)
             else:
@@ -252,8 +253,7 @@ class ItemLists():
         return media
 
     def player_init(self):
-        self.player = player.Player(self, self.print_infos,
-                                    cb=self.get_callbacks(self.media))
+        self.player = player.Player(self, self.print_infos)
 
     def play(self, itemlist, indices):
         if not indices:
@@ -261,7 +261,7 @@ class ItemLists():
         # Play first item
         idx = indices[0]
         medium = itemlist[idx]
-        self.player.play(medium)
+        self.player.play(medium, cb=self.get_callbacks(self.media))
         # Enqueue next items
         if len(indices) > 1:
             next_elems = [indices[i] for i in range(1, len(indices))]
@@ -270,7 +270,7 @@ class ItemLists():
     def playadd(self, itemlist, indices):
         for idx in indices:
             medium = itemlist[idx]
-            self.player.add(medium)
+            self.player.add(medium, cb=self.get_callbacks(self.media))
 
     def stop(self):
         self.player.stop()

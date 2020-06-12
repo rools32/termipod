@@ -24,13 +24,13 @@ import termipod.backends as Backends
 
 
 class Player():
-    def __init__(self, item_list, print_infos, cb=noop):
+    def __init__(self, item_list, print_infos):
         self.item_list = item_list
         self.print_infos = print_infos
-        self.cb = cb
         self.player = None
         self.current_filename = None
         self.playlist = {}
+        self.callbacks = {}
 
     def start(self):
         self.player = mpv.MPV(
@@ -98,6 +98,7 @@ class Player():
     def mark_as_played(self, unlink=False):
         db = self.item_list.db
         medium = self.playlist[self.current_filename]
+        cb = self.callbacks[self.current_filename]
         medium['state'] = 'read'
         self.print_infos('Mark as read %s' % medium['title'])
 
@@ -109,9 +110,9 @@ class Player():
         if medium['location'] != 'browse':
             db.update_media([medium])
 
-        run_all(self.cb, ('modified', [medium]))
+        run_all(cb, ('modified', [medium]))
 
-    def play(self, medium, now=True):
+    def play(self, medium, cb=noop, now=True):
         if now:
             self.print_infos('Play '+medium['title'])
         else:
@@ -130,6 +131,7 @@ class Player():
                 target = medium['link']
 
         self.playlist[target] = medium
+        self.callbacks[target] = cb
         self.player.loadfile(target, 'append-play')
         if now:
             self.player.playlist_pos = self.player.playlist_count-1
@@ -143,8 +145,8 @@ class Player():
     def prev(self):
         self.player.playlist_prev(mode='force')
 
-    def add(self, medium):
-        self.play(medium, now=False)
+    def add(self, medium, cb=noop):
+        self.play(medium, cb=cb, now=False)
 
     def stop(self):
         if self.player:
