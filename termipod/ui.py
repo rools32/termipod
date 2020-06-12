@@ -76,7 +76,7 @@ def loop():
             if Config.get('Global.update_minutes'):
                 if (time.time()-item_lists.lastupdate >
                         Config.get('Global.update_minutes')*60):
-                    item_lists.update_channels('ui', wait=True)
+                    item_lists.update_channels(wait=True)
 
             # Check frequently in case update_minutes changes
             time.sleep(30)
@@ -512,8 +512,8 @@ def loop():
                     print_infos('Not in channel area')
 
                 else:
-                    sel = tabs.get_user_selection(idx)
-                    channels = item_lists.disable_channels('ui', sel)
+                    channels = tabs.get_user_selection(idx)
+                    item_lists.disable_channels(channels)
 
             elif command[0] in ('channelEnable',):
                 if len(command) != 1:
@@ -522,9 +522,8 @@ def loop():
                     print_infos('Not in channel area')
 
                 else:
-                    sel = tabs.get_user_selection(idx)
-                    channels = item_lists.disable_channels(
-                        'ui', sel, enable=True)
+                    channels = tabs.get_user_selection(idx)
+                    item_lists.disable_channels(channels, enable=True)
 
             elif command[0] in ('channelRemove',):
                 if len(command) != 1:
@@ -532,8 +531,8 @@ def loop():
                 elif area.key_class != 'channels':
                     print_infos('Not in channel area')
                 else:
-                    sel = tabs.get_user_selection(idx)
-                    channels = item_lists.remove_channels('ui', sel)
+                    channels = tabs.get_user_selection(idx)
+                    item_lists.remove_channels(channels, update_media=True)
 
             # HTTP server
             elif command[0] in ('httpServerStart',):
@@ -619,12 +618,9 @@ def loop():
                 continue
 
             if area.category == 'media':
-                itemlist = area.get_list()
-                media = item_lists.medium_idx_to_objects(itemlist, sel)
-                urls = [m['link'] for m in media]
+                urls = [m['link'] for m in sel]
             elif area.category == 'channels':
-                channels = item_lists.channel_ids_to_objects('ui', sel)
-                urls = [c['url'] for c in channels]
+                urls = [c['url'] for c in sel]
             else:
                 raise NotImplementedError(
                     'URL copy not implemented for this area')
@@ -651,33 +647,35 @@ def loop():
 
         elif 'medium_play' == action:
             itemlist = area.get_list()
-            sel = tabs.get_user_selection(idx)
-            item_lists.play(itemlist, sel)
+            media = tabs.get_user_selection(idx)
+            item_lists.play(itemlist, media)
 
         elif 'medium_playadd' == action:
             itemlist = area.get_list()
-            sel = tabs.get_user_selection(idx)
-            item_lists.playadd(itemlist, sel)
+            media = tabs.get_user_selection(idx)
+            item_lists.playadd(itemlist, media)
 
         elif 'medium_stop' == action:
             item_lists.stop()
 
         elif 'medium_remove' == action:
             # TODO if is being played: self.item_lists.stop()
-            sel = tabs.get_user_selection(idx)
-            media = item_lists.remove_media(sel)
+            media = tabs.get_user_selection(idx)
+            media = item_lists.remove_media(media)
 
         elif 'channel_filter' == action:
             tabs.filter_by_channels()
 
         elif 'category_filter' == action:
             sel = tabs.get_user_selection(idx)
-            if isinstance(area, MediumArea):
-                itemlist = area.get_list()
-                media = item_lists.medium_idx_to_objects(itemlist, sel)
-                channels = [medium['channel'] for medium in media]
+
+            if area.category == 'media':
+                channels = [medium['channel'] for medium in sel]
+            elif area.category == 'channels':
+                channels = sel
             else:
-                channels = item_lists.channel_ids_to_objects('ui', sel)
+                raise NotImplementedError(
+                    'category_filter not implemented for this area')
 
             if channels:
                 categories = set(channels[0]['categories'])
@@ -719,17 +717,15 @@ def loop():
             else:
                 skip = False
 
-            sel = tabs.get_user_selection(idx)
-            media = item_lists.switch_read(sel, skip)
+            media = tabs.get_user_selection(idx)
+            item_lists.switch_read(media, skip)
 
         elif 'medium_update' == action:
-            sel = tabs.get_user_selection(idx)
-            item_lists.update_media(sel, itemlist=area.get_list())
+            media = tabs.get_user_selection(idx)
+            item_lists.update_media(media, itemlist=area.get_list())
 
         elif 'medium_tag' == action:
-            sel = tabs.get_user_selection(idx)
-            itemlist = area.get_list()
-            media = item_lists.medium_idx_to_objects(itemlist, sel)
+            media = tabs.get_user_selection(idx)
 
             # Shared tags
             shared_tags = set.intersection(
@@ -752,13 +748,10 @@ def loop():
             add_tags = tags-shared_tags
             remove_tags = shared_tags-tags
 
-            media = item_lists.medium_set_tags(
-                'ui', sel, add_tags, remove_tags)
+            item_lists.medium_set_tags(media, add_tags, remove_tags)
 
         elif 'tag_filter' == action:
-            sel = tabs.get_user_selection(idx)
-            itemlist = area.get_list()
-            media = item_lists.medium_idx_to_objects(itemlist, sel)
+            media = tabs.get_user_selection(idx)
 
             if media:
                 tags = set(media[0]['tags'])
@@ -789,9 +782,7 @@ def loop():
             tabs.filter_by_selection()
 
         elif 'medium_show_channel' == action:
-            sel = tabs.get_user_selection(idx)
-            itemlist = area.get_list()
-            media = item_lists.medium_idx_to_objects(itemlist, sel)
+            media = tabs.get_user_selection(idx)
             if media:
                 ids = [m['channel']['id'] for m in media]
 
@@ -806,22 +797,22 @@ def loop():
         # Remote medium commands
         ###################################################################
         elif 'medium_download' == action:
-            sel = tabs.get_user_selection(idx)
-            media = item_lists.download(sel)
+            itemlist = area.get_list()
+            media = tabs.get_user_selection(idx)
+            item_lists.download(itemlist, media)
 
         elif 'channel_update' == action:
             # If in channel tab we update only user_selection
             if 'channels' == area.key_class:
-                sel = tabs.get_user_selection(idx)
+                channels = tabs.get_user_selection(idx)
             # We update all channels
             else:
-                sel = None
-            item_lists.update_channels('ui', channel_ids=sel)
+                channels = None
+            item_lists.update_channels(channels)
 
         elif ('send_to_last_playlist' == action
               or 'send_to_playlist' == action):
-            sel = tabs.get_user_selection(idx)
-            itemlist = area.get_list()
+            media = tabs.get_user_selection(idx)
 
             if last_playlist_area is None or action == 'send_to_playlist':
                 # Choose base name
@@ -842,7 +833,7 @@ def loop():
                 area = last_playlist_area
 
             pl_itemlist = area.get_list()
-            item_lists.add_to_other_itemlist(itemlist, pl_itemlist, sel)
+            item_lists.add_to_other_itemlist(pl_itemlist, media)
 
         ###################################################################
         # Downloading medium commands
@@ -852,26 +843,24 @@ def loop():
         # Channel commands
         ###################################################################
         elif 'channel_auto' == action:
-            sel = tabs.get_user_selection(idx)
-            channels = item_lists.channel_set_auto('ui', sel)
+            channels = tabs.get_user_selection(idx)
+            item_lists.channel_set_auto(channels)
 
         elif 'channel_auto_custom' == action:
-            sel = tabs.get_user_selection(idx)
+            channels = tabs.get_user_selection(idx)
             auto = run_command('auto: ')
             if auto is None:
                 continue
-            channels = item_lists.channel_set_auto('ui', sel, auto)
+            item_lists.channel_set_auto(channels, auto)
 
         elif 'channel_show_media' == action:
-            sel = tabs.get_user_selection(idx)
-            channels = [item_lists.channels[s] for s in sel]
+            channels = tabs.get_user_selection(idx)
             if channels:
                 tabs.add_tab(MediumArea(screen, 'Media from channels'))
                 tabs.filter_by_channels(channels)
 
         elif 'channel_category' == action:
-            sel = tabs.get_user_selection(idx)
-            channels = item_lists.channel_ids_to_objects('ui', sel)
+            channels = tabs.get_user_selection(idx)
 
             # Shared categories
             shared_categories = set.intersection(
@@ -894,12 +883,11 @@ def loop():
             add_categories = categories-shared_categories
             remove_categories = shared_categories-categories
 
-            channels = item_lists.channel_set_categories(
-                'ui', sel, add_categories, remove_categories)
+            item_lists.channel_set_categories(
+                channels, add_categories, remove_categories)
 
         elif 'channel_mask' == action:
-            sel = tabs.get_user_selection(idx)
-            channels = item_lists.channel_ids_to_objects('ui', sel)
+            channels = tabs.get_user_selection(idx)
             if len(channels) != 1:
                 print_infos('Cannot change mask of several channels',
                             mode='error')
@@ -913,11 +901,11 @@ def loop():
             if mask is None:
                 continue
 
-            channel = item_lists.channel_set_mask('ui', sel, mask)
+            channel = item_lists.channel_set_mask(channel, mask)
 
         elif 'channel_force_update' == action:
-            sel = tabs.get_user_selection(idx)
-            item_lists.update_channels('ui', channel_ids=sel, force_all=True)
+            channels = tabs.get_user_selection(idx)
+            item_lists.update_channels(channels, force_all=True)
 
         # Action not recognized
         else:
@@ -1164,13 +1152,13 @@ class Tabs:
 
     def get_user_selection(self, idx):
         area = self.get_current_area()
-        if not area.user_selection:
+        user_selection = area.get_user_selection()
+        if not user_selection:
             if idx is None or idx < 0:
                 return []
-            sel = [idx]
+            return [area.get_list()[idx]]
         else:
-            sel = area.user_selection
-        return sel
+            return user_selection
 
     def get_area(self, idx):
         return self.areas[idx]
@@ -1453,23 +1441,42 @@ class ItemArea:
             self.redraw()
 
     def add_until_to_user_selection(self):
-        idx = self.get_idx()
-        if idx is None or not self.user_selection:
-            return
+        # Since we do no use a mutex, a background task can remove an element
+        # that is in the cleaned selection
+        # We need to capture this type of error (ValueError)
+        try:
+            idx = self.get_idx()
+            self.clean_user_selection()
+            if idx is None or not self.user_selection:
+                return
 
-        start = self.selection.index(self.user_selection[-1])
-        end = self.selection.index(idx)
+            start = self.selection.index(self.user_selection[-1])
+            end = self.selection.index(idx)
 
-        if start < end:
-            step = 1
-        else:
-            step = -1
+            if start < end:
+                step = 1
+            else:
+                step = -1
 
-        for i in range(start, end, step):
-            sel = self.selection[i+step]
-            self.add_to_user_selection(sel, redraw=False)
+            for i in range(start, end, step):
+                sel = self.selection[i+step]
+                self.add_to_user_selection(sel, redraw=False)
+        except ValueError:
+            pass
 
         self.redraw()
+
+    # TODO use a decorator to call this function automatically when accessing
+    # user_selection
+    def clean_user_selection(self):
+        new_user_selection = [s for s in self.user_selection
+                              if s in self.selection]
+        self.user_selection = deque(new_user_selection)
+
+    def get_user_selection(self):
+        self.clean_user_selection()
+        itemlist = self.get_list()
+        return [itemlist[s] for s in self.user_selection]
 
     def clear_user_selection(self):
         self.user_selection = deque()
@@ -2101,6 +2108,7 @@ class ItemArea:
 
         elif state == 'removed':
             self.reset_contents()
+            self.clear_user_selection()
 
         else:
             raise(ValueError(f'Bad state ({state})'))

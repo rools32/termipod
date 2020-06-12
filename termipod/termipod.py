@@ -90,7 +90,7 @@ def main():
         updatedb = True if args.updatedb else False
         try:
             item_lists = ItemLists(print_infos, wait=True,
-                                 updatedb=updatedb)
+                                   updatedb=updatedb)
         except DataBaseVersionException as e:
             print(e, file=stderr)
             exit(1)
@@ -102,19 +102,19 @@ def main():
 
         if args.auto:
             url, auto = args.auto
-            item_lists.channel_set_auto('cmd', [url], auto)
+            item_lists.channel_set_auto([url], auto)
 
         if args.up:
             if isinstance(args.up, bool):
-                item_lists.update_channels('cmd')
+                item_lists.update_channels()
             else:
-                item_lists.update_channels('cmd', [args.up])
+                item_lists.update_channels([args.up])
 
         if args.disable_channel:
-            item_lists.disable_channels('cmd', [args.disable_channel])
+            item_lists.disable_channels([args.disable_channel])
 
         if args.remove_channel:
-            item_lists.remove_channels('cmd', [args.remove_channel])
+            item_lists.remove_channels([args.remove_channel])
 
         if args.export_channels:
             channels = item_lists.export_channels()
