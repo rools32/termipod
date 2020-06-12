@@ -216,7 +216,7 @@ class DownloadManager():
         if update:
             self.print_infos('Add to download: %s' % medium['title'])
             medium['location'] = 'download'
-            self.db.update_medium(medium)
+            self.db.update_media([medium])
 
         if medium['link'] in self.cancel_requests:
             del self.cancel_requests[medium['link']]
@@ -291,8 +291,9 @@ class DownloadManager():
         else:
             self.print_infos('Download cancelled %s' % link)
 
-        self.db.update_medium(medium)
-        run_all(self.cb, ('modified', [medium]))
+        media = [medium]
+        self.db.update_media(media)
+        run_all(cb, ('modified', media))
 
     def download_task(self, ret, args):
         ret.put(args[0](*args[1:]))
@@ -300,7 +301,7 @@ class DownloadManager():
     def cancel_download(self, medium):
         self.cancel_requests[medium['link']] = True
         medium['location'] = 'remote'
-        self.db.update_medium(medium)
+        self.db.update_media([medium])
 
 
 def search_media(search, source, print_infos, get_info=False, count=50):

@@ -279,9 +279,12 @@ class ItemLists():
         if isinstance(indices, int):
             indices = [indices]
 
-        media = []
+        updated_media = []
+        original_media = []
         for idx in indices:
-            medium = self.media[idx]
+            original_medium = self.media[idx]
+            medium = original_medium.copy()
+
             if medium['state'] in ('read', 'skipped'):
                 medium['state'] = 'unread'
             else:
@@ -289,14 +292,21 @@ class ItemLists():
                     medium['state'] = 'skipped'
                 else:
                     medium['state'] = 'read'
-            try:
-                self.db.update_medium(medium)
-                media.append(medium)
-            except DataBaseUpdateException:
-                self.print_infos('Update media failed!', mode='error')
 
-        run_all(self.get_callbacks(self.media), ('modified', media))
-        return media
+            updated_media.append(medium)
+            original_media.append(original_medium)
+
+        try:
+            self.update_media_data(original_media, updated_media)
+        except DataBaseUpdateException:
+            self.print_infos('Cannot update database with updated media',
+                             mode='error')
+            return []
+
+        self.print_infos('All media marked')
+        run_all(self.get_callbacks(self.media), ('modified', updated_media))
+
+        return updated_media
 
     def update_media(self, indices, itemlist=None):
         if itemlist is None:
@@ -328,31 +338,40 @@ class ItemLists():
                 thread.join()
 
     def update_media_task(self, enum_media, size, itemlist, update_db=True):
+        show_freq = 5
         updated_media = []
-        nfailed = 0
+        original_media = []
 
+        update_to_show = []
         while True:
             try:
-                i, medium = enum_media.pop()
+                i, original_medium = enum_media.pop()
             except IndexError:
+                run_all(self.get_callbacks(itemlist),
+                        ("modified", update_to_show))
                 break
+
+            medium = original_medium.copy()
 
             self.print_infos(f'Update media {size-i}/{size}...')
             if backends.update_medium(medium, self.print_infos):
-                try:
-                    if update_db:
-                        self.db.update_medium(medium)
-                    updated_media.append(medium)
+                updated_media.append(medium)
+                original_media.append(original_medium)
+
+                update_to_show.append(medium)
+                if len(update_to_show) == show_freq:
                     run_all(self.get_callbacks(itemlist),
-                            ("modified", [medium]))
-                except DataBaseUpdateException:
-                    nfailed += 1
+                            ("modified", update_to_show))
+                    update_to_show = []
 
-        self.print_infos(
-            'Update media done'
-            f' ({nfailed} failed)' if nfailed else '')
-
-        return updated_media
+        try:
+            self.update_media_data(original_media, updated_media,
+                                   update_db=update_db)
+            self.print_infos('Done updating media')
+        except DataBaseUpdateException:
+            self.print_infos('Cannot update database with updated media.',
+                             mode='error')
+            run_all(self.get_callbacks(itemlist), ("modified", original_media))
 
     def remove_media(self, indices=None, medium=None, unlink=True,
                      mark_as_read=True):
@@ -366,8 +385,10 @@ class ItemLists():
             return
 
         updated_media = []
+        original_media = []
 
-        for medium in media:
+        for original_medium in media:
+            medium = original_medium.copy()
             if unlink:
                 if '' == medium['filename']:
                     self.print_infos('Filename is empty')
@@ -399,17 +420,28 @@ class ItemLists():
             if mark_as_read:
                 string += 'marked as read, '
             string += 'marked as remote.'
+            self.print_infos(string)
 
-            try:
-                self.db.update_medium(medium)
-                self.print_infos(string)
-                updated_media.append(medium)
-            except DataBaseUpdateException:
-                self.print_infos(f'Update media "{media["title"]}" failed!',
-                                 mode='error')
+            updated_media.append(medium)
+            original_media.append(original_medium)
 
-        run_all(self.get_callbacks(self.media), ('removed', updated_media))
+        try:
+            self.update_media_data(original_media, updated_media)
+            self.print_infos('Database updated')
+        except DataBaseUpdateException:
+            self.print_infos('Cannot update database with updated media',
+                             mode='error')
+            return []
+
+        run_all(self.get_callbacks(self.media), ('modified', updated_media))
         return updated_media
+
+    # Can raise DataBaseUpdateException
+    def update_media_data(self, original_media, updated_media, update_db=True):
+        if update_db:
+            self.db.update_media(updated_media)
+        for om, um in zip(original_media, updated_media):
+            om.update(um)
 
     def apply_user_add_options(self, opts, sopts):
         if sopts:
@@ -775,12 +807,22 @@ class ItemLists():
 
             if force_all:
                 # New media won't have all info, so we retrieve them
-                for medium in new_media:
-                    if backends.update_medium(medium, self.print_infos):
-                        try:
-                            self.db.update_medium(medium)
-                        except DataBaseUpdateException:
-                            pass
+                updated_media = []
+                original_media = []
+                for original_medium in new_media:
+                    medium = original_medium.copy()
+                    if backends.update_media(medium, self.print_infos):
+                        updated_media.append(medium)
+                        original_media.append(original_medium)
+
+                try:
+                    self.update_media_data(original_media, updated_media)
+                    run_all(self.get_callbacks(self.media),
+                            ('modified', updated_media))
+                except DataBaseUpdateException:
+                    self.print_infos(
+                        'Cannot update database with updated media',
+                        mode='error')
 
             new_media_num += len(new_media)
             updated_channels.append(channel)
@@ -851,10 +893,13 @@ class ItemLists():
 
     def medium_set_tags(self, origin, medium_ids, add_tags,
                         remove_tags):
-        media = []
+        updated_media = []
+        original_media = []
         for medium_id in medium_ids:
-            medium = self.medium_idx_to_object(self.media, medium_id)
-            media.append(medium)
+            original_medium = self.medium_idx_to_object(self.media, medium_id)
+            medium = original_medium.copy()
+            updated_media.append(medium)
+            original_media.append(original_medium)
 
             add_tag_str = ', '.join(list(add_tags))
             remove_tag_str = ', '.join(list(remove_tags))
@@ -864,10 +909,15 @@ class ItemLists():
             medium['tags'] |= add_tags
             medium['tags'] = list(medium['tags'])
 
-            self.db.update_medium(medium)
+        try:
+            self.update_media_data(original_media, updated_media)
+        except DataBaseUpdateException:
+            self.print_infos('Cannot update database with updated media',
+                             mode='error')
+            return []
 
         self.print_infos(f'tags: add "{add_tag_str}" '
                          f'remove "{remove_tag_str}"')
 
-        run_all(self.get_callbacks(self.media), ('modified', media))
-        return media
+        run_all(self.get_callbacks(self.media), ('modified', updated_media))
+        return updated_media

@@ -337,7 +337,10 @@ class DataBase:
             with self.conn:
                 self.conn.execute(sql, args)
 
-    def update_medium(self, medium):
+    def update_media(self, media):
+        if not media:
+            return
+
         sql = """UPDATE media
                     SET duration = ?,
                         date = ?,
@@ -347,27 +350,31 @@ class DataBase:
                         tags = ?,
                         thumbnail = ?
                     WHERE url = ? and cid = ?"""
-        if 'duration' not in medium:
-            medium['duration'] = 0
-        if 'location' not in medium:
-            medium['location'] = 'remote'
-        if 'state' not in medium:
-            medium['state'] = 'unread'
-        if 'filename' not in medium:
-            medium['filename'] = ''
-        if 'tags' not in medium:
-            medium['tags'] = ''
-        if 'thumbnail' not in medium:
-            medium['thumbnail'] = ''
-        link = backends.shrink_link(medium['channel'], medium['link'])
-        args = (
-            medium['duration'], medium['date'], medium['location'],
-            medium['state'], medium['filename'],
-            list_to_commastr(medium['tags']), medium['thumbnail'],
-            link, medium['cid']
-        )
+        entries = []
+        for medium in media:
+            if 'duration' not in medium:
+                medium['duration'] = 0
+            if 'location' not in medium:
+                medium['location'] = 'remote'
+            if 'state' not in medium:
+                medium['state'] = 'unread'
+            if 'filename' not in medium:
+                medium['filename'] = ''
+            if 'tags' not in medium:
+                medium['tags'] = ''
+            if 'thumbnail' not in medium:
+                medium['thumbnail'] = ''
+            link = backends.shrink_link(medium['channel'], medium['link'])
+            entry = (
+                medium['duration'], medium['date'], medium['location'],
+                medium['state'], medium['filename'],
+                list_to_commastr(medium['tags']), medium['thumbnail'],
+                link, medium['cid']
+            )
+            entries.append(entry)
+
         with self.mutex, self.conn:
-            ret = self.conn.execute(sql, args)
+            ret = self.conn.executemany(sql, entries)
 
         if not ret.rowcount:
             raise DataBaseUpdateException('Cannot update media')

@@ -107,7 +107,7 @@ class Player():
             medium['location'] = 'remote'
 
         if medium['location'] != 'browse':
-            db.update_medium(medium)
+            db.update_media([medium])
 
         run_all(self.cb, ('modified', [medium]))
 
