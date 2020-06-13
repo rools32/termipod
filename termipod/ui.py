@@ -551,13 +551,13 @@ def loop():
             # HTTP server
             elif command[0] in ('httpServerStart',):
                 if len(command) == 2:
-                    port = command[1]
+                    port = int(command[1])
                 elif len(command) == 1:
                     port = None
                 else:
                     area.show_command_help('httpServerStart', error=True)
                     continue
-                httpserver.start(port)
+                httpserver.start(port=port)
 
             elif command[0] in ('httpServerStop',):
                 if len(command) != 1:

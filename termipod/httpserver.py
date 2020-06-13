@@ -78,7 +78,7 @@ class HTTPServer():
         if port is None:
             port = Config.get('Global.httpserver_port')
         if start is None:
-            start = Config.get('Global.httpserver_start'),
+            start = Config.get('Global.httpserver_start')
 
         self.port = port
         self.print_infos = print_infos
