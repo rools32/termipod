@@ -22,6 +22,7 @@ from collections import OrderedDict
 import hashlib
 
 import termipod.config as Config
+from termipod.backends import get_download_func, DownloadError
 
 # Ordered dict by date, contains file size as value
 files = {}
@@ -68,24 +69,32 @@ def item_get_cache(item, what, print_infos):
     url = item[what]
 
     if not os.path.isfile(filepath):
-        try:
-            urllib.request.urlretrieve(url, filepath)
-            file_size = os.stat(filepath).st_size
-            files[what][filename] = file_size
+        if what == 'link':
+            dlfunc = get_download_func(item)
+            try:
+                dlfunc(url, filepath, print_infos)
+            except DownloadError:
+                print_infos('Cannot access to %s' % url, mode='error')
+                return ''
 
-            total_file_size[what] += file_size
-            max_size = 1024**2*Config.get('Global.'+what+'_max_total_mb')
-            while total_file_size[what] > max_size and len(files[what]) > 1:
-                f, size = files[what].popitem(last=False)
-                try:
-                    os.unlink(filename_get_path(what, f))
-                    total_file_size[what] -= size
-                except OSError:
-                    pass
+        else:
+            try:
+                urllib.request.urlretrieve(url, filepath)
+            except urllib.error.URLError:
+                return ''
 
-        except urllib.error.URLError:
-            print_infos('Cannot access to %s' % url, mode='error')
-            return ''
+        file_size = os.stat(filepath).st_size
+        files[what][filename] = file_size
+
+        total_file_size[what] += file_size
+        max_size = 1024**2*Config.get('Global.'+what+'_max_total_mb')
+        while total_file_size[what] > max_size and len(files[what]) > 1:
+            f, size = files[what].popitem(last=False)
+            try:
+                os.unlink(filename_get_path(what, f))
+                total_file_size[what] -= size
+            except OSError:
+                pass
 
     else:
         files[what].move_to_end(filename)

@@ -51,15 +51,19 @@ def init(**kwargs):
         ),
         'Global.db_path': (
             f'{default_data_dir}/{appname}.db',
-            'Absolute  path'
+            'Absolute path for database'
         ),
         'Global.thumbnail_path': (
             f'{default_cache_dir}/thumbnails',
-            'Absolute  path'
+            'Absolute path for thumbnail cache'
+        ),
+        'Global.link_path': (
+            f'{default_cache_dir}/media',
+            'Absolute path for media cache'
         ),
         'Global.media_path': (
             expanduser("~")+'/'+appname,
-            'Absolute  path'
+            'Absolute path for media to keep'
         ),
         'Global.update_minutes': (
             30,
@@ -87,7 +91,11 @@ def init(**kwargs):
         ),
         'Global.thumbnail_max_total_mb': (
             256,
-            'Max total size (in MB) before removing oldest files'
+            'Max total size (in MB) before removing oldest cached thumbnails'
+        ),
+        'Global.link_max_total_mb': (
+            4096,
+            'Max total size (in MB) before removing oldest cached files'
         ),
         'Tabs': (
             {'current': -1, 'list': []},
@@ -142,7 +150,8 @@ def init(**kwargs):
         os.path.dirname(config['Global']['log_path']),
         os.path.dirname(config['Global']['db_path']),
         config['Global']['media_path'],
-        config['Global']['thumbnail_path']
+        config['Global']['thumbnail_path'],
+        config['Global']['link_path'],
     ]
     for d in dirs:
         if not os.path.exists(d):
