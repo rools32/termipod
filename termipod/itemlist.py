@@ -230,20 +230,20 @@ class ItemLists():
         if self.wait:
             self.wait_done()
 
-    def download(self, media):
+    def download(self, itemlist, media):
         if self.download_manager is None:
             self.download_manager_init()
 
         for medium in media:
             if medium['location'] == 'remote':
                 self.download_manager.add(medium,
-                                          cb=self.get_callbacks(self.media))
+                                          cb=self.get_callbacks(itemlist))
             elif medium['location'] == 'download':
                 self.download_manager.cancel_download(medium)
             else:
                 self.remove_media([medium], mark_as_read=False)
 
-        run_all(self.get_callbacks(self.media), ('modified', media))
+        run_all(self.get_callbacks(itemlist), ('modified', media))
         return media
 
     def player_init(self):
