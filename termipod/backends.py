@@ -15,7 +15,6 @@
 #
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
-
 import os
 import shlex
 from time import sleep, mktime
@@ -30,11 +29,8 @@ import os.path
 
 import termipod.rss as rss
 import termipod.yt as yt
-from termipod.utils import ts_to_date, str_to_filename, noop, run_all
-
-
-class DownloadError(Exception):
-    pass
+from termipod.utils import str_to_filename, ts_to_date, noop, run_all
+from termipod.backends_exceptions import DownloadError
 
 
 def media_add_missing_fields(data, browse=False):
@@ -167,6 +163,26 @@ def get_duration(medium):
     return duration
 
 
+def get_download_func(medium):
+    backend = get_medium_backend(medium)
+    return backend.download
+
+
+def get_medium_backend(medium):
+    return yt if medium['channel']['type'] == 'youtube' else rss
+
+
+def get_filename(medium, backend, print_infos):
+    ext = backend.get_filename_extension(medium)
+    filename = str_to_filename(
+        f'{ts_to_date(medium["date"])}_{medium["title"]}.{ext}')
+
+    path = str_to_filename(medium['channel']['title'])
+    filename = f'{path}/{filename}'
+
+    return filename
+
+
 class DownloadManager():
     def __init__(self, db, print_infos, wait=False, cb=noop):
         self.nthreads = 2
@@ -240,23 +256,14 @@ class DownloadManager():
 
         # Download file
         self.print_infos('Download %s...' % medium['title'])
-        if 'rss' == channel['type']:
-            ext = link.split('.')[-1]
-            filename = "%s/%s_%s.%s" % (
-                    path, ts_to_date(medium['date']),
-                    str_to_filename(medium['title']), ext)
-            dl_func = rss.download
+        backend = get_medium_backend(medium)
+        dl_func = backend.download
 
-        elif 'youtube' == channel['type']:
-            # If date is missing, update medium
-            if medium['date'] == int(mktime(
-                    datetime.strptime('19700102', "%Y%m%d").timetuple())):
-                yt.update_medium(medium, self.print_infos)
+        if medium['date'] == int(mktime(
+                datetime.strptime('19700102', "%Y%m%d").timetuple())):
+            backend.update_medium(medium, self.print_infos)
 
-            filename = "%s/%s_%s.%s" % (path, ts_to_date(medium['date']),
-                                        str_to_filename(medium['title']),
-                                        'mp4')
-            dl_func = yt.download
+        filename = get_filename(medium, backend, self.print_infos)
 
         ret = multiprocessing.Queue()
         # Download needs to be done as a new process to be able to cancel it
@@ -296,7 +303,10 @@ class DownloadManager():
         run_all(cb, ('modified', media))
 
     def download_task(self, ret, args):
-        ret.put(args[0](*args[1:]))
+        try:
+            ret.put(args[0](*args[1:]))
+        except DownloadError:
+            exit(-1)
 
     def cancel_download(self, medium):
         self.cancel_requests[medium['link']] = True

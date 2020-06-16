@@ -24,6 +24,7 @@ import feedparser as fp
 import youtube_dl as ytdl
 
 from termipod.utils import printable_str
+from termipod.backends_exceptions import DownloadError
 import termipod.config as Config
 # printable_str = print
 
@@ -139,9 +140,13 @@ def download(url, filename, print_infos):
     ydl_opts.update(get_user_config())
     with ytdl.YoutubeDL(ydl_opts) as ydl:
         try:
-            return ydl.download([url])
+            ydl.download([url])
         except ytdl.DownloadError:
-            return 1
+            raise DownloadError
+
+
+def get_filename_extension(medium):
+    return 'mp4'
 
 
 def get_title(url):

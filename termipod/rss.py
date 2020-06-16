@@ -21,6 +21,7 @@ import urllib.request
 import feedparser as fp
 
 from termipod.utils import printable_str
+from termipod.backends_exceptions import DownloadError
 
 
 def get_all_data(url, opts, print_infos):
@@ -91,6 +92,9 @@ def download(url, filename, print_infos):
         urllib.request.urlretrieve(url, filename)
     except urllib.error.URLError:
         print_infos('Cannot access to %s' % url)
-        return 1
-    else:
-        return 0
+        raise DownloadError
+
+
+def get_filename_extension(medium):
+    link = medium['link']
+    return link.split('.')[-1]
