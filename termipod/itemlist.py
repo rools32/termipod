@@ -142,16 +142,17 @@ class ItemLists():
                 categories[category] += 1
         return categories
 
-    def add_channels(self, channels=None):
+    def add_channels(self, channels=None, media=None):
         if channels is None:
             channels = self.db.select_channels()
 
         self.channel_update_index(channels)
-        self.channels.extend(channels)
-        for c in channels:
+        for i, c in enumerate(channels):
             c['media'] = deque()
+            if media:
+                c['media'].extendleft(media[i])
+        self.channels.extend(channels)
 
-        run_all(self.get_callbacks(self.channels), ('new', channels))
         return channels
 
     def disable_channels(self, channel_ids, enable=False):
@@ -199,7 +200,7 @@ class ItemLists():
         run_all(self.get_callbacks(self.media), ('removed', media))
         return channels
 
-    def add_media(self, media=None):
+    def add_media(self, media=None, update_channel=True):
         if media is None:
             for c in self.channels:
                 c['media'] = deque()
@@ -209,8 +210,9 @@ class ItemLists():
             media.reverse()
             self.media.extend(media)
 
-        for m in media:
-            m['channel']['media'].append(m)
+        if update_channel:
+            for m in media:
+                m['channel']['media'].appendleft(m)
 
         return media
 
@@ -504,8 +506,8 @@ class ItemLists():
         if media is None:
             return False
 
-        self.add_channels([data])
-        self.add_media(media)
+        self.add_channels([data], [media])
+        self.add_media(media, update_channel=False)
 
         self.print_infos(f'{data["title"]} added ({len(media)} media)')
 
