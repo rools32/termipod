@@ -4,23 +4,33 @@
 import tempfile
 import multiprocessing
 import urllib
+import os
+import stat
 from io import SEEK_CUR
 import time
+import datetime
 
 try:
     import twisted
     from twisted.web.server import Site
-    from twisted.web.static import File
+    from twisted.web.static import File, DirectoryLister
     from twisted.internet import reactor
     _has_twisted = True
 except ModuleNotFoundError:
     _has_twisted = False
 
+if _has_twisted:
+    from urllib.parse import unquote
+
 import termipod.config as Config
+from termipod.utils import format_size
+from termipod.fuse import mountpoint as fuse_mountpoint
 
 
 if _has_twisted:
     class RemoteFile(File):
+        indexNames = []
+
         def render_GET(self, request):
             if self.path.endswith('.m3u'):
                 ip = request.host.host
@@ -40,7 +50,7 @@ if _has_twisted:
                         line = line.strip()
 
                         # Directive
-                        if line.startswith('#'):
+                        if not line or line.startswith(b'#'):
                             pass
 
                         # If local file, we make a URL
@@ -71,6 +81,109 @@ if _has_twisted:
 
             else:
                 return self.getsize()
+
+        def listNames(self):
+            if not self.isdir():
+                return []
+            directory = reversed(self.listdir())
+            return directory
+
+        def directoryListing(self):
+            """
+            Return a resource that generates an HTML listing of the
+            directory this path represents.
+
+            @return: A resource that renders the directory to HTML.
+            @rtype: L{DirectoryLister}
+            """
+            path = self.path
+            names = self.listNames()
+            return CustomDirectoryLister(path,
+                                         names,
+                                         self.contentTypes,
+                                         self.contentEncodings,
+                                         self.defaultType)
+
+    class CustomDirectoryLister(DirectoryLister):
+        template = """
+<html>
+<head>
+<title>%(header)s</title>
+<style>
+.even-dir { background-color: #efe0ef }
+.even { background-color: #eee }
+.odd-dir {background-color: #f0d0ef }
+.odd { background-color: #dedede }
+.icon { text-align: center }
+.listing {
+    margin-left: auto;
+    margin-right: auto;
+    width: 50%%;
+    padding: 0.1em;
+}
+.right {
+    text-align: right;
+    margin-right: 1em;
+}
+
+
+body { border: 0; padding: 0; margin: 0; background-color: #efefef; }
+h1 {padding: 0.1em; background-color: #777; color: white; border-bottom: thin white dashed;}
+
+</style>
+</head>
+
+<body>
+<h1>%(header)s</h1>
+
+<table>
+    <thead>
+        <tr>
+            <th>Filename</th>
+            <th>Length</th>
+            <th>Date</th>
+        </tr>
+    </thead>
+    <tbody>
+%(tableContent)s
+    </tbody>
+</table>
+
+</body>
+</html>
+"""
+
+        linePattern = """
+            <tr class="%(class)s">
+                <td><a href="%(href)s">%(text)s</a></td>
+                <td class=right>%(duration)s</td>
+                <td>%(date)s</td>
+            </tr>
+        """
+
+        def _getFilesAndDirectories(self, directory):
+            dirs, files = super()._getFilesAndDirectories(directory)
+
+            for p in dirs+files:
+                complete_path = f'{self.path}/{unquote(p["href"])}'
+                st = os.lstat(complete_path)
+
+                size = st.st_size
+                if complete_path.startswith(fuse_mountpoint):
+                    if stat.S_ISLNK(st.st_mode):
+                        p['duration'] = '%3d:%02d' % (size // 60, size % 60)
+                    elif stat.S_ISDIR(st.st_mode):
+                        p['duration'] = size
+                    else:
+                        p['duration'] = format_size(size)
+                else:
+                    p['duration'] = format_size(size)
+
+                ctime = st.st_ctime
+                p['date'] = datetime.datetime.fromtimestamp(
+                    int(ctime)).strftime('%Y-%m-%d')
+
+            return dirs, files
 
 
 class HTTPServer():
