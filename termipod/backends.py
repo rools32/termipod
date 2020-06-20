@@ -339,3 +339,11 @@ def get_mpv_config():
     mpv_config.update(yt.get_mpv_config())
 
     return mpv_config
+
+
+def list_backends():
+    return (yt, rss)
+
+
+def is_channel_url(string):
+    return any(b.is_channel_url(string) for b in list_backends())

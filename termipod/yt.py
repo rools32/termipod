@@ -533,3 +533,35 @@ def search_media(search, print_infos, get_info=False, count=30):
                 pass
 
     return media
+
+
+def is_channel_url(string):
+    if string.startswith('http://'):
+        string = string[7:]
+    elif string.startswith('https://'):
+        string = string[8:]
+
+    parts = string.split('/')
+    try:
+        if parts[0] != 'www.youtube.com':
+            return False
+
+        if parts[1] == 'channel':
+            return len(parts) == 3
+
+        elif parts[1].startswith('playlist?list='):
+            return len(parts) == 2
+
+        elif parts[1] == 'user':
+            if len(parts) == 3:
+                return True
+            elif len(parts) == 4:
+                return parts[4] in ('featured', 'videos')
+            else:
+                return False
+
+        else:
+            return False
+
+    except IndexError:
+        return False

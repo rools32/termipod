@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 
 from datetime import datetime, timedelta
+import sys
 import re
 import shlex
 import unicodedata
@@ -166,3 +167,16 @@ def noop(*args, **kwargs):
 def run_all(cb, arglist):
     for f in cb:
         f(*arglist)
+
+
+# Warning: non deterministic!
+def str_to_short_hash(s):
+    h = hash(s) % ((sys.maxsize + 1) * 2)
+    return hex(h)[2:]
+
+
+def format_size(num):
+    for prefix in ['', 'Ki', 'Mi', 'Gi']:
+        if num < 1024.0 or prefix == 'Gi':
+            return "%3.1f%sB" % (num, prefix)
+        num /= 1024.0

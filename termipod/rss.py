@@ -98,3 +98,7 @@ def download(url, filename, print_infos):
 def get_filename_extension(medium):
     link = medium['link']
     return link.split('.')[-1]
+
+
+def is_channel_url(string):
+    return string.endswith('.xml')

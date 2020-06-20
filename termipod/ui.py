@@ -40,7 +40,7 @@ except ModuleNotFoundError:
     _has_pyperclip = False
 
 from termipod.utils import (duration_to_str, ts_to_date, print_log,
-                            format_string, printable_str,
+                            format_string, printable_str, noop,
                             commastr_to_list, list_to_commastr,
                             options_string_to_dict, screen_reset)
 from termipod.itemlist import ItemLists, ItemListException
@@ -53,6 +53,7 @@ from termipod.cache import item_get_cache
 import termipod.colors as Colors
 import termipod.config as Config
 import termipod.playlist as Playlist
+import termipod.fuse as Termifuse
 
 
 def init():
@@ -109,13 +110,21 @@ def loop():
     else:
         refresh(reset=True)
 
+    # Mount Fuse FS
+    try:
+        Termifuse.init(item_lists, print_infos)
+    except Termifuse.StartException as e:
+        curses.endwin()
+        print(f'Cannot start termipod: {e}', file=stderr)
+        exit(-1)
+
+    # Run download manager
+    item_lists.download_manager_init(dl_marked=False)
+
     # Run update thread
     thread = Thread(target=update_channels_task)
     thread.daemon = True
     thread.start()
-
-    # Run download manager
-    item_lists.download_manager_init(dl_marked=False)
 
     # Init player
     item_lists.player_init()
@@ -929,8 +938,9 @@ def loop():
 
     item_lists.player.stop()  # To prevent segfault in some cases
     termimage.clear()
-    curses.endwin()
     Config.save_tabs(tabs.get_config())
+    Termifuse.stop_fuse()
+    curses.endwin()
 
 
 def print_infos(*args, **kwargs):
