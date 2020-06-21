@@ -10,7 +10,16 @@ setup(name='termipod',
       author='Cyril Bordage',
       long_description=open('README.md').read(),
       packages=find_packages(),
-      install_requires=open('requirements.txt').read().split('\n'),
+      install_requires=[
+            'feedparser',
+            'appdirs',
+            'youtube_dl',
+            'python-mpv',
+      ],
+      extras_require={
+            'httpserver': ['twisted'],
+            'fuse': ['pyfuse3', 'trio'],
+      },
       url='https://github.com/rools32/termipod',
       classifiers=[
           'Development Status :: 5 - Production/Stable',
@@ -19,10 +28,10 @@ setup(name='termipod',
           'Programming Language :: Python :: 3',
           'Topic :: Multimedia :: Sound/Audio',
           'License :: OSI Approved :: GNU General Public License v3 (GPLv3)',
-          ],
+      ],
       entry_points={
           'console_scripts': [
               'termipod = termipod.termipod:main',
-              ],
-          },
+          ],
+      },
       keywords='podcast curses terminal rss youtube')

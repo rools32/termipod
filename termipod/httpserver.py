@@ -18,8 +18,9 @@ try:
     _has_twisted = True
 except ModuleNotFoundError:
     _has_twisted = False
+    File = object
+    DirectoryLister = object
 
-if _has_twisted:
     from urllib.parse import unquote
 
 import termipod.config as Config
@@ -27,85 +28,85 @@ from termipod.utils import format_size
 from termipod.fuse import mountpoint as fuse_mountpoint
 
 
-if _has_twisted:
-    class RemoteFile(File):
-        indexNames = []
+class RemoteFile(File):
+    indexNames = []
 
-        def render_GET(self, request):
-            if self.path.endswith('.m3u'):
-                ip = request.host.host
-                port = request.host.port
-                self.prefix = f'http://{ip}:{port}/'.encode()
+    def render_GET(self, request):
+        if self.path.endswith('.m3u'):
+            ip = request.host.host
+            port = request.host.port
+            self.prefix = f'http://{ip}:{port}/'.encode()
 
-            return super().render_GET(request)
+        return super().render_GET(request)
 
-        def get_remote_m3u(self):
-            try:
-                return self.remote_m3u
-            except AttributeError:
-                file = tempfile.TemporaryFile()
-                self.remote_m3u = file
-                with self.open() as f:
-                    for line in f:
-                        line = line.strip()
+    def get_remote_m3u(self):
+        try:
+            return self.remote_m3u
+        except AttributeError:
+            file = tempfile.TemporaryFile()
+            self.remote_m3u = file
+            with self.open() as f:
+                for line in f:
+                    line = line.strip()
 
-                        # Directive
-                        if not line or line.startswith(b'#'):
-                            pass
+                    # Directive
+                    if not line or line.startswith(b'#'):
+                        pass
 
-                        # If local file, we make a URL
-                        elif b'://' not in line:
-                            line = urllib.parse.quote(line).encode()
-                            line = self.prefix+line
+                    # If local file, we make a URL
+                    elif b'://' not in line:
+                        line = urllib.parse.quote(line).encode()
+                        line = self.prefix+line
 
-                        file.write(line+b'\n')
+                    file.write(line+b'\n')
 
-                self.remote_m3u_size = file.seek(0, SEEK_CUR)
-                file.seek(0)
-                return self.remote_m3u
+            self.remote_m3u_size = file.seek(0, SEEK_CUR)
+            file.seek(0)
+            return self.remote_m3u
 
-        def get_remote_m3u_size(self):
-            self.get_remote_m3u()
-            return self.remote_m3u_size
+    def get_remote_m3u_size(self):
+        self.get_remote_m3u()
+        return self.remote_m3u_size
 
-        def openForReading(self):
-            if self.path.endswith('.m3u'):
-                return self.get_remote_m3u()
+    def openForReading(self):
+        if self.path.endswith('.m3u'):
+            return self.get_remote_m3u()
 
-            else:
-                return self.open()
+        else:
+            return self.open()
 
-        def getFileSize(self):
-            if self.path.endswith('.m3u'):
-                return self.get_remote_m3u_size()
+    def getFileSize(self):
+        if self.path.endswith('.m3u'):
+            return self.get_remote_m3u_size()
 
-            else:
-                return self.getsize()
+        else:
+            return self.getsize()
 
-        def listNames(self):
-            if not self.isdir():
-                return []
-            directory = reversed(self.listdir())
-            return directory
+    def listNames(self):
+        if not self.isdir():
+            return []
+        directory = reversed(self.listdir())
+        return directory
 
-        def directoryListing(self):
-            """
-            Return a resource that generates an HTML listing of the
-            directory this path represents.
+    def directoryListing(self):
+        """
+        Return a resource that generates an HTML listing of the
+        directory this path represents.
 
-            @return: A resource that renders the directory to HTML.
-            @rtype: L{DirectoryLister}
-            """
-            path = self.path
-            names = self.listNames()
-            return CustomDirectoryLister(path,
-                                         names,
-                                         self.contentTypes,
-                                         self.contentEncodings,
-                                         self.defaultType)
+        @return: A resource that renders the directory to HTML.
+        @rtype: L{DirectoryLister}
+        """
+        path = self.path
+        names = self.listNames()
+        return CustomDirectoryLister(path,
+                                     names,
+                                     self.contentTypes,
+                                     self.contentEncodings,
+                                     self.defaultType)
 
-    class CustomDirectoryLister(DirectoryLister):
-        template = """
+
+class CustomDirectoryLister(DirectoryLister):
+    template = """
 <html>
 <head>
 <title>%(header)s</title>
@@ -153,37 +154,37 @@ h1 {padding: 0.1em; background-color: #777; color: white; border-bottom: thin wh
 </html>
 """
 
-        linePattern = """
-            <tr class="%(class)s">
-                <td><a href="%(href)s">%(text)s</a></td>
-                <td class=right>%(duration)s</td>
-                <td>%(date)s</td>
-            </tr>
-        """
+    linePattern = """
+        <tr class="%(class)s">
+            <td><a href="%(href)s">%(text)s</a></td>
+            <td class=right>%(duration)s</td>
+            <td>%(date)s</td>
+        </tr>
+    """
 
-        def _getFilesAndDirectories(self, directory):
-            dirs, files = super()._getFilesAndDirectories(directory)
+    def _getFilesAndDirectories(self, directory):
+        dirs, files = super()._getFilesAndDirectories(directory)
 
-            for p in dirs+files:
-                complete_path = f'{self.path}/{unquote(p["href"])}'
-                st = os.lstat(complete_path)
+        for p in dirs+files:
+            complete_path = f'{self.path}/{unquote(p["href"])}'
+            st = os.lstat(complete_path)
 
-                size = st.st_size
-                if complete_path.startswith(fuse_mountpoint):
-                    if stat.S_ISLNK(st.st_mode):
-                        p['duration'] = '%3d:%02d' % (size // 60, size % 60)
-                    elif stat.S_ISDIR(st.st_mode):
-                        p['duration'] = size
-                    else:
-                        p['duration'] = format_size(size)
+            size = st.st_size
+            if complete_path.startswith(fuse_mountpoint):
+                if stat.S_ISLNK(st.st_mode):
+                    p['duration'] = '%3d:%02d' % (size // 60, size % 60)
+                elif stat.S_ISDIR(st.st_mode):
+                    p['duration'] = size
                 else:
                     p['duration'] = format_size(size)
+            else:
+                p['duration'] = format_size(size)
 
-                ctime = st.st_ctime
-                p['date'] = datetime.datetime.fromtimestamp(
-                    int(ctime)).strftime('%Y-%m-%d')
+            ctime = st.st_ctime
+            p['date'] = datetime.datetime.fromtimestamp(
+                int(ctime)).strftime('%Y-%m-%d')
 
-            return dirs, files
+        return dirs, files
 
 
 class HTTPServer():

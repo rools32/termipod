@@ -23,6 +23,7 @@ With it, you can:
 * Tag media and channels, filter media
 * Export channels to file
 * Customizable key bindings
+* Fuse FS as a CLI with basic commands
 
 Youtube channels are handled by *youtube_dl* for the first import to get all videos, but then,
 for efficiency purpose, by *feedparser* reading the RSS feed provided by Google.
@@ -152,6 +153,8 @@ There are some screenshots from different situations.
 * feedparser
 * mpv
 * youtube_dl
+* twisted (optional, for http server)
+* pyfuse3 and trio (optional, for fuse FS)
 
 ## Installation
 
@@ -162,6 +165,11 @@ You can install it with pip:
 To install last version from master, simply clone it and run in the repository directory:
 
     pip install .
+
+And with optional modules:
+
+    pip install .[httpserver, fuse]
+
 
 ## Execution
 

@@ -21,8 +21,15 @@ from threading import Thread
 import errno
 import stat
 import itertools
-import pyfuse3
-import trio
+
+try:
+    import pyfuse3
+    from pyfuse3 import Operations as FuseOperations
+    import trio
+    _has_fuse = True
+except ModuleNotFoundError:
+    _has_fuse = False
+    FuseOperations = object
 
 from termipod.backends import shrink_link, is_channel_url
 
@@ -54,7 +61,7 @@ def get_categories():
     return ['TODO', 'XXX', 'FIXME']
 
 
-class Operations(pyfuse3.Operations):
+class Operations(FuseOperations):
     enable_writeback_cache = True
     readme = """
 - You can open media files as normal files to read them
@@ -145,7 +152,6 @@ class Operations(pyfuse3.Operations):
         except KeyError:
             pass
         pyfuse3.invalidate_inode(inode, attr_only=True)
-        name = self.inodes[inode]['name']
 
         inode_p = self.inodes[inode]['inode_p']
         try:
@@ -153,7 +159,8 @@ class Operations(pyfuse3.Operations):
         except KeyError:
             pass
 
-        ## Invalidate parent inode
+        # Invalidate parent inode
+        # name = self.inodes[inode]['name']
         # try:
         #     pyfuse3.invalidate_entry(inode_p, name.encode())
         # except FileNotFoundError:  # If already invalidated by other open
@@ -528,12 +535,21 @@ def run_fuse():
 
 
 def stop_fuse():
-    os.system(f'fusermount -zu {mountpoint}')
+    if _has_fuse:
+        os.system(f'fusermount -zu {mountpoint}')
 
 
 def init(itemlists, printf):
     global print_infos
     print_infos = printf
+
+    if not _has_fuse:
+        print_infos(
+            "To have fuse FS you need to install 'pyfuse3' and/or 'trio'",
+            mode='error'
+        )
+        return
+
     if not os.path.exists(mountpoint):
         try:
             os.makedirs(mountpoint)
@@ -545,7 +561,7 @@ def init(itemlists, printf):
     fuse_options = set(pyfuse3.default_options)
     fuse_options.add('fsname=termipod')
     fuse_options.discard('default_permissions')
-    fuse_options.add('debug')
+    # fuse_options.add('debug')
     try:
         pyfuse3.init(operations, mountpoint, fuse_options)
     except RuntimeError as e:
