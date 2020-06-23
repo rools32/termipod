@@ -430,8 +430,15 @@ def medium_from_ytdl(data):
         'description': data['description'],
         'type': 'youtube',
         'duration': data['duration'],
-        'thumbnail': data['thumbnail'],
     }
+
+    try:
+        medium['thumbnail'] = data['thumbnail']
+    except KeyError:
+        try:
+            medium['thumbnail'] = data['thumbnails'][-1]['url']
+        except:
+            medium['thumbnail'] = ''
 
     if 'url' in data:
         medium['link'] = expand_link(data['url'])

@@ -30,6 +30,8 @@ from time import sleep
 from datetime import datetime
 from collections import deque, OrderedDict
 import subprocess
+import imghdr
+from PIL import Image
 
 try:
     import pyperclip
@@ -2340,7 +2342,20 @@ class MediumArea(ItemArea):
         return string
 
     def item_get_thumbnail(self, item):
-        return item_get_cache(item, 'thumbnail', print_infos)
+        filename = item_get_cache(item, 'thumbnail', print_infos)
+        if not filename:
+            return ''
+
+        # Check image type
+        ext = os.path.splitext(filename)[1]
+        if not ext or ext not in ('.jpg', '.jpeg', '.JPG', '.JPEG',
+                                  'png', '.PNG'):
+            what = imghdr.what(filename)
+            if what not in ('jpeg', 'png'):
+                with Image.open(filename) as im:
+                    im.save(filename, format='jpeg')
+
+        return filename
 
 
 class ChannelArea(ItemArea):
