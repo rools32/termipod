@@ -129,7 +129,7 @@ def get_mpv_config():
         config['ytdl_format'] = ytconfig['format']
         del ytconfig['format']
 
-    options = [f'{k.replace("_", "-")}={v}' for k, v in ytconfig.items()]
+    options = [f'{k.replace("_", "-")}="{v}"' for k, v in ytconfig.items()]
     config['ytdl_raw_options'] = ','.join(options)
     return config
 
