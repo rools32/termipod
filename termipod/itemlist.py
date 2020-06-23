@@ -296,9 +296,8 @@ class ItemLists():
 
         return updated_media
 
-    def update_media(self, media, itemlist=None):
-        if itemlist is None:
-            itemlist = self.media
+    def update_media(self, media, itemlist):
+        if itemlist is self.media:
             update_db = True
         else:
             update_db = False
@@ -308,7 +307,8 @@ class ItemLists():
         }
         threads = []
         enum_media = list(enumerate(media))
-        for t in range(self.nthreads):
+        nthreads = min(self.nthreads, len(enum_media))
+        for t in range(nthreads):
             args = (enum_media, len(media), itemlist)
             thread = Thread(target=self.update_media_task,
                             args=args, kwargs=kwargs)
@@ -724,17 +724,16 @@ class ItemLists():
             thread.start()
             threads.append(thread)
 
-        if self.wait:
+        def release_mutex(threads):
             for thread in threads:
                 thread.join()
+            self.lastupdate = time.time()
+            self.update_mutex.release()
+
+        if self.wait:
+            release_mutex(threads)
 
         else:
-            def release_mutex(threads):
-                for thread in threads:
-                    thread.join()
-                self.lastupdate = time.time()
-                self.update_mutex.release()
-
             thread = Thread(target=release_mutex, args=(threads,))
             thread.daemon = True
             thread.start()

@@ -310,11 +310,8 @@ def get_data(source, opts, print_infos, force_all=False):
                         entry['valid'] = True
 
                     else:
-                        entry['upload_date'] = vidinfo['upload_date']
-                        entry['duration'] = vidinfo['duration']
-                        entry['description'] = vidinfo['description']
-                        entry['thumbnail'] = vidinfo['thumbnail']
-                        entry['valid'] = True
+                        medium = medium_from_ytdl(vidinfo)
+                        entry.update(medium)
 
                     # If update, check not before last update
                     if start_date:
@@ -437,7 +434,7 @@ def medium_from_ytdl(data):
     except KeyError:
         try:
             medium['thumbnail'] = data['thumbnails'][-1]['url']
-        except:
+        except KeyError:
             medium['thumbnail'] = ''
 
     if 'url' in data:

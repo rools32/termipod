@@ -115,14 +115,20 @@ def apply_mask(data, mask):
 
 def update_medium(medium, print_infos):
     try:
+        channel = medium['channel']
         channel_type = medium['channel']['type']
     except KeyError:
+        channel = None
         channel_type = medium['type']
     if channel_type == 'youtube':
         updated = yt.update_medium(medium, print_infos)
     else:
         print('Not implemented on this type of channel')
         updated = False
+
+    # Be sure we keep channel information
+    if channel is not None:
+        medium['channel'] = channel
 
     return updated
 
