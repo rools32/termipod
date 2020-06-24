@@ -32,6 +32,7 @@ from collections import deque, OrderedDict
 import subprocess
 import imghdr
 from PIL import Image
+import atexit
 
 try:
     import pyperclip
@@ -939,11 +940,11 @@ def loop():
         else:
             print_infos(f'Unknown action "{action}"', mode='error')
 
-    item_lists.player.stop()  # To prevent segfault in some cases
-    termimage.clear()
-    Config.save_tabs(tabs.get_config())
-    Termifuse.stop_fuse()
+
+@atexit.register
+def save_and_clean():
     curses.endwin()
+    Config.save_tabs(tabs.get_config())
 
 
 def print_infos(*args, **kwargs):

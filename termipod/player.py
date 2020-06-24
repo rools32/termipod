@@ -16,6 +16,7 @@
 # You should have received a copy of the GNU General Public License
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
+import atexit
 
 import mpv
 
@@ -31,6 +32,7 @@ class Player():
         self.current_filename = None
         self.playlist = {}
         self.callbacks = {}
+        atexit.register(self.stop)
 
     def start(self):
         self.player = mpv.MPV(

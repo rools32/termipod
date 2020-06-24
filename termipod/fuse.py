@@ -21,6 +21,7 @@ from threading import Thread
 import errno
 import stat
 import itertools
+import atexit
 
 try:
     import pyfuse3
@@ -535,8 +536,9 @@ def run_fuse():
     pyfuse3.close()
 
 
+@atexit.register
 def stop_fuse():
-    if _has_fuse:
+    if fuse_started:
         os.system(f'fusermount -zu {mountpoint}')
 
 

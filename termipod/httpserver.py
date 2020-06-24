@@ -9,6 +9,7 @@ import stat
 from io import SEEK_CUR
 import time
 import datetime
+import atexit
 
 try:
     import twisted
@@ -199,6 +200,7 @@ class HTTPServer():
         self.server_process = None
         if start:
             self.start()
+        atexit.register(self.stop)
 
     def run(self, port=None):
         if port is None:

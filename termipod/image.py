@@ -17,6 +17,7 @@
 # along with this program.  If not, see <http://www.gnu.org/licenses/>.
 import os
 import sys
+import atexit
 
 try:
     from PIL import Image
@@ -59,6 +60,7 @@ def draw(path, screen=None,
     image_shown = True
 
 
+@atexit.register
 def clear(force=False):
     global image_shown
     if not image_shown and not force:
