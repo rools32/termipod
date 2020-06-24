@@ -951,7 +951,7 @@ def refresh(reset=False, mutex=True):
         if reset:
             area.reset_contents()
 
-    tabs.show_tab()
+    tabs.show_tab(mutex=mutex)
     info_area.init(mutex=mutex)
     current_area.show_thumbnail(force_clear=True)
 
@@ -962,8 +962,8 @@ def reset():
     screen_size = screen.getmaxyx()
 
 
-def tabredraw():
-    tabs.redraw()
+def tabredraw(mutex=True):
+    tabs.redraw(mutex)
 
 
 def resize():
@@ -1136,7 +1136,7 @@ def print_popup(lines, position=None, margin=8, sticky=False, fit=False,
             else:
                 curses.ungetmouse(*mouse)
 
-    tabredraw()
+    tabredraw(mutex=False)
 
 
 print_popup.popup_search = None
@@ -1194,7 +1194,7 @@ class Tabs:
         return self.areas[idx]
 
     # When target is None refresh current tab
-    def show_tab(self, target=None):
+    def show_tab(self, target=None, mutex=True):
         if target is not None:
             if isinstance(target, ItemArea):  # by area
                 idx = None
@@ -1222,12 +1222,12 @@ class Tabs:
             area = self.get_current_area()
 
         info_area.show_title(area.get_title_name())
-        area.redraw()
+        area.redraw(mutex=mutex)
         area.show_thumbnail()
 
-    def redraw(self):
+    def redraw(self, mutex=False):
         area = self.get_current_area()
-        area.redraw()
+        area.redraw(mutex)
 
     def show_next_tab(self, reverse=False):
         if reverse:
@@ -1369,7 +1369,7 @@ class Tabs:
 class ItemArea:
     def __init__(self, screen, name):
         self.screen = screen
-        self.mutex = Lock()
+        self.mutex = ui_lock
         self.name = name
         self.highlight_on = False
         self.highlight_string = None
@@ -2003,10 +2003,10 @@ class ItemArea:
         self.redraw()
         self.show_thumbnail(force_clear=True)
 
-    def redraw(self):
-        self.display(redraw=True)
+    def redraw(self, mutex=True):
+        self.display(redraw=True, mutex=mutex)
 
-    def display(self, redraw=False):
+    def display(self, redraw=False, mutex=True):
         self.shown = True
 
         if self.contents is None:
@@ -2015,7 +2015,8 @@ class ItemArea:
             info_area.show_title(self.get_title_name())
             return
 
-        self.mutex.acquire()
+        if mutex:
+            self.mutex.acquire()
 
         if self.contents and redraw:
             if self.last_selected_item is not None:
@@ -2069,7 +2070,8 @@ class ItemArea:
                             self.contents[self.first_line+self.cursor],
                             style='bold')
 
-        self.mutex.release()
+        if mutex:
+            self.mutex.release()
 
     def get_key_class(self):
         return self.key_class
@@ -2116,17 +2118,23 @@ class ItemArea:
         matching_items = []
         other_items = []
 
-        for item in items:
-            match = True
-            for match_fun in self.filters_fun.values():
-                if not match_fun(item):
-                    match = False
-                    break
+        while True:
+            try:
+                for item in items:
+                    match = True
+                    for match_fun in self.filters_fun.values():
+                        if not match_fun(item):
+                            match = False
+                            break
 
-            if match:
-                matching_items.append(item)
-            else:
-                other_items.append(item)
+                    if match:
+                        matching_items.append(item)
+                    else:
+                        other_items.append(item)
+                break
+            # In case items dict is modified during looping
+            except RuntimeError:
+                pass
 
         return (matching_items, other_items)
 
@@ -2625,7 +2633,7 @@ class InfoArea:
         self.screen = screen
         self.title = None
 
-        self.mutex = Lock()
+        self.mutex = ui_lock
         self.messages = Queue()
         self.max_messages = 5000
         self.errors = deque(maxlen=self.max_messages)
@@ -2945,6 +2953,7 @@ class Textbox:
         return key
 
 
+ui_lock = Lock()
 screen = None
 screen_size = None
 tabs = None
