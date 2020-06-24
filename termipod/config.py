@@ -97,6 +97,10 @@ def init(**kwargs):
             4096,
             'Max total size (in MB) before removing oldest cached files'
         ),
+        'Global.update_nthreads': (
+            8,
+            'Number of threads dedicated to update channels/media'
+        ),
         'Tabs': (
             {'current': -1, 'list': []},
             '** Automatic variable to save layout **'

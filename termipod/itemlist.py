@@ -75,7 +75,6 @@ class ItemLists():
         self.update_mutex = Lock()
         self.download_manager = None
         self.player = None
-        self.nthreads = 8
 
         # item lists
         self.media = CallbackDeque()
@@ -307,7 +306,7 @@ class ItemLists():
         }
         threads = []
         enum_media = list(enumerate(media))
-        nthreads = min(self.nthreads, len(enum_media))
+        nthreads = min(Config.get('Global.update_nthreads'), len(enum_media))
         for t in range(nthreads):
             args = (enum_media, len(media), itemlist)
             thread = Thread(target=self.update_media_task,
@@ -717,7 +716,7 @@ class ItemLists():
 
         self.print_infos('Update...')
 
-        for t in range(self.nthreads):
+        for t in range(Config.get('Global.update_nthreads')):
             thread = Thread(target=self.update_channels_task,
                             args=args, kwargs=kwargs)
             thread.daemon = True
