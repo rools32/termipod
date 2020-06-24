@@ -77,6 +77,18 @@ def init(**kwargs):
             False,
             '1 to start HTTP server automatically'
         ),
+        'Global.fuse_start': (
+            False,
+            '1 to use Fuse file system'
+        ),
+        'Global.fuse_download_media': (
+            False,
+            '0 to use m3u with URL, 1 to use automatically downloaded file'
+        ),
+        'Global.fuse_nmedia': (
+            1000,
+            'Maximal number of shown media'
+        ),
         'Global.media_reverse': (
             False,
             'Reverse sort order'

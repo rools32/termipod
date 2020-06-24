@@ -111,12 +111,15 @@ def loop():
         refresh(reset=True)
 
     # Mount Fuse FS
-    try:
-        Termifuse.init(item_lists, print_infos)
-    except Termifuse.StartException as e:
-        curses.endwin()
-        print(f'Cannot start termipod: {e}', file=stderr)
-        exit(-1)
+    fuse_started = False
+    if Config.get('Global.fuse_start'):
+        try:
+            Termifuse.init(item_lists, print_infos)
+            fuse_started = True
+        except Termifuse.StartException as e:
+            curses.endwin()
+            print(f'Cannot start termipod: {e}', file=stderr)
+            exit(-1)
 
     # Run download manager
     item_lists.download_manager_init(dl_marked=False)

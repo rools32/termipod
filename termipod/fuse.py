@@ -32,6 +32,7 @@ except ModuleNotFoundError:
     FuseOperations = object
 
 from termipod.backends import shrink_link, is_channel_url
+import termipod.config as Config
 
 from termipod.cache import item_get_cache
 from termipod.utils import str_to_filename, str_to_short_hash
@@ -571,11 +572,14 @@ def init(itemlists, printf):
     thread.daemon = True
     thread.start()
 
+    global fuse_started
+    fuse_started = True
 
+
+fuse_started = False
 mountpoint = os.path.realpath('__termifuse__')
 proxy_base = '.proxies'
 proxy_dir = f'{mountpoint}/{proxy_base}'
 print_infos = None
-download = False
-# download = True
-max_media = 200
+download = Config.get('Global.fuse_download_media')
+max_media = Config.get('Global.fuse_nmedia')
